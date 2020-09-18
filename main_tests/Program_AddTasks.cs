@@ -39,6 +39,7 @@ namespace main_tests
         private static void AddTasks(ConcurrentQueue<TestTask> tasks)
         {
             new EmtyString(tasks);
+            new KeccakClearTest(tasks);
         }
     }
 }

@@ -28,7 +28,7 @@ namespace main_tests
             testString.Add("0123456789");
             testString.Add("abcde[]");
             testString.Add("абвгдеёждиклмя");
-            testString.Add("абвгдеёждиклмя");
+            testString.Add("ʦʫ");
 
             foreach (var str in testString)
             {

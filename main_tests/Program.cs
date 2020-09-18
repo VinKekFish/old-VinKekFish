@@ -5,13 +5,27 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Threading;
+using System.IO;
+using vinkekfish;
+using System.Diagnostics;
 
 namespace main_tests
 {
+    // Добавление новых тестов см. в файле Program_AddTasks.cs, метод AddTasks
+    // Программа просто консольно запускается и выполняет написанные тесты многопоточно
+    // Подсчитывает количество ошибок
     partial class Program
     {
-        static void Main(string[] args)
+        static readonly string LogFileNameTempl = "tests-$.log";
+        static          string LogFileName      = null;
+        static int Main(string[] args)
         {
+            var now = DateTime.Now;
+            LogFileName = LogFileNameTempl.Replace("$", HelperClass.DateToDateFileString(now));
+            File.WriteAllText  (LogFileName,   HelperClass.DateToDateString(now) + "\nArgs:\n");
+            File.AppendAllLines(LogFileName, args);
+            File.AppendAllText (LogFileName, "\n");
+
             System.Collections.Concurrent.ConcurrentQueue<TestTask> tasks = new ConcurrentQueue<TestTask>();
             AddTasks(tasks);
 
@@ -49,6 +63,9 @@ namespace main_tests
                                 Monitor.PulseAll(sync);
 
                             task.endTime = DateTime.Now;
+                            File.AppendAllText(LogFileName, "task " + task.Name + "\n");
+                            File.AppendAllText(LogFileName, "task started at " + HelperClass.DateToDateString(task.started) + "\n");
+                            File.AppendAllText(LogFileName, "task ended   at " + HelperClass.DateToDateString(task.endTime) + "\n\n");
                         }
                     }
                 );
@@ -70,7 +87,12 @@ namespace main_tests
 
             WaitMessages(false, true);
             if (args.Length == 0)
+            {
+                Console.WriteLine("Press 'Enter' to exit");
                 Console.ReadLine();
+            }
+
+            return errored;
 
             void WaitMessages(bool showWaitTasks = false, bool endedAllTasks = false)
             {
@@ -83,7 +105,7 @@ namespace main_tests
 
                 if (showWaitTasks && ended != tasks.Count)
                 {
-                    var now = DateTime.Now;
+                    now = DateTime.Now;
                     Console.WriteLine("Выполняемые задачи: ");
                     Console.WriteLine();
                     foreach (var task in tasks)

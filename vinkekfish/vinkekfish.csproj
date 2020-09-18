@@ -25,7 +25,7 @@
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>pdbonly</DebugType>
-    <Optimize>true</Optimize>
+    <Optimize>false</Optimize>
     <OutputPath>bin\Release\</OutputPath>
     <DefineConstants>
     </DefineConstants>
@@ -46,8 +46,10 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="BytesBuilder\BytesBuilder.cs" />
-    <Compile Include="CSharp-help\Help1.cs" />
-    <Compile Include="keccak\keccak-20200918.cs" />
+    <None Include="CSharp-help\Help1.cs" />
+    <Compile Include="HelperClass.cs" />
+    <Compile Include="keccak\keccak-20200918\keccak-base-20200918.cs" />
+    <Compile Include="keccak\keccak-20200918\keccak-20200918.cs" />
     <Compile Include="keccak\keccak-abstract.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
