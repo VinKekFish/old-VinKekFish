@@ -14,7 +14,7 @@ namespace main_tests
         TestTask task;
         public EmtyString(ConcurrentQueue<TestTask> tasks)
         {
-            task = new TestTask("EmtyString", StartTests);
+            task = new TestTask("BytesBuilder.ClearString", StartTests);
             tasks.Enqueue(task);
         }
 
@@ -37,7 +37,7 @@ namespace main_tests
                 // Console.WriteLine(str1 + " / " + str);
 
                 testResult(str);
-            }Thread.Sleep(10000);
+            }
         }
 
         private void testResult(string str)

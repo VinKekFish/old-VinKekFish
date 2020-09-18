@@ -8,46 +8,18 @@ using System.Threading;
 
 namespace main_tests
 {
-    public class Error
-    {
-        public Exception ex = null;
-        public string    Message = "";
-    }
-
-    public class TestTask
-    {
-
-        public TestTask(string Name, TestTaskFn task)
-        {
-            this.Name = Name;
-            this.task = task;
-        }
-
-        public readonly TestTaskFn  task;
-        public readonly string      Name;
-        public          bool        ended = false;
-        public readonly List<Error> error = new List<Error>();
-
-        public DateTime started = default(DateTime);
-        public DateTime endTime = default(DateTime);
-    }
-
-    public delegate void TestTaskFn();
-    // public delegate void AddTestFn (ConcurrentQueue<TestTask> tasks);
-
-    class Program
+    partial class Program
     {
         static void Main(string[] args)
         {
             System.Collections.Concurrent.ConcurrentQueue<TestTask> tasks = new ConcurrentQueue<TestTask>();
-
-            new EmtyString(tasks);
+            AddTasks(tasks);
 
             Object sync = new Object();
             int started = 0;            // Количество запущенных прямо сейчас задач
             int ended   = 0;            // Количество завершённых задач
             int errored = 0;            // Количество задач, завершённых с ошибкой
-            int PC      = Environment.ProcessorCount;
+            int PC = Environment.ProcessorCount;
             foreach (var task in tasks)
             {
                 Interlocked.Increment(ref started);
@@ -62,7 +34,7 @@ namespace main_tests
                         }
                         catch (Exception e)
                         {
-                            task.error.Add(new Error() {ex = e, Message = "During the test the exception occured"});
+                            task.error.Add(new Error() { ex = e, Message = "During the test the exception occured" });
                         }
                         finally
                         {
