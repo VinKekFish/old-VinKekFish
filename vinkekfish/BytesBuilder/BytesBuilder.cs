@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace vinkekfish_crypto
+namespace vinkekfish
 {
     /* BytesBuilder
      * Класс позволяет собирать большой блок байтов из более мелких
@@ -99,7 +99,7 @@ namespace vinkekfish_crypto
             add(n, index);
         }
 
-        /// <summary>Добавляет в объект специальную кодировку 8-байтового числа</summary>
+        /// <summary>Добавляет в объект специальную кодировку 8-байтового числа, см. функцию VariableULongToBytes</summary>
         public void addVariableULong(ulong number, int index = -1)
         {
             byte[] target = null;
@@ -319,15 +319,15 @@ namespace vinkekfish_crypto
             if (sec > se)
             {
                 new ArgumentOutOfRangeException("sec > se");
-                tec -= sec - se;
-                sec = se;
+                // tec -= sec - se;
+                // sec = se;
             }
 
             if (tec > te)
             {
                 new ArgumentOutOfRangeException("tec > te");
-                sec -= tec - te;
-                tec = te;
+                // sec -= tec - te;
+                // tec = te;
             }
 
             if (tbc < t)
@@ -405,7 +405,8 @@ namespace vinkekfish_crypto
 
             if (tec > te)
             {
-                tec = te;
+                throw new ArgumentOutOfRangeException("tec > te");
+                // tec = te;
             }
 
             if (tbc < t)
@@ -457,6 +458,11 @@ namespace vinkekfish_crypto
             }
         }
         */
+
+        /// <summary>Преобразует 4-хбайтовое целое в 4 байта в target по индексу start</summary>
+        /// <param name="data">4-х байтовое беззнаковое целое для преобразования. Младший байт по младшему адресу</param>
+        /// <param name="target">Массив для записи, может быть null</param>
+        /// <param name="start">Начальный индекс для записи числа</param>
         public unsafe static void UIntToBytes(uint data, ref byte[] target, long start = 0)
         {
             if (target == null)
@@ -475,6 +481,10 @@ namespace vinkekfish_crypto
             }
         }
 
+        /// <summary>Преобразует 8-хбайтовое целое в 8 байта в target по индексу start</summary>
+        /// <param name="data">8-х байтовое беззнаковое целое для преобразования. Младший байт по младшему адресу</param>
+        /// <param name="target">Массив для записи, может быть null</param>
+        /// <param name="start">Начальный индекс для записи числа</param>
         public unsafe static void ULongToBytes(ulong data, ref byte[] target, long start = 0)
         {
             if (target == null)
@@ -493,6 +503,10 @@ namespace vinkekfish_crypto
             }
         }
 
+        /// <summary>Получает 8-мибайтовое целое число из массива. Младший байт по младшему индексу</summary>
+        /// <param name="data">Полученное число</param>
+        /// <param name="target">Массив с числом</param>
+        /// <param name="start">Начальный элемент, по которому расположено число</param>
         public unsafe static void BytesToULong(out ulong data, byte[] target, long start)
         {
             data = 0;
@@ -509,6 +523,10 @@ namespace vinkekfish_crypto
             }
         }
 
+        /// <summary>Получает 4-хбайтовое целое число из массива. Младший байт по младшему индексу</summary>
+        /// <param name="data">Полученное число</param>
+        /// <param name="target">Массив с числом</param>
+        /// <param name="start">Начальный элемент, по которому расположено число</param>
         public unsafe static void BytesToUInt(out uint data, byte[] target, long start)
         {
             data = 0;
@@ -525,12 +543,18 @@ namespace vinkekfish_crypto
             }
         }
 
+        /// <summary>Считывает из массива специальную сжатую кодировку числа</summary>
+        /// <param name="data">Считанне число</param>
+        /// <param name="target">Массив</param>
+        /// <param name="start">Стартовый индекс, по которому расположено число</param>
+        /// <returns>Количество байтов, которое было считано (размер кодированного числа)</returns>
         public unsafe static int BytesToVariableULong(out ulong data, byte[] target, long start)
         {
             data = 0;
-            if (start < 0)
+            if (start < 0 || start >= target.Length)
                 throw new IndexOutOfRangeException();
 
+            // Вычисляем, сколько именно байтов занимает данное число
             int j = 0;
             for (long i = start; i < target.LongLength; i++, j++)
             {
@@ -538,6 +562,7 @@ namespace vinkekfish_crypto
                 if (b == 0)
                     break;
             }
+            // Сейчас в j размер числа -1
 
             if ((target[start + j] & 0x80) > 0)
                 throw new IndexOutOfRangeException();
@@ -551,9 +576,14 @@ namespace vinkekfish_crypto
                 data += (byte) c;
             }
 
+            // Возвращаем полный размер числа
             return j + 1;
         }
 
+        /// <summary>Записывает в массив специальную сжатую кодировку числа</summary>
+        /// <param name="data">Число для записи</param>
+        /// <param name="target">Массив для записи</param>
+        /// <param name="start">Индекс в массиве для записи туда числа</param>
         public unsafe static void VariableULongToBytes(ulong data, ref byte[] target, long start = 0)
         {
             if (start < 0)
@@ -581,22 +611,28 @@ namespace vinkekfish_crypto
             {
                 target = new byte[bb.Count];
                 BytesBuilder.CopyTo(bb.getBytes(), target, start);
+                bb.clear();
             }
-            /*else
-            if (start + bb.Count > target.LongLength)
-                throw new IndexOutOfRangeException();*/
+
+            data = 0;
         }
 
+        /// <summary>Сравнивает два массива. Тайминг-небезопасный метод</summary>
+        /// <param name="wellHash">Первый массив</param>
+        /// <param name="hash">Второй массив</param>
+        /// <param name="count">Количество элементов для сравнения</param>
+        /// <param name="indexWell">Начальный индекс для сравнения в массиве wellHash</param>
+        /// <returns><see langword="true"/> - если массивы совпадают</returns>
         public unsafe static bool Compare(byte[] wellHash, byte[] hash, int count = -1, int indexWell = 0)
         {
             if (count == -1)
             {
-                if (wellHash.LongLength != hash.LongLength || wellHash.LongLength < 0)
+                if (wellHash.LongLength != indexWell + hash.LongLength || wellHash.LongLength < indexWell)
                     return false;
 
                 fixed (byte * w1 = wellHash, h1 = hash)
                 {
-                    byte * w = w1, h = h1, S = w1 + wellHash.LongLength;
+                    byte * w = w1 + indexWell, h = h1, S = w1 + wellHash.LongLength;
 
                     for (; w < S; w++, h++)
                     {
@@ -627,6 +663,11 @@ namespace vinkekfish_crypto
             }
         }
 
+        /// <summary>Сравнивает два массива. Тайминг-небезопасный метод</summary>
+        /// <param name="wellHash">Первый массив для сравнения</param>
+        /// <param name="hash">Второй массив для сравнения</param>
+        /// <param name="i">Индекс эленемта, который не совпадает</param>
+        /// <returns><see langword="true"/> - если массивы совпадают</returns>
         public unsafe static bool Compare(byte[] wellHash, byte[] hash, out int i)
         {
             i = -1;
@@ -648,6 +689,8 @@ namespace vinkekfish_crypto
             return true;
         }
 
+        /// <summary>Попытка обнулить UTF-8 строку</summary>
+        /// <param name="resultText">Строка для обнуления. Осторожно, resultText.substring(0) может возвращать указатель на ту же строку, т.к. .NET считает строки неизменяемыми</param>
         unsafe public static void ClearString(string resultText)
         {
             if (resultText == null)
@@ -655,9 +698,20 @@ namespace vinkekfish_crypto
 
             fixed (char * b = resultText)
             {
-                for (int i = 0; i < resultText.Length; i++)
+                for (int i = 0, j = 0; i < resultText.Length; j++)
                 {
+                    var a = *(b + i);
                     *(b + i) = ' ';
+
+                    // Проверяем, что этот байт единственный в символе
+                    if ((a & 0x80) == 0)
+                        i++;
+                    else
+                    // Старшие два бита установлены - это первый байт из многих
+                    if ((a & 0xC0) == 0XC0)
+                    {
+                        
+                    }
                 }
             }
         }

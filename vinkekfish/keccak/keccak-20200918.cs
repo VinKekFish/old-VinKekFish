@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace vinkekfish_crypto
+namespace vinkekfish
 {
     public class Keccak_20200918: Keccak_abstract
     {

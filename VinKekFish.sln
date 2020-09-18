@@ -5,7 +5,7 @@ VisualStudioVersion = 16.0.30413.136
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "main_tests", "main_tests\main_tests.csproj", "{9E2B8071-9DD3-4DF5-9064-E668ECC52E31}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "vinkekfish_crypto", "vinkekfish_crypto\vinkekfish_crypto.csproj", "{2836A6CB-A561-4169-8EFC-915E68F1B417}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "vinkekfish", "vinkekfish\vinkekfish.csproj", "{593EFA79-FA33-4934-A740-6A4C2ECF24D9}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -17,10 +17,10 @@ Global
 		{9E2B8071-9DD3-4DF5-9064-E668ECC52E31}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{9E2B8071-9DD3-4DF5-9064-E668ECC52E31}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{9E2B8071-9DD3-4DF5-9064-E668ECC52E31}.Release|Any CPU.Build.0 = Release|Any CPU
-		{2836A6CB-A561-4169-8EFC-915E68F1B417}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{2836A6CB-A561-4169-8EFC-915E68F1B417}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{2836A6CB-A561-4169-8EFC-915E68F1B417}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{2836A6CB-A561-4169-8EFC-915E68F1B417}.Release|Any CPU.Build.0 = Release|Any CPU
+		{593EFA79-FA33-4934-A740-6A4C2ECF24D9}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{593EFA79-FA33-4934-A740-6A4C2ECF24D9}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{593EFA79-FA33-4934-A740-6A4C2ECF24D9}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{593EFA79-FA33-4934-A740-6A4C2ECF24D9}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace vinkekfish_crypto.CSharp_help
+namespace vinkekfish.CSharp_help
 {
     // https://docs.microsoft.com/en-us/dotnet/csharp/whats-new/csharp-7-3
     class Help1
