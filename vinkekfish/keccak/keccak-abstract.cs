@@ -261,16 +261,17 @@ namespace vinkekfish
                     fixed (ulong * P = new ulong[0])
                     {
                         ulong * si5;
-                        
-                        
-                        for (int Mi = 0; Mi < /*P.GetLength(0)*/ arrayMSize; Mi++, P += 25)
+
+                        // Общий смысл инициализации
+                        // Массив информации в размере 72 байта записывается в начало состояния из 25-ти 8-мибайтовых слов
+                        for (int Mi = 0; Mi < /*P.GetLength(0)*/ 0; Mi++, P += 25)
                         {
                             si5  = s;
                             for (int i = 0; i < 5; i++, si5 += 5)
                             {
                                 for (int j = 0, paddingCounter = i; paddingCounter < r_512s; j++, paddingCounter += 5)
                                 {
-                                    *(si5 + j) ^= *(Pmii + paddingCounter);     // S[i, j] = S[i, j] ^ Pi[j, i];
+                                    *(si5 + j) ^= *(P + paddingCounter);     // S[i, j] = S[i, j] ^ Pi[j, i];
                                 }
                             }
 
