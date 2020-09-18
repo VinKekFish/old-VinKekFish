@@ -27,6 +27,9 @@ namespace main_tests
         public readonly string      Name;
         public          bool        ended = false;
         public readonly List<Error> error = new List<Error>();
+
+        public DateTime started = default(DateTime);
+        public DateTime endTime = default(DateTime);
     }
 
     public delegate void TestTaskFn();
@@ -54,6 +57,7 @@ namespace main_tests
                     {
                         try
                         {
+                            task.started = DateTime.Now;
                             task.task();
                         }
                         catch (Exception e)
@@ -71,29 +75,69 @@ namespace main_tests
 
                             lock (sync)
                                 Monitor.PulseAll(sync);
+
+                            task.endTime = DateTime.Now;
                         }
                     }
                 );
 
                 while (started >= PC)
                     lock (sync)
+                    {
+                        Monitor.Wait(sync, 2000);
                         WaitMessages();
+                    }
             }
 
             while (started > 0)
                 lock (sync)
-                    WaitMessages();
+                {
+                    Monitor.Wait(sync, 2000);
+                    WaitMessages(true);
+                }
 
+            WaitMessages(false, true);
             if (args.Length == 0)
                 Console.ReadLine();
 
-            void WaitMessages()
+            void WaitMessages(bool showWaitTasks = false, bool endedAllTasks = false)
             {
                 Console.Clear();
-                Console.CursorLeft = 0;
-                Console.CursorTop  = 0;
+                // Console.CursorLeft = 0;
+                // Console.CursorTop  = 0;
                 Console.WriteLine("Выполнено/всего: " + ended + " / " + tasks.Count);
                 Console.WriteLine("Задачи с ошибокй: " + errored);
+                Console.WriteLine();
+
+                if (showWaitTasks && ended != tasks.Count)
+                {
+                    var now = DateTime.Now;
+                    Console.WriteLine("Выполняемые задачи: ");
+                    Console.WriteLine();
+                    foreach (var task in tasks)
+                    {
+                        if (!task.ended)
+                        {
+                            Console.WriteLine(task.Name + ": " + (now - task.started).ToString(@"hh\:mm\:ss"));
+                        }
+                    }
+                }
+
+                if (endedAllTasks)
+                {
+                    foreach (var task in tasks)
+                    {
+                        if (task.error.Count > 0)
+                        {
+                            Console.WriteLine();
+                            Console.WriteLine("For task " + task.Name);
+                            foreach (var e in task.error)
+                            {
+                                Console.WriteLine(e.Message);
+                            }
+                        }
+                    }
+                }
             }
         }
     }

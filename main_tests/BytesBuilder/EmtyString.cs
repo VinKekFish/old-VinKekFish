@@ -5,14 +5,16 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using vinkekfish;
+using System.Threading;
 
 namespace main_tests
 {
     class EmtyString
     {
+        TestTask task;
         public EmtyString(ConcurrentQueue<TestTask> tasks)
         {
-            var task = new TestTask("EmtyString", StartTests);
+            task = new TestTask("EmtyString", StartTests);
             tasks.Enqueue(task);
         }
 
@@ -26,12 +28,24 @@ namespace main_tests
             testString.Add("0123456789");
             testString.Add("abcde[]");
             testString.Add("абвгдеёждиклмя");
+            testString.Add("абвгдеёждиклмя");
 
             foreach (var str in testString)
             {
-                var str1 = str.Clone();
+                var str1 = str.Length > 0 ? str.Substring(0, 1) + str.Substring(1) : "";
                 BytesBuilder.ClearString(str);
-                Console.WriteLine(str1 + " / " + str);
+                // Console.WriteLine(str1 + " / " + str);
+
+                testResult(str);
+            }Thread.Sleep(10000);
+        }
+
+        private void testResult(string str)
+        {
+            foreach (var c in str)
+            {
+                if (c != ' ')
+                    task.error.Add(new Error() {Message = "EmtyString.testResult for " + str + " get result c != ' ' (№ CEOz6zTVDUDBAcWXlY)"});
             }
         }
     }

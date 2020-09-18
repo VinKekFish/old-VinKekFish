@@ -28,6 +28,7 @@ namespace vinkekfish.CSharp_help
 
             // Кортежи
             (double, int) t1 = (4.5, 3);
+            Console.WriteLine(t1);
 
             // Инициализатор переменной out прямо в вызове функции
             func1(out int k);
