@@ -37,9 +37,10 @@ namespace vinkekfish
         }
 
 
-        public static readonly int   r_512 = 576;
+        public static readonly int   r_512  = 576;
+        public static readonly int   r_512s = 576 >> 6;
         public static readonly int[] rNumbers = {1152, 1088, 832, 576}; // 224, 256, 384, 512 битов
-        protected static readonly ulong[] RC =
+        public static readonly ulong[] RC =
         {
             0x0000000000000001,
             0x0000000000008082,
@@ -75,7 +76,7 @@ namespace vinkekfish
 
         // Реализация раундов keccak и раундового преобразования
         // Раундовое преобразование
-        private unsafe void roundB(ulong * a, ulong * c, ulong * b)
+        public unsafe void roundB(ulong * a, ulong * c, ulong * b)
         {
             //шаг θ
             *(c + 0) = *(a +  0) ^ *(a +  1) ^ *(a +  2) ^ *(a +  3) ^ *(a +  4);
@@ -188,7 +189,11 @@ namespace vinkekfish
         }
 
         // Полный keccak
-        private unsafe void Keccackf(ulong * a, ulong * c, ulong * b)
+        /// <summary>Все раунды keccak. a == S, c= C, b = B</summary>
+        /// <param name="a">Зафиксированное внутреннее состояние S</param>
+        /// <param name="c">Массив C (значения не важны)</param>
+        /// <param name="b">Матрица B (значения не важны)</param>
+        public unsafe void Keccackf(ulong * a, ulong * c, ulong * b)
         {
             roundB(a, c, b);
             //шаг ι
@@ -225,12 +230,54 @@ namespace vinkekfish
         }
 
         // keccak с неполными раундами
-        private unsafe void Keccack_i(ulong * a, ulong * c, ulong * b, int start, int count)
+        /// <summary>Неполнораундовый keccack</summary>
+        /// <param name="a">Внутреннее состояние S</param>
+        /// <param name="c">Массив C (состояние не важно)</param>
+        /// <param name="b">Матрица B (состояние не важно)</param>
+        /// <param name="start">Начальный шаг, от нуля</param>
+        /// <param name="count">Количество шагов (всего шагов столько, сколько констант в RC)</param>
+        public unsafe void Keccack_i(ulong * a, ulong * c, ulong * b, int start, int count)
         {
             var end = start + count;
             for (int i = start; i < end; i++)
             {
                 roundB(a, c, b); *a ^= RC[i];
+            }
+        }
+
+        /// <summary>Ввод данных в состояние keccak. Предназначен только для версии 512 битов</summary>
+        /// <param name="message">Указатель на очередную порцию данных</param>
+        /// <param name="len">Количество байтов для записи (не более 72-х)</param>
+        // Сообщение P представляет собой массив элементов Pi,
+        // каждый из которых в свою очередь является массивом 64-битных элементов
+        public unsafe void Keccak_Input(byte * message, byte len)
+        {
+            fixed (ulong * s = S)
+            {
+                ulong * sb = s;
+                fixed (ulong * c = C, b = B)
+                {
+                    //fixed (ulong * P = padding(message, len, r, false, lastBlock))
+                    fixed (ulong * P = new ulong[0])
+                    {
+                        ulong * si5;
+                        
+                        
+                        for (int Mi = 0; Mi < /*P.GetLength(0)*/ arrayMSize; Mi++, P += 25)
+                        {
+                            si5  = s;
+                            for (int i = 0; i < 5; i++, si5 += 5)
+                            {
+                                for (int j = 0, paddingCounter = i; paddingCounter < r_512s; j++, paddingCounter += 5)
+                                {
+                                    *(si5 + j) ^= *(Pmii + paddingCounter);     // S[i, j] = S[i, j] ^ Pi[j, i];
+                                }
+                            }
+
+                            Keccackf(s, c, b);
+                        }
+                    }
+                }
             }
         }
     }
