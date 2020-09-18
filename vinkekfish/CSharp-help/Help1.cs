@@ -13,6 +13,11 @@ namespace vinkekfish.CSharp_help
             public fixed int myFixedField[10];
         }
 
+        class ObjectInit
+        {
+            public string Name;
+        }
+
         static S s = new S();
         unsafe public void M()
         {
@@ -26,6 +31,9 @@ namespace vinkekfish.CSharp_help
 
             // Инициализатор переменной out прямо в вызове функции
             func1(out int k);
+
+            // Инициализатор объекта
+            new ObjectInit() {Name = "Init string"};
         }
 
         public static void func1(out int k)
