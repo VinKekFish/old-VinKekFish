@@ -39,7 +39,7 @@ namespace main_tests
         private static void AddTasks(ConcurrentQueue<TestTask> tasks)
         {
             // Это делаем однопоточно, чтобы точно не помешать другим потомкам, т.к. это, по сути, аварийное выделение памяти
-            new KeccakClearTest(null);
+            new KeccakClearTest(tasks);
             new EmtyString(tasks);
         }
     }

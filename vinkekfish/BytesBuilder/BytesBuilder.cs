@@ -392,10 +392,11 @@ namespace vinkekfish
         /// <summary>Обнуляет массив байтов по указателю</summary>
         /// <param name="targetLength">Размер массива для обнуления</param>
         /// <param name="t">Массив для обнуления</param>
+        /// <param name="val">Значение, которое задаётся массиву (последние 7-мь байтов массиву может задаваться значение младшего байта)</param>
         /// <param name="index">Индекс начального элемента для обнуления</param>
         /// <param name="count">Количество элементов для обнуления, -1 - обнулять до конца</param>
         /// <returns>Количество обнулённых байтов</returns>
-        unsafe public static long ToNull(long targetLength, byte* t, long index = 0, long count = -1)
+        unsafe public static long ToNull(long targetLength, byte* t, ulong val = 0, long index = 0, long count = -1)
         {
             if (count < 0)
                 count = targetLength - index;
@@ -419,15 +420,16 @@ namespace vinkekfish
             ulong* tew = tbw + ((tec - tbc) >> 3);
 
             for (; tbw < tew; tbw++)
-                *tbw = 0;
+                *tbw = val;
 
             byte toEnd = (byte)(((int)(tec - tbc)) & 0x7);
 
             byte* tbcb = (byte*)tbw;
             byte* tbce = tbcb + toEnd;
 
+            var bval = (byte) val;
             for (; tbcb < tbce; tbcb++)
-                *tbcb = 0;
+                *tbcb = bval;
 
 
             return tec - tbc;

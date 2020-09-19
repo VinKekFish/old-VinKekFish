@@ -10,6 +10,7 @@ using System.Threading;
 namespace main_tests
 {
     // TODO: Добавить тесты для BytesBuilder
+    // TODO: Замерить время, за которое происходит очистка побайтово и по четверным словам
     class BytesBuilderTests
     {
         TestTask task;

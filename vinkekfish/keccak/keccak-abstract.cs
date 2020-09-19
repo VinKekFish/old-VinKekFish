@@ -1,4 +1,6 @@
 ﻿using System;
+using System.IO;
+using System.Net;
 using System.Runtime.CompilerServices;
 
 namespace vinkekfish
@@ -20,26 +22,52 @@ namespace vinkekfish
         protected          ulong    d;
 
         public abstract Keccak_abstract Clone();
+        /// <summary>Дополнительно очищает состояние объекта после вычислений.
+        /// Рекомендуется вручную вызывать Clear5 и Clear5x5 до выхода из fixed, чтобы GC не успел их переместить (скопировать) до очистки</summary>
+        /// <param name="GcCollect">Если true, то override реализации должны дополнительно попытаться перезаписать всю память программы. <see langword="abstract"/> реализация ничего не делает</param>
         public virtual void Clear(bool GcCollect = true)
         {
-            for (int i = 0; i < C.Length; i++)
-                C[i] = 0;
-
-            for (int i = 0; i < B.GetLength(0); i++)
-                for (int j = 0; j < B.GetLength(1); j++)
-                    B[i, j] = 0;
-
-            for (int i = 0; i < S.GetLength(0); i++)
-                for (int j = 0; j < S.GetLength(1); j++)
-                    S[i, j] = 0;
+            fixed (ulong * s = S, c = C, b = B)
+            {
+                Clear5x5(s);
+                Clear5x5(b);
+                Clear5  (c);
+            }
 
             this.d = 0;
         }
 
+        public virtual void init()
+        {
+            fixed (ulong * s = S)
+                Clear5x5(s);
+        }
 
-        public static readonly int   r_512  = 576;
-        public static readonly int   r_512s = 576 >> 6;
-        public static readonly int[] rNumbers = {1152, 1088, 832, 576}; // 224, 256, 384, 512 битов
+        /// <summary>Этот метод может использоваться для очистки матриц S и B после вычисления последнего шага хеша</summary>
+        /// <param name="S">Очищаемая матрица размера 5x5 *ulong</param>
+        public unsafe static void Clear5x5(ulong * S)
+        {
+            var len = S_len * S_len;
+            var se  = S + len;
+            for (; S < se; S++)
+                *S = 0;
+        }
+
+        /// <summary>Этот метод может использоваться для очистки вспомогательного массива C</summary>
+        /// <param name="C">Очищаемый массив размера 5*ulong</param>
+        public unsafe static void Clear5(ulong * C)
+        {
+            var se  = C + S_len;
+            for (; C < se; C++)
+                *C = 0;
+        }
+
+
+        public const int   r_512  = 576;
+        public const int   r_512b = r_512 >> 3; // 72
+        public const int   r_512s = r_512 >> 6; // 9
+
+        public static readonly int[]   rNumbers = {1152, 1088, 832, 576}; // 224, 256, 384, 512 битов
         public static readonly ulong[] RC =
         {
             0x0000000000000001,
@@ -247,39 +275,66 @@ namespace vinkekfish
 
         /// <summary>Ввод данных в состояние keccak. Предназначен только для версии 512 битов</summary>
         /// <param name="message">Указатель на очередную порцию данных</param>
-        /// <param name="len">Количество байтов для записи (не более 72-х)</param>
+        /// <param name="len">Количество байтов для записи (не более 72-х; константа r_512b)</param>
+        /// <param name="S">Внутреннее состояние S</param>
+        /// <param name="setPaddings">Если <see langword="true"/> - ввести padding в массив (при вычислении хеша делать на последнем блоке <= 71 байта)</param>
         // Сообщение P представляет собой массив элементов Pi,
         // каждый из которых в свою очередь является массивом 64-битных элементов
-        public unsafe void Keccak_Input(byte * message, byte len)
+        public static unsafe void Keccak_Input_512(byte * message, byte len, byte * S, bool setPaddings = false)
         {
-            fixed (ulong * s = S)
+            if (len > r_512b || len < 0)
             {
-                ulong * sb = s;
-                fixed (ulong * c = C, b = B)
-                {
-                    //fixed (ulong * P = padding(message, len, r, false, lastBlock))
-                    fixed (ulong * P = new ulong[0])
-                    {
-                        ulong * si5;
-
-                        // Общий смысл инициализации
-                        // Массив информации в размере 72 байта записывается в начало состояния из 25-ти 8-мибайтовых слов
-                        for (int Mi = 0; Mi < /*P.GetLength(0)*/ 0; Mi++, P += 25)
-                        {
-                            si5  = s;
-                            for (int i = 0; i < 5; i++, si5 += 5)
-                            {
-                                for (int j = 0, paddingCounter = i; paddingCounter < r_512s; j++, paddingCounter += 5)
-                                {
-                                    *(si5 + j) ^= *(P + paddingCounter);     // S[i, j] = S[i, j] ^ Pi[j, i];
-                                }
-                            }
-
-                            Keccackf(s, c, b);
-                        }
-                    }
-                }
+                throw new ArgumentOutOfRangeException("len > r_512b || len < 0");
             }
+
+            var es = S + 167; // 4*5*8 + 7 = 167
+            // Общий смысл инициализации
+            // Массив информации в размере 72 байта записывается в начало состояния из 25-ти 8-мибайтовых слов
+            for (int i = 0; i < len; i++)
+            {
+                *S ^= *message;
+                S++;
+                message++;
+            }
+
+            if (setPaddings)
+            {
+                if (len >= r_512b)
+                    throw new ArgumentOutOfRangeException("len >= r_512b (must be < 72)");
+
+                 *S  ^= 0x01;
+                 *es ^= 0x80;
+            }
+        }
+
+        /// <summary>Вывод данных из состояния keccak. Предназначен только для версии 512 битов</summary>
+        /// <param name="output">Указатель на массив, готовый принять данные</param>
+        /// <param name="len">Количество байтов для записи (не более 72-х; константа r_512b)</param>
+        /// <param name="S">Внутреннее состояние S</param>
+        // Сообщение P представляет собой массив элементов Pi,
+        // каждый из которых в свою очередь является массивом 64-битных элементов
+        public static unsafe void Keccak_Output_512(byte * output, byte len = r_512b, byte * S)
+        {
+            if (len > r_512b || len < 0)
+            {
+                throw new ArgumentOutOfRangeException("len > r_512b || len < 0");
+            }
+
+            // Матрица S - это матрица 5x5 по 8 байтов. Мы проходим по первому столбцу, и собираем оттуда данные
+            // Потом - по второму столбцу, и собираем оттуда данные
+            for (int i = 0; i < 40;  i += 8)  // 40 = 8*5
+            for (int j = 0; j < 200; j += 40) // 200 = 40*5
+            for (int k = 0; k < 8; k++)
+            {
+                if (len == 0)
+                    goto End;
+                
+                *output = *(S + i + j + k);
+
+                output++;
+            }
+
+            End: ;
         }
     }
 }
