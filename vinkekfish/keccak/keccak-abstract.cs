@@ -37,7 +37,7 @@ namespace vinkekfish
                 handle = GCHandle.Alloc(State, GCHandleType.Pinned);
                 CountToCheck++;
 
-                Base  = (byte *) handle.AddrOfPinnedObject();
+                Base  = (byte *) handle.AddrOfPinnedObject().ToPointer();
                 B     = Base;
                 C     = B + (S_len2 << 3);
                 S     = C + (S_len  << 3);
@@ -92,7 +92,7 @@ namespace vinkekfish
         /// <summary>Дополнительно очищает состояние объекта после вычислений.
         /// Рекомендуется вручную вызывать Clear5 и Clear5x5 до выхода из fixed, чтобы GC не успел их переместить (скопировать) до очистки</summary>
         /// <param name="GcCollect">Если true, то override реализации должны дополнительно попытаться перезаписать всю память программы. <see langword="abstract"/> реализация ничего не делает</param>
-        public virtual void Clear(bool GcCollect = true)
+        public virtual void Clear(bool GcCollect = false)
         {
             ClearState();
         }
@@ -113,6 +113,8 @@ namespace vinkekfish
         /// <summary>Инициализирует состояние нулями</summary>
         public virtual void init()
         {
+            using (var state = new KeccakStatesArray(State))
+                Clear5x5(state.Slong);
             using (var state = new KeccakStatesArray(State))
                 Clear5x5(state.Slong);
         }

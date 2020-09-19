@@ -43,7 +43,7 @@ namespace vinkekfish
                 // Получаем указатель на наш массив State
                 // handle является верным типом - GCHandleType.Pinned, см. строка 37
                 // Base сохраняет указатель на первый элемент массива
-                Base  = (byte *) handle.AddrOfPinnedObject();
+                Base  = (byte *) handle.AddrOfPinnedObject().ToPointer();
                 // Первым идёт B, тут всё верно
                 B     = Base;
                 // Вторым идёт C. Т.к. Base 5*5*ulong это означает, что 5*5*8=200

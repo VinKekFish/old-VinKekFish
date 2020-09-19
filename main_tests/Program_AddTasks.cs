@@ -45,7 +45,7 @@ namespace main_tests
             // Этот тест вызываем в начале, чтобы посмотреть, что он не мешает продолжению работы программы
             new KeccakClearTest(tasks);
             new EmtyString(tasks);
-            new KeccakSimpleHashTest(tasks);
+            // new KeccakSimpleHashTest(tasks);
 
 
             // --------------------------------------------------------------------------------

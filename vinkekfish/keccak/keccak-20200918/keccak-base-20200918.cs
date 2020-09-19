@@ -2,6 +2,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 
 namespace vinkekfish
 {
@@ -9,28 +10,23 @@ namespace vinkekfish
     {
         /// <summary>Производит очистку состояния объекта</summary>
         /// <param name="GcCollect">Если <see langword="true"/>, то пытается произвести полную очистку памяти приложения,
-        /// выделяя кучу памяти и перезаписывая её. Без гарантий на перезапись. Осторожно, может быть нехватка памяти в программе или ОС</param>
-        public override void Clear(bool GcCollect = true)
+        /// выделяя кучу памяти и перезаписывая её. Без гарантий на перезапись.
+        /// Осторожно!!! Функция может использовать слишком много оперативной памяти, что может повлечь за собой отказ других программ в ОС</param>
+        public override void Clear(bool GcCollect = false)
         {
             base.Clear(GcCollect);
 
             if (GcCollect)
             {
                 GC.Collect();
-                var k = GC.CollectionCount(GC.MaxGeneration);
                 try
                 {
-                    var s   = k;
-                    do
+                    for (int i = 0; i < 1; i++)
                     {
                         // Выносим в отдельную функцию, чтобы всё, что там выделено, выходило из контекста и успешно удалялось
                         AllocFullMemory();
-
-                        // Ждём, пока не произойдёт хотя бы две сборки мусора для нулевого поколения
-                        // А если не произойдёт, то зависнем: кривовато, но не зависает
-                        s = GC.CollectionCount(GC.MaxGeneration);
+                        GC.Collect();
                     }
-                    while (s <= k + 2);
                 }
                 catch (OutOfMemoryException)
                 {
@@ -41,29 +37,110 @@ namespace vinkekfish
             }
         }
 
-        private static void AllocFullMemory()
+        // Смысл функции состоит в выделении большого количества памяти
+        // Однако, она не ждёт, пока память совсем закончится
+        // Вместо этого она выделяет проверочный массив и запоминает указатель на него в неперемещаемом виде
+        // и создаёт проверочный объект co
+        // Когда объект co переходит в иное поколение сборщика, мы позволяем сборщику мусора очистить всю выделенную нами память
+        // А дальше, снова здорова, перезаписываем её
+        // После этого, когда объект co достигнет максимального поколения, мы освобождаем проверочный массив
+        // Далее мы снова создаём объекты и пытаемся читать по указателю на проверочный массив, перезатёрся он или нет
+        // И когда он уже перезатрся, выходим из функции
+        // Весь этот маразм нужен для того, чтобы попытаться, с одной стороны, не выделять 100% всей памяти, доступной в ОС, а выделить 95%
+        // С другой стороны, всё-таки, перезаписать всё, что мы хотим перезаписать
+        private unsafe static void AllocFullMemory()
         {
+            long number;
+            GCHandle h;
+            long* p2;
+            bool hIsFreed = false;
+            AllocCheckArray(out number, out h, out p2);
+
+            var co = new object();
+            int MaxGenerationReached = 0;
             List<byte[]> bytes = new List<byte[]>(1024);
             try
             {
-                int memSize = 1024 * 1024;
-                // Выделяем память мегабайтами
+                // Выделяем память небольшими блоками, большими перезатирается хуже
+                // Причём, вроде бы, и для больших блоков тоже маленькими перезатирается лучше
+                long  memSize = Environment.SystemPageSize;
                 while (memSize > 1)
                 {
                     try
                     {
                         var obj = new byte[memSize];
-                        bytes.Add(obj);
                         BytesBuilder.ToNull(obj, 0x3737_3737__3737_3737);
+
+                        // Создаём ещё один паразитный объект
+                        // Чтобы сборщику мусора было что собирать: это поможет быстро нарастить номер поколения для проверочного объекта co
+                        // Это может быть плохо, но, в целом, как-то работает
+                        var a = new byte[memSize];
+                        BytesBuilder.ToNull(a, 0x3737_3737__3737_3737);
+                        a = null;
+
+                        bool p2IsLive = false;
+                        if (p2 != null)
+                        try
+                        {
+                            p2IsLive = p2[0] == number;
+                        }
+                        catch
+                        { }
+
+                        if (p2IsLive)
+                        {
+                            bytes.Add(obj);
+                        }
+
+                        // Обращаю внимание на то, что co может снизить своё поколение, а не только повысить
+                        if (MaxGenerationReached != GC.MaxGeneration && GC.GetGeneration(co) > MaxGenerationReached)
+                        {
+                            MaxGenerationReached = GC.GetGeneration(co);
+                            bytes.Clear();
+
+                            if (MaxGenerationReached == GC.MaxGeneration && !hIsFreed)
+                            {
+                                // Собираем мусор перед удалением проверочного массива, чтобы он не собрал сразу и наш объект
+                                FreeHandle();
+                            }
+                        }
+
+                        if (!p2IsLive && MaxGenerationReached == GC.MaxGeneration)
+                        {
+                            break;
+                        }
                     }
                     catch (OutOfMemoryException)
                     {
-                        memSize >>= 1;
+                        bytes.Clear();
+
+                        FreeHandle();
                     }
                 }
             }
             catch (OutOfMemoryException)
             { }
+            finally
+            {
+                if (!hIsFreed)
+                    h.Free();
+            }
+
+            unsafe void FreeHandle()
+            {
+                GC.Collect();
+                h.Free();
+                hIsFreed = true;
+            }
+        }
+
+        // Выделяем два массива. Один тут же удаляем. Указатели на оба, включая удалённый, передаём вверх
+        private static unsafe void AllocCheckArray(out long number, out GCHandle h, out long* p2)
+        {
+            number = 0x01020304_09080706;
+
+            h = GCHandle.Alloc(new long[1] { number }, GCHandleType.Pinned);
+            p2 = (long*)h.AddrOfPinnedObject().ToPointer();
         }
 
         /// <summary>DoubleHash.one - обычный хеш 64-ре байта, DoubleHash.two - два раза по 64-ре байта, DoubleHash.full72 - один раз 72 байта</summary>
@@ -156,9 +233,6 @@ namespace vinkekfish
                     }
                 }
 
-                // TODO: doubleHash
-                if (doubleHash == DoubleHash.one)
-                    
                 switch (doubleHash)
                 {
                     case DoubleHash.one:

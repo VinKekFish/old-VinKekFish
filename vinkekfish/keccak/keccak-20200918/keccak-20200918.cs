@@ -7,7 +7,7 @@ namespace vinkekfish
 {
     public class Keccak_20200918: Keccak_base_20200918
     {
-        // TODO: сделать тесты; кажется, Clone не должен работать, т.к. C и B не клонируются
+        // TODO: сделать тесты на Clone
         public override Keccak_abstract Clone()
         {
             var result = new Keccak_20200918();

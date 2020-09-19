@@ -177,9 +177,9 @@ namespace vinkekfish
                     }
                 }
 
-                // TODO: doubleHash
+                // Устал, не досмотрел - не нашёл это
                 if (doubleHash == DoubleHash.one)
-                    
+
                 switch (doubleHash)
                 {
                     case DoubleHash.one:

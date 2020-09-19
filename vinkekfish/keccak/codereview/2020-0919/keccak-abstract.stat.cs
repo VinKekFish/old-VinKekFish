@@ -37,7 +37,7 @@ namespace vinkekfish
                 handle = GCHandle.Alloc(State, GCHandleType.Pinned);
                 CountToCheck++;
 
-                Base  = (byte *) handle.AddrOfPinnedObject();
+                Base  = (byte *) handle.AddrOfPinnedObject().ToPointer();
                 B     = Base;
                 C     = B + (S_len2 << 3);
                 S     = C + (S_len  << 3);
