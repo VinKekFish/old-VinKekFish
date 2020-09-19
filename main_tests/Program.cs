@@ -8,7 +8,7 @@ using System.Threading;
 using System.IO;
 using vinkekfish;
 using System.Diagnostics;
-
+// TODO: Подумать насчёт использования GC.TryStartNoGCRegion https://docs.microsoft.com/ru-ru/dotnet/api/system.gc.trystartnogcregion?view=netcore-3.1
 namespace main_tests
 {
     // Добавление новых тестов см. в файле Program_AddTasks.cs, метод AddTasks

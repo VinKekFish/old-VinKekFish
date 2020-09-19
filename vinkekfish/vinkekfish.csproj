@@ -51,6 +51,7 @@
     <Compile Include="HelperClass.cs" />
     <None Include="keccak\codereview\2020-0919\keccak-abstract.rev.cs" />
     <None Include="keccak\codereview\2020-0919\keccak-abstract.stat.cs" />
+    <None Include="keccak\codereview\2020-0919\keccak-base-20200918.rev0.cs" />
     <Compile Include="keccak\keccak-20200918\keccak-base-20200918.cs" />
     <Compile Include="keccak\keccak-20200918\keccak-20200918.cs" />
     <Compile Include="keccak\keccak-abstract.cs" />

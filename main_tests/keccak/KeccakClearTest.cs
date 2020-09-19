@@ -21,8 +21,16 @@ namespace main_tests
 
         public void StartTests()
         {
+            CreateString();
+
+            var k = new Keccak_20200918();
+            k.Clear();
+        }
+
+        private static void CreateString()
+        {
             // StringBuilder здесь для проверки сторонними приложениями что строка будет перезатёрта
-            // https://www.cheatengine.org/ - для Windows
+            // https://www.cheatengine.org/ - для Windows (кнопка MemoryView)
             // https://hackware.ru/?p=10645 - mxtract для Linux
             var sb = new StringBuilder();
             // Эту строку надо искать в оперативной памяти
@@ -33,9 +41,6 @@ namespace main_tests
             sb.Append("j6z1kKuBBrgq8Mwd3gOY");
             sb.ToString();
             sb.Clear();
-
-            var k = new Keccak_20200918();
-            k.Clear();
         }
     }
 }

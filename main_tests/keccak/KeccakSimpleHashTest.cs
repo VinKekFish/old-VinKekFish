@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using vinkekfish;
 using keccak;   // keccak взят отсюда https://github.com/fdsc/old/releases
 using BytesBuilder = vinkekfish.BytesBuilder;
+using System.Runtime.CompilerServices;
 
 namespace main_tests
 {
@@ -20,7 +21,7 @@ namespace main_tests
 
             sources = SourceTask.getIterator();
         }
-        
+
         class SourceTask
         {
             public string Key;
@@ -52,15 +53,19 @@ namespace main_tests
 
         IEnumerable<SourceTask> sources = null;
 
-        public void StartTests()
+        public unsafe void StartTests()
         {
             foreach (var ts in sources)
             {
                 var s = vinkekfish.BytesBuilder.CloneBytes(ts.Value);
 
                 var k = new Keccak_20200918();
-                var h1 = k.getHash512(s);
-                var h2 = new SHA3(1024).getHash512(s);
+                byte[] h1, h2;
+                fixed (byte * Sb = s)
+                {
+                    h1 = k.getHash512(Sb, s.LongLength);
+                    h2 = new SHA3(1024).getHash512(s);
+                }
 
                 if (!vinkekfish.BytesBuilder.UnsecureCompare(s, ts.Value))
                 {

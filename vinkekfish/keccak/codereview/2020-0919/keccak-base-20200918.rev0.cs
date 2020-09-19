@@ -7,15 +7,24 @@ namespace vinkekfish
 {
     public abstract class Keccak_base_20200918: Keccak_abstract
     {
-        /// <summary>Производит очистку состояния объекта</summary>
-        /// <param name="GcCollect">Если <see langword="true"/>, то пытается произвести полную очистку памяти приложения,
-        /// выделяя кучу памяти и перезаписывая её. Без гарантий на перезапись. Осторожно, может быть нехватка памяти в программе или ОС</param>
+        // Это у нас переопределённая Clear
+        // Должна быть реализация GcCollect
+        // Как видим, она есть ниже if (GcCollect)
         public override void Clear(bool GcCollect = true)
         {
+            // Вызов базового метода, логично
+            // Он очищает всё состояние keccak, т.к. keccak_base больше ничего не определяет, то очистка больше и не нужна
             base.Clear(GcCollect);
 
+            // А вот и реализация GcCollect
             if (GcCollect)
             {
+                // Сначала собираем мусор. Нам это не вредит.
+                // Мало того, старые объекты, которые мы хотим перезаписать, там могут быть освобождены, 
+                // чтобы на их место мы, собственно, записали то, что нам нужно
+                // Так что всё хорошо
+                // Параметр не даём, чтобы собирать все поколения
+                // Ещё можно было бы подумать о вызовах TryStartNoGCRegion
                 GC.Collect();
                 var k = GC.CollectionCount(GC.MaxGeneration);
                 try
@@ -34,9 +43,9 @@ namespace vinkekfish
                 }
                 catch (OutOfMemoryException)
                 {
-                    
                 }
 
+                // Если что-то ещё не удалено, удаляем, чтобы снизить занимаемый объём памяти до обычного уровня
                 GC.Collect();
             }
         }
@@ -81,7 +90,7 @@ namespace vinkekfish
         /// <param name="doubleHash">DoubleHash.one - обычный хеш 64-ре байта, DoubleHash.two - два раза по 64-ре байта, DoubleHash.full72 - один раз 72 байта</param>
         /// <returns>Массив с запрошенным хешем</returns>
         public unsafe byte[] getHash512(byte * message, long messageFullLen, bool doClear = true, long startIndex = 0, long countToHash = -1, bool isInitialized = false, byte[] forResult = null, ulong index = 0, DoubleHash doubleHash = DoubleHash.one)
-        {
+        { // TODOA: Проверить все параметры на использование и реализацию
             byte[] result = forResult;
             if (result == null)
             {
@@ -107,15 +116,23 @@ namespace vinkekfish
             else
                 mLen = countToHash;
 
+            // Добавил сюда проверку на переполнение из-за некорректного countToHash
+            // countToHash больше ниже не используется
+            // mLen определяет фактическую длину хешируемой информации
+
             if (startIndex + mLen > messageFullLen)
                 throw new ArgumentOutOfRangeException("startIndex + mLen > messageFullLen");
 
+            // Происходит инициализация
             if (!isInitialized)
                 init();
 
             var Msg = message;
 
+            // Если мы хотим очистку провести, то мы её проведём для State автоматически
+            // Если не хотим, не проведём
             using (var state = new KeccakStatesArray(State, ClearAfterUse: doClear))
+            // result будет всегда верно проинициализирован, т.к. либо он указывает на forResult, либо он установлен в новую переменную в switch (doubleHash)
             fixed (byte * R = result)
             {
                 ulong * sl = state.Slong;
@@ -139,8 +156,12 @@ namespace vinkekfish
                 {
                     if (len >= r_512b)
                     {
+                        // Передаём массив msg и 72 байта как количество считываемой информации
+                        // 72 меньше или равно оставшейся длине, должно всё получится
                         Keccak_Input_512(msg, r_512b, s, false);
+                        // Смещаем указатель на следующие элементы
                         msg += r_512b;
+                        // Вычитаем оставшуюся часть длины
                         len -= r_512b;
 
                         Keccackf(sl, cl, bl);
@@ -168,7 +189,7 @@ namespace vinkekfish
                     case DoubleHash.two:
                         Keccak_Output_512(r, 64, s);
                         r += 64;
-                        Keccackf(sl, cl, bl);
+                        // Здесь была ошибка
                         Keccak_Output_512(r, 64, s);
                         break;
 
