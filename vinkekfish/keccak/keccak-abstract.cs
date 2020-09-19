@@ -70,7 +70,6 @@ namespace vinkekfish
                 if (!Disposed)
                 try
                 {
-                    
                     if (ClearAfterUse)
                         BytesBuilder.ToNull(targetLength: Size, t: Base);
 
@@ -78,7 +77,7 @@ namespace vinkekfish
                 }
                 finally
                 {
-                    Disposed = true; // TODO: Проверить срабатывание финализатора без этого участка кода
+                    Disposed = true;
                     handle.Free();
                 }
             }

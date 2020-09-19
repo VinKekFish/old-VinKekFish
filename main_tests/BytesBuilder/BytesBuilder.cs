@@ -11,6 +11,7 @@ namespace main_tests
 {
     // TODO: Добавить тесты для BytesBuilder
     // TODO: Замерить время, за которое происходит очистка побайтово и по четверным словам
+    // TODO: Замерить время, за которое происходит очистка BytesBuilder.FillByBytes и BytesBuilder.ToNull
     class BytesBuilderTests
     {
         TestTask task;
