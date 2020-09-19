@@ -29,12 +29,17 @@ namespace vinkekfish
         {
             fixed (ulong * s = S, c = C, b = B)
             {
-                Clear5x5(s);
-                Clear5x5(b);
-                Clear5  (c);
+                ClearState(s, c, b);
             }
 
             this.d = 0;
+        }
+
+        public static void ClearState(ulong* s, ulong* c, ulong* b)
+        {
+            Clear5x5(s);
+            Clear5x5(b);
+            Clear5(c);
         }
 
         public virtual void init()
@@ -287,14 +292,43 @@ namespace vinkekfish
                 throw new ArgumentOutOfRangeException("len > r_512b || len < 0");
             }
 
-            var es = S + 167; // 4*5*8 + 7 = 167
+            // В конце 72-хбайтового блока нужно поставить оконечный padding
+            // Мы пропустили 8 ulong (64-ре байта), то есть 8-5=3 сейчас индекс у нас 3, но т.к. матрица транспонирована, то нам нужен не индекс [1, 3], а индекс [3, 1]
+            // В индекс [3, 1] мы должны в старший байт записать 0x80. Значит, 3*5*8 + 1*8 + 7 = 135
+            byte * es    = S + 135;
+            byte * lastS = S;           // Если len = 0, то записываем в первый байт
             // Общий смысл инициализации
-            // Массив информации в размере 72 байта записывается в начало состояния из 25-ти 8-мибайтовых слов
+            // Массив информации в размере 72 байта записывается в начало состояния из 25-ти 8-мибайтовых слов; однако матрица S при этом имеет транспонированные индексы
+            int i1 = 0, i2 = 0, i3 = 0, ss = S_len << 3;
             for (int i = 0; i < len; i++)
             {
-                *S ^= *message;
-                S++;
+                lastS = S + (i1 << 3) + i2*ss + i3;
+                *lastS ^= *message;   // i2*ss - не ошибка, т.к. индексы в матрице транспонированны
                 message++;
+
+                // Выполняем приращения индексов в матрице
+                i3++;
+                if (i3 >= 8)
+                {
+                    i3 = 0;
+                    i2++;   // Приращаем следующий индекс
+                }
+
+                if (i1 >= S_len)
+                {
+                    throw new Exception();
+                }
+
+                if (i2 >= S_len)
+                {
+                    i2 = S_len;
+                    i2 = 0;
+                    i1++;
+                }
+
+                // Это вычисление нужно для того, чтобы потом записать верно padding
+                // Для len = 71 значение lastS должно совпасть с es
+                lastS = S + (i1 << 3) + i2*ss + i3;
             }
 
             if (setPaddings)
@@ -302,18 +336,18 @@ namespace vinkekfish
                 if (len >= r_512b)
                     throw new ArgumentOutOfRangeException("len >= r_512b (must be < 72)");
 
-                 *S  ^= 0x01;
-                 *es ^= 0x80;
+                 *lastS ^= 0x01;
+                 *es    ^= 0x80;
             }
         }
 
         /// <summary>Вывод данных из состояния keccak. Предназначен только для версии 512 битов</summary>
         /// <param name="output">Указатель на массив, готовый принять данные</param>
-        /// <param name="len">Количество байтов для записи (не более 72-х; константа r_512b)</param>
+        /// <param name="len">Количество байтов для записи (не более 72-х; константа r_512b). Обычно используется 64 - это стойкость данного криптографического преобразования</param>
         /// <param name="S">Внутреннее состояние S</param>
         // Сообщение P представляет собой массив элементов Pi,
         // каждый из которых в свою очередь является массивом 64-битных элементов
-        public static unsafe void Keccak_Output_512(byte * output, byte len = r_512b, byte * S)
+        public static unsafe void Keccak_Output_512(byte * output, byte len, byte * S)
         {
             if (len > r_512b || len < 0)
             {

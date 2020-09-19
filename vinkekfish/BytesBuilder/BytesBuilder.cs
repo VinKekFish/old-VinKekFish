@@ -246,11 +246,16 @@ namespace vinkekfish
 
         /// <summary>Клонирует массив, начиная с элемента start, до элемента с индексом PostEnd (не включая)</summary><param name="B">Массив для копирования</param>
         /// <param name="start">Начальный элемент для копирования</param>
-        /// <param name="PostEnd">Элемент, расположенный после последнего элемента для копирования</param>
+        /// <param name="PostEnd">Элемент, расположенный после последнего элемента для копирования. -1 - до конца</param>
         /// <returns>Новый массив</returns>
-        public static unsafe byte[] CloneBytes(byte[] B, long start, long PostEnd)
+        public static unsafe byte[] CloneBytes(byte[] B, long start = 0, long PostEnd = -1)
         {
+            if (PostEnd < 0)
+                PostEnd = B.LongLength;
+
             var result = new byte[PostEnd - start];
+
+            if (result.LongLength > 0)
             fixed (byte * r = result, b = B)
                 BytesBuilder.CopyTo(PostEnd, PostEnd - start, b, r, 0, -1, start);
 
@@ -309,7 +314,7 @@ namespace vinkekfish
             }
 
             if (count <= 0)
-                new ArgumentOutOfRangeException("count <= 0");
+                throw new ArgumentOutOfRangeException("count <= 0");
 
             // Вычисляем значения, указывающие на недостижимый элемент (после копируемых)
             byte* sec = s + index + count;
@@ -320,14 +325,14 @@ namespace vinkekfish
 
             if (sec > se)
             {
-                new ArgumentOutOfRangeException("sec > se");
+                throw new ArgumentOutOfRangeException("sec > se");
                 // tec -= sec - se;
                 // sec = se;
             }
 
             if (tec > te)
             {
-                new ArgumentOutOfRangeException("tec > te");
+                throw new ArgumentOutOfRangeException("tec > te");
                 // sec -= tec - te;
                 // tec = te;
             }
@@ -378,21 +383,24 @@ namespace vinkekfish
 
         /// <summary>Обнуляет массив байтов</summary>
         /// <param name="t">Массив для обнуления</param>
+        /// <param name="val">Значение, которое задаётся массиву (последние 7-мь байтов массиву может задаваться значение младшего байта).
+        /// Для примера, это может быть значение 0x3737_3737__3737_3737 (в x64 значение 0x37 - это invalide OpCode)</param>
         /// <param name="index">Индекс начального элемента для обнуления</param>
         /// <param name="count">Количество элементов для обнуления, -1 - обнулять до конца</param>
         /// <returns>Количество обнулённых байтов</returns>
-        unsafe public static long ToNull(byte[] t, long index = 0, long count = -1)
+        unsafe public static long ToNull(byte[] t, ulong val = 0, long index = 0, long count = -1)
         {
             fixed (byte* tb = t)
             {
-                return ToNull(t.LongLength, tb, index, count);
+                return ToNull(t.LongLength, tb, val, index, count);
             }
         }
 
         /// <summary>Обнуляет массив байтов по указателю</summary>
         /// <param name="targetLength">Размер массива для обнуления</param>
         /// <param name="t">Массив для обнуления</param>
-        /// <param name="val">Значение, которое задаётся массиву (последние 7-мь байтов массиву может задаваться значение младшего байта)</param>
+        /// <param name="val">Значение, которое задаётся массиву (последние 7-мь байтов массиву может задаваться значение младшего байта).
+        /// Для примера, это может быть значение 0x3737_3737__3737_3737 (в x64 значение 0x37 - это invalide OpCode)</param>
         /// <param name="index">Индекс начального элемента для обнуления</param>
         /// <param name="count">Количество элементов для обнуления, -1 - обнулять до конца</param>
         /// <returns>Количество обнулённых байтов</returns>
@@ -627,7 +635,7 @@ namespace vinkekfish
         /// <param name="count">Количество элементов для сравнения</param>
         /// <param name="indexWell">Начальный индекс для сравнения в массиве wellHash</param>
         /// <returns><see langword="true"/> - если массивы совпадают</returns>
-        public unsafe static bool Compare(byte[] wellHash, byte[] hash, int count = -1, int indexWell = 0)
+        public unsafe static bool UnsecureCompare(byte[] wellHash, byte[] hash, int count = -1, int indexWell = 0)
         {
             if (count == -1)
             {
@@ -672,7 +680,7 @@ namespace vinkekfish
         /// <param name="hash">Второй массив для сравнения</param>
         /// <param name="i">Индекс эленемта, который не совпадает</param>
         /// <returns><see langword="true"/> - если массивы совпадают</returns>
-        public unsafe static bool Compare(byte[] wellHash, byte[] hash, out int i)
+        public unsafe static bool UnsecureCompare(byte[] wellHash, byte[] hash, out int i)
         {
             i = -1;
             if (wellHash.LongLength != hash.LongLength || wellHash.LongLength < 0)

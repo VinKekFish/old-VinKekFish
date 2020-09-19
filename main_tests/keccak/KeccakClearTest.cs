@@ -14,6 +14,8 @@ namespace main_tests
         public KeccakClearTest(ConcurrentQueue<TestTask> tasks)
         {
             task = new TestTask("Keccak_base_20200918.Clear", StartTests);
+            task.waitAfter  = true;
+            task.waitBefore = true;
             tasks.Enqueue(task);
         }
 

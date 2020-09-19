@@ -30,6 +30,9 @@ namespace main_tests
 
         public DateTime started = default(DateTime);
         public DateTime endTime = default(DateTime);
+
+        public bool waitBefore = false;
+        public bool waitAfter  = false;
     }
 
     public delegate void TestTaskFn();
@@ -41,6 +44,7 @@ namespace main_tests
             // Это делаем однопоточно, чтобы точно не помешать другим потомкам, т.к. это, по сути, аварийное выделение памяти
             new KeccakClearTest(tasks);
             new EmtyString(tasks);
+            new KeccakSimpleHashTest(tasks);
         }
     }
 }

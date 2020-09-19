@@ -20,8 +20,10 @@ namespace main_tests
         static          string LogFileName      = null;
         static int Main(string[] args)
         {
-            var now = DateTime.Now;
-            LogFileName = LogFileNameTempl.Replace("$", HelperClass.DateToDateFileString(now));
+            var now       = DateTime.Now;
+            var startTime = now;
+            LogFileName   = LogFileNameTempl.Replace("$", HelperClass.DateToDateFileString(now));
+
             File.WriteAllText  (LogFileName,   HelperClass.DateToDateString(now) + "\nArgs:\n");
             File.AppendAllLines(LogFileName, args);
             File.AppendAllText (LogFileName, "\n");
@@ -36,6 +38,9 @@ namespace main_tests
             int PC = Environment.ProcessorCount;
             foreach (var task in tasks)
             {
+                var acceptableThreadCount = task.waitBefore ? 1 : PC;
+                waitForTasks(acceptableThreadCount);
+
                 Interlocked.Increment(ref started);
                 ThreadPool.QueueUserWorkItem
                 (
@@ -48,7 +53,7 @@ namespace main_tests
                         }
                         catch (Exception e)
                         {
-                            task.error.Add(new Error() { ex = e, Message = "During the test the exception occured" });
+                            task.error.Add(new Error() { ex = e, Message = "During the test the exception occured\n" + e.Message });
                         }
                         finally
                         {
@@ -63,19 +68,18 @@ namespace main_tests
                                 Monitor.PulseAll(sync);
 
                             task.endTime = DateTime.Now;
-                            File.AppendAllText(LogFileName, "task " + task.Name + "\n");
-                            File.AppendAllText(LogFileName, "task started at " + HelperClass.DateToDateString(task.started) + "\n");
-                            File.AppendAllText(LogFileName, "task ended   at " + HelperClass.DateToDateString(task.endTime) + "\n\n");
+                            lock (tasks)
+                            {
+                                File.AppendAllText(LogFileName, "task " + task.Name + "\n");
+                                File.AppendAllText(LogFileName, "task started at " + HelperClass.DateToDateString(task.started) + "\n");
+                                File.AppendAllText(LogFileName, "task ended   at " + HelperClass.DateToDateString(task.endTime) + "\n\n");
+                            }
                         }
                     }
                 );
 
-                while (started >= PC)
-                    lock (sync)
-                    {
-                        Monitor.Wait(sync, 2000);
-                        WaitMessages();
-                    }
+                acceptableThreadCount = task.waitAfter ? 1 : PC;
+                waitForTasks(acceptableThreadCount);
             }
 
             while (started > 0)
@@ -86,6 +90,9 @@ namespace main_tests
                 }
 
             WaitMessages(false, true);
+
+            var endTime = DateTime.Now;
+            Console.WriteLine("Test ended in time " + HelperClass.TimeStampTo_HHMMSSfff_String(endTime - startTime));
             if (args.Length == 0)
             {
                 Console.WriteLine("Press 'Enter' to exit");
@@ -112,7 +119,7 @@ namespace main_tests
                     {
                         if (!task.ended)
                         {
-                            Console.WriteLine(task.Name + ": " + (now - task.started).ToString(@"hh\:mm\:ss"));
+                            Console.WriteLine(task.Name + ": " + HelperClass.TimeStampTo_HHMMSSfff_String(now - task.started));
                         }
                     }
                 }
@@ -132,6 +139,16 @@ namespace main_tests
                         }
                     }
                 }
+            }
+
+            void waitForTasks(int acceptableThreadCount)
+            {
+                while (started >= acceptableThreadCount)
+                    lock (sync)
+                    {
+                        Monitor.Wait(sync, 2000);
+                        WaitMessages();
+                    }
             }
         }
     }
