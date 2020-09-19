@@ -42,9 +42,16 @@ namespace main_tests
         private static void AddTasks(ConcurrentQueue<TestTask> tasks)
         {
             // Это делаем однопоточно, чтобы точно не помешать другим потомкам, т.к. это, по сути, аварийное выделение памяти
+            // Этот тест вызываем в начале, чтобы посмотреть, что он не мешает продолжению работы программы
             new KeccakClearTest(tasks);
             new EmtyString(tasks);
             new KeccakSimpleHashTest(tasks);
+
+
+            // --------------------------------------------------------------------------------
+            // Завершающие тесты
+            // --------------------------------------------------------------------------------
+            new KeccakStatesArray_CountToCheck_test(tasks);
         }
     }
 }

@@ -50,6 +50,7 @@
   <ItemGroup>
     <Compile Include="BytesBuilder\BytesBuilder.cs" />
     <Compile Include="BytesBuilder\EmtyString.cs" />
+    <Compile Include="keccak\KeccakStatesArray_CountToCheck_test.cs" />
     <Compile Include="keccak\KeccakSimpleHashTest.cs" />
     <Compile Include="keccak\KeccakClearTest.cs" />
     <Compile Include="Program_AddTasks.cs" />

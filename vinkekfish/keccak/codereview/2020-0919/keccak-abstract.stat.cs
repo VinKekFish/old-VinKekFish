@@ -49,21 +49,14 @@ namespace vinkekfish
             }
 
             public readonly GCHandle handle;
-            public readonly byte * S, B, C, Base;
-            public readonly ulong * Slong, Blong, Clong;
-            public readonly long Size;
+            public byte * S, B, C, Base;
+            public ulong * Slong, Blong, Clong;
+            public long Size;
 
-            public  readonly bool ClearAfterUse;
-            public           bool Disposed
-            {
-                get;
-                protected set;
-            }
-
+            public readonly bool ClearAfterUse;
+            protected bool Disposed = false;
             protected static   int  CountToCheck = 0;
-            /// <summary>В конце программы, после GC.Collect() этот счётчик должен быть 0 (это счётчик того, что все объекты были удалены через Dispose)</summary>
-            public    static   int getCountToCheck => CountToCheck;
-
+            public static int getCountToCheck => CountToCheck;
             public void Dispose()
             {
                 if (!Disposed)
@@ -72,11 +65,11 @@ namespace vinkekfish
                     if (ClearAfterUse)
                         BytesBuilder.ToNull(targetLength: Size, t: Base);
 
+                    Disposed = true; // TODO: Проверить срабатывание финализатора без этого участка кода
                     CountToCheck--;
                 }
                 finally
                 {
-                    Disposed = true; // TODO: Проверить срабатывание финализатора без этого участка кода
                     handle.Free();
                 }
             }
@@ -97,41 +90,28 @@ namespace vinkekfish
             ClearState();
         }
 
-        /// <summary>Очищает состояние объекта</summary>
         public virtual void ClearState()
         {
             BytesBuilder.ToNull(State);
             ClearStateWithoutStateField();
         }
 
-        /// <summary>Очищает состояние объекта, но не State</summary>
         public virtual void ClearStateWithoutStateField()
         {
             this.d = 0;
         }
 
-        /// <summary>Инициализирует состояние нулями</summary>
         public virtual void init()
         {
             using (var state = new KeccakStatesArray(State))
                 Clear5x5(state.Slong);
         }
 
-        /// <summary>Эту функцию можно вызывать после keccak, если нужно состояние S, но хочется очистить B и C</summary>
-        public void clearOnly_C_and_B()
-        {
-            using (var state = new KeccakStatesArray(State))
-            {
-                Clear5x5(state.Blong);
-                Clear5  (state.Clong);
-            }
-        }
-
         /// <summary>Этот метод может использоваться для очистки матриц S и B после вычисления последнего шага хеша</summary>
         /// <param name="S">Очищаемая матрица размера 5x5 *ulong</param>
         public unsafe static void Clear5x5(ulong * S)
         {
-            var len = S_len2;
+            var len = S_len * S_len;
             var se  = S + len;
             for (; S < se; S++)
                 *S = 0;
@@ -392,17 +372,17 @@ namespace vinkekfish
                     i3 = 0;
                     i2++;   // Приращаем следующий индекс
                 }
+
+                if (i1 >= S_len)
+                {
+                    throw new Exception();
+                }
+
                 if (i2 >= S_len)
                 {
                     i2 = S_len;
                     i2 = 0;
                     i1++;
-                }
-
-                // Это даже на последней итерации не должно выполняться
-                if (i1 >= S_len)
-                {
-                    throw new Exception();
                 }
 
                 // Это вычисление нужно для того, чтобы потом записать верно padding
@@ -424,7 +404,8 @@ namespace vinkekfish
         /// <param name="output">Указатель на массив, готовый принять данные</param>
         /// <param name="len">Количество байтов для записи (не более 72-х; константа r_512b). Обычно используется 64 - это стойкость данного криптографического преобразования</param>
         /// <param name="S">Внутреннее состояние S</param>
-        // При вызове надо проверить, что output всегда нужной длины
+        // Сообщение P представляет собой массив элементов Pi,
+        // каждый из которых в свою очередь является массивом 64-битных элементов
         public static unsafe void Keccak_Output_512(byte * output, byte len, byte * S)
         {
             if (len > r_512b || len < 0)

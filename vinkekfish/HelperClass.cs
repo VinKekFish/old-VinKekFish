@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-
+// TODO: что у нас насчёт проверки целостности программы?
 namespace vinkekfish
 {
     public static class HelperClass

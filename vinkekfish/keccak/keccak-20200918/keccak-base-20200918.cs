@@ -109,12 +109,16 @@ namespace vinkekfish
             if (!isInitialized)
                 init();
 
-            fixed (ulong * sl = S, bl = B, cl = C)
+            using (var state = new KeccakStatesArray(State, ClearAfterUse: doClear))
             fixed (byte * R = result, Msg = message)
             {
-                byte * s   = (byte*) sl;
-                byte * b   = (byte*) bl;
-                byte * c   = (byte*) cl;
+                ulong * sl = state.Slong;
+                ulong * bl = state.Blong;
+                ulong * cl = state.Clong;
+
+                byte * s   = state.S;
+                byte * b   = state.B;
+                byte * c   = state.C;
                 byte * r   = R;
                 byte * msg = Msg + startIndex;
 
@@ -171,8 +175,8 @@ namespace vinkekfish
 
                 if (doClear)
                 {
-                    ClearState(sl, bl, cl);
-                    this.d = 0;
+                    // State очищается выше само
+                    ClearStateWithoutStateField();
                 }
             }
 

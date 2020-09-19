@@ -12,9 +12,12 @@ namespace vinkekfish
         {
             var result = new Keccak_20200918();
 
-            for (int i = 0; i < S_len; i++)
-                for (int j = 0; j < S_len; j++)
-                    result.S[i, j] = S[i, j];
+            // Очищаем C и B, чтобы не копировать какие-то значения, которые не стоит копировать, да и хранить тоже
+            clearOnly_C_and_B();
+
+            // Копировать всё состояние не обязательно. Но здесь, для надёжности, копируется всё
+            for (int i = 0; i < State.LongLength; i++)
+                    result.State[i] = State[i];
 
             return result;
         }

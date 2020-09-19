@@ -6,81 +6,97 @@ using System.Runtime.InteropServices;
 
 namespace vinkekfish
 {
-    /*
-     * Этот класс является предком остальных
-     * Классы не предназначены для изменений
-     * Чтобы их изменять, по хорошему, надо создать новый класс с другой датой создания и добавить его в тесты
-     * Наследники этого класса: Keccak_base_*
-     * */
     public unsafe abstract class Keccak_abstract
     {
-        public const int S_len = 5;
+        // Эта константа никогда не изменяется
+        public const int S_len  = 5;
         public const int S_len2 = S_len*S_len;
 
-        // Это внутреннее состояние keccak, а также вспомогательные переменные, не являющиеся состоянием
-        // Здесь сначала идёт B, потом C, потом S.
-        // При перезаписи после конца с высокой вероятностью пострадает S, что даст возможность тестам сделать своё дело
-        /// <summary>Внутреннее состояние keccak. Используйте KeccakStatesArray для того, чтобы разбить его на указатели</summary>
-        protected readonly byte[] State = new byte[(S_len2 + S_len + S_len2) << 3];
-        protected          ulong    d;
+        // Эта переменная не может быть изменена после установки
+        // А значит, никогда не будет null (исключая случаи, когда null вернёт устанавливающий оператор new)
 
-        /// <summary>Фиксирует объект State и создаёт на него ссылки
-        /// using (var state = new KeccakStatesArray(State))
-        /// state.S и другие</summary>
+        // analisys.tsYmujBwiLNZ:0
+        // При вызове необходимо проверить, что
+        // 1. Либо State проинициализированно явно init
+        // 2. Либо State ранее верно проинициализированно
+        protected readonly byte[] State = new byte[(S_len2 + S_len + S_len2) << 3];
+        protected          ulong    d;      // Всегда существует
+
         public class KeccakStatesArray : IDisposable
         {
-            // Желательно вызывать ClearAfterUser явно поименованно, чтобы показать, что очистка идёт
+            // State используется далее в строке 37: GCHandle.Alloc(State
+            // ClearAfterUse устанавливается в строке this.ClearAfterUse = ClearAfterUse;
             public KeccakStatesArray(byte[] State, bool ClearAfterUse = true)
             {
+                // ClearAfterUse всегда проинициализированна наиболее безопасным значением
                 this.ClearAfterUse = ClearAfterUse;
 
+                // Производится доступ к управляемому объекту из неуправляемой памяти
+                // State фиксируется в памяти: GCHandleType.Pinned
+                // https://docs.microsoft.com/en-us/dotnet/api/system.runtime.interopservices.gchandle.alloc?view=netframework-4.8
+                // handle далее удаляется в методе Dispose
+                // Его удаление проверяется в финализаторе
                 handle = GCHandle.Alloc(State, GCHandleType.Pinned);
+                // Счётчик дополнительно проверяет, что все объекты очищены. Парная очистка есть в Dispose на строке 68
                 CountToCheck++;
 
+                // Получаем указатель на наш массив State
+                // handle является верным типом - GCHandleType.Pinned, см. строка 37
+                // Base сохраняет указатель на первый элемент массива
                 Base  = (byte *) handle.AddrOfPinnedObject();
+                // Первым идёт B, тут всё верно
                 B     = Base;
+                // Вторым идёт C. Т.к. Base 5*5*ulong это означает, что 5*5*8=200
+                // Мы сдвигаем указатель B до конца B, то есть на размер B. Этот размер - S_len*S_len домноженный на 8
+                // S_len2 - это как раз квадрат S_len
                 C     = B + (S_len2 << 3);
-                S     = C + (S_len  << 3);
+                // Далее мы сдвигаем C на его размер. Это S_len домноженный на 8
+                S     = C + (S_len << 3);
+                // Всего мы использовали S_len2 + S_len + S_len2 экземпляров ulong.
 
                 Slong = (ulong *) S;
                 Blong = (ulong *) B;
                 Clong = (ulong *) C;
+                // Здесь тоже, вроде бы, всё верно. Мы видим, что Size - это общий размер массива в байтах
                 Size  = State.LongLength;
             }
 
             public readonly GCHandle handle;
-            public readonly byte * S, B, C, Base;
-            public readonly ulong * Slong, Blong, Clong;
-            public readonly long Size;
+            public byte * S, B, C, Base;
+            public ulong * Slong, Blong, Clong;
+            public long Size;
 
-            public  readonly bool ClearAfterUse;
-            public           bool Disposed
-            {
-                get;
-                protected set;
-            }
-
+            public readonly bool ClearAfterUse;
+            protected bool Disposed = false;
             protected static   int  CountToCheck = 0;
-            /// <summary>В конце программы, после GC.Collect() этот счётчик должен быть 0 (это счётчик того, что все объекты были удалены через Dispose)</summary>
-            public    static   int getCountToCheck => CountToCheck;
-
+            public static int getCountToCheck => CountToCheck;
             public void Dispose()
             {
+                // Всё будет выполнено только один раз
                 if (!Disposed)
                 try
                 {
+                    // Если ClearAfterUse, то произвести очистку
+                    // targetLength, вроде бы, и должен быть Size, т.к. 
+                    // State.LongLength - это длина массива State в байтах (массив State имеет тип byte[])
+                    // Base указывает в начало массива State
                     if (ClearAfterUse)
                         BytesBuilder.ToNull(targetLength: Size, t: Base);
 
+                    // Устанавливается флаг того, что мы всё удалили
+                    // Disposed перенёс в finally, чтобы Free точно не было выполнено дважды
+                    Disposed = true;
+                    // Статический счётчик обнулений и освобождений уменьшается
                     CountToCheck--;
                 }
                 finally
                 {
-                    Disposed = true; // TODO: Проверить срабатывание финализатора без этого участка кода
+                    // Освобождаем handle
                     handle.Free();
                 }
             }
 
+            // Финализатор проверяет, что у нас был вызыван Dispose() и выдаёт ошибку
             ~KeccakStatesArray()
             {
                 if (!Disposed)
@@ -89,42 +105,30 @@ namespace vinkekfish
         }
 
         public abstract Keccak_abstract Clone();
-        /// <summary>Дополнительно очищает состояние объекта после вычислений.
-        /// Рекомендуется вручную вызывать Clear5 и Clear5x5 до выхода из fixed, чтобы GC не успел их переместить (скопировать) до очистки</summary>
-        /// <param name="GcCollect">Если true, то override реализации должны дополнительно попытаться перезаписать всю память программы. <see langword="abstract"/> реализация ничего не делает</param>
         public virtual void Clear(bool GcCollect = true)
         {
+            // Здесь мы игнорируем GcCollect, чтобы оставить его на переопределение потомкам
             ClearState();
         }
 
-        /// <summary>Очищает состояние объекта</summary>
         public virtual void ClearState()
         {
+            // Используем безопасную версию ToNull, здесь размер будет взять прямо из State
             BytesBuilder.ToNull(State);
             ClearStateWithoutStateField();
         }
 
-        /// <summary>Очищает состояние объекта, но не State</summary>
         public virtual void ClearStateWithoutStateField()
         {
             this.d = 0;
         }
 
-        /// <summary>Инициализирует состояние нулями</summary>
         public virtual void init()
         {
+            // Здесь мы должны проинициализировать состояние. Для этого нужно обнулить S, что мы и делаем
             using (var state = new KeccakStatesArray(State))
+                // Обнуляем как и нужно, в процедуре для матриц 5x5
                 Clear5x5(state.Slong);
-        }
-
-        /// <summary>Эту функцию можно вызывать после keccak, если нужно состояние S, но хочется очистить B и C</summary>
-        public void clearOnly_C_and_B()
-        {
-            using (var state = new KeccakStatesArray(State))
-            {
-                Clear5x5(state.Blong);
-                Clear5  (state.Clong);
-            }
         }
 
         /// <summary>Этот метод может использоваться для очистки матриц S и B после вычисления последнего шага хеша</summary>
@@ -147,10 +151,12 @@ namespace vinkekfish
         }
 
 
+        // Константы проверены
         public const int   r_512  = 576;
         public const int   r_512b = r_512 >> 3; // 72
         public const int   r_512s = r_512 >> 6; // 9
 
+        // Эти не проверял, взято из предыдущей моей реализации
         public static readonly int[]   rNumbers = {1152, 1088, 832, 576}; // 224, 256, 384, 512 битов
         public static readonly ulong[] RC =
         {
@@ -350,7 +356,10 @@ namespace vinkekfish
         /// <param name="count">Количество шагов (всего шагов столько, сколько констант в RC)</param>
         public unsafe void Keccack_i(ulong * a, ulong * c, ulong * b, int start, int count)
         {
+            // Если start = 0, то end = count
             var end = start + count;
+            // Для 0, 24 получится i = 0, i < 24
+            // Если что неверно, вылетит исключение на RC[i]
             for (int i = start; i < end; i++)
             {
                 roundB(a, c, b); *a ^= RC[i];
@@ -371,16 +380,25 @@ namespace vinkekfish
                 throw new ArgumentOutOfRangeException("len > r_512b || len < 0");
             }
 
-            // В конце 72-хбайтового блока нужно поставить оконечный padding
-            // Мы пропустили 8 ulong (64-ре байта), то есть 8-5=3 сейчас индекс у нас 3, но т.к. матрица транспонирована, то нам нужен не индекс [1, 3], а индекс [3, 1]
-            // В индекс [3, 1] мы должны в старший байт записать 0x80. Значит, 3*5*8 + 1*8 + 7 = 135
+            //// В конце 72-хбайтового блока нужно поставить оконечный padding
+            //// Мы пропустили 8 ulong (64-ре байта), то есть 8-5=3 сейчас индекс у нас 3, но т.к. матрица транспонирована, то нам нужен не индекс [1, 3], а индекс [3, 1]
+            //// В индекс [3, 1] мы должны в старший байт записать 0x80. Значит, 3*5*8 + 1*8 + 7 = 135
+            // Общая длина S - это 5*5*8=200. То есть es лежит внутри S
             byte * es    = S + 135;
-            byte * lastS = S;           // Если len = 0, то записываем в первый байт
-            // Общий смысл инициализации
-            // Массив информации в размере 72 байта записывается в начало состояния из 25-ти 8-мибайтовых слов; однако матрица S при этом имеет транспонированные индексы
+            byte * lastS = S;           // Если len = 0, то записываем в первый же байт
+            //// Общий смысл инициализации
+            //// Массив информации в размере 72 байта записывается в начало состояния из 25-ти 8-мибайтовых слов; однако матрица S при этом имеет транспонированные индексы
+            // Это у нас индексы в матрице S, ss - это множитель для смещения строк матрицы относительно друг друга
             int i1 = 0, i2 = 0, i3 = 0, ss = S_len << 3;
+            // Работаем до len, len при этом ограничено 72-мя байтами
+            // Проверять невыход за пределы не буду, т.к. когда смотришь в отладчике, вроде всё норм. Плюс, совпадает с прежней реализацией
+            // Цикл всегда завершается, i никогда не изменяется в теле цикла
             for (int i = 0; i < len; i++)
             {
+                // (i1 << 3) - этот индекс идёт от одного ulong к другому
+                // i2*ss - от одной строки к другой
+                // i3 - это множитель, идущий по байтам
+                // i3 - самый младий индекс
                 lastS = S + (i1 << 3) + i2*ss + i3;
                 *lastS ^= *message;   // i2*ss - не ошибка, т.к. индексы в матрице транспонированны
                 message++;
@@ -392,6 +410,15 @@ namespace vinkekfish
                     i3 = 0;
                     i2++;   // Приращаем следующий индекс
                 }
+
+                // Верно, внимательно смотрим, чтобы не выйти за диапазон
+                // Переставил местами со следующим if
+                // Это всё равно, т.к. i1 никогда не входит в последнюю строку так, чтобы i2 её не сбросило
+                if (i1 >= S_len)
+                {
+                    throw new Exception();
+                }
+
                 if (i2 >= S_len)
                 {
                     i2 = S_len;
@@ -399,17 +426,13 @@ namespace vinkekfish
                     i1++;
                 }
 
-                // Это даже на последней итерации не должно выполняться
-                if (i1 >= S_len)
-                {
-                    throw new Exception();
-                }
-
                 // Это вычисление нужно для того, чтобы потом записать верно padding
                 // Для len = 71 значение lastS должно совпасть с es
+                // Это точно то же выражение, что и в начале цикла. Идёт исключительно для того, чтобы padding поставить
                 lastS = S + (i1 << 3) + i2*ss + i3;
             }
 
+            // Если ставим setPaddings, то ставим padding
             if (setPaddings)
             {
                 if (len >= r_512b)
@@ -424,6 +447,8 @@ namespace vinkekfish
         /// <param name="output">Указатель на массив, готовый принять данные</param>
         /// <param name="len">Количество байтов для записи (не более 72-х; константа r_512b). Обычно используется 64 - это стойкость данного криптографического преобразования</param>
         /// <param name="S">Внутреннее состояние S</param>
+        // Сообщение P представляет собой массив элементов Pi,
+        // каждый из которых в свою очередь является массивом 64-битных элементов
         // При вызове надо проверить, что output всегда нужной длины
         public static unsafe void Keccak_Output_512(byte * output, byte len, byte * S)
         {
@@ -441,6 +466,9 @@ namespace vinkekfish
                 if (len == 0)
                     goto End;
                 
+                // Это никогда не должно выйти за пределы S
+                // j максимум 160, k максимум 7, i максимум 32
+                // В сумме получаем 160+32+7=199, то есть меньше, чем 200
                 *output = *(S + i + j + k);
 
                 output++;

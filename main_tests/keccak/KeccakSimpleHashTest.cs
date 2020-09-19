@@ -5,7 +5,8 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using vinkekfish;
-using keccak;
+using keccak;   // keccak взят отсюда https://github.com/fdsc/old/releases
+using BytesBuilder = vinkekfish.BytesBuilder;
 
 namespace main_tests
 {
@@ -17,22 +18,39 @@ namespace main_tests
             task = new TestTask("Keccak simple hash test Keccak_base_20200918.getHash512 (Keccak_20200918)", StartTests);
             tasks.Enqueue(task);
 
-            sources.Add("byte[0]",
-                        new byte[0]);
+            sources = SourceTask.getIterator();
+        }
+        
+        class SourceTask
+        {
+            public string Key;
+            public byte[] Value;
 
-            sources.Add("Свет мой зеркальце скажи",
-                        new UTF8Encoding().GetBytes("Свет мой зеркальце скажи"));
-
-            for (int size = 0; size < 1024; size++)
+            public static IEnumerable<SourceTask> getIterator()
             {
-                for (int val = 0; val <= 255; val++)
+                yield return new SourceTask() {Key = "byte[0]", Value = new byte[0]};
+                yield return new SourceTask() {Key = "Свет мой зеркальце скажи", Value = new UTF8Encoding().GetBytes("Свет мой зеркальце скажи")};
+
+                for (int size = 1; size < 1024; size++)
                 {
-                    
+                    for (int val = 0; val <= 255; val++)
+                    {
+                        var b1 = new byte[size];
+                        var b2 = new byte[size];
+                        BytesBuilder.ToNull(b1);
+                        BytesBuilder.FillByBytes(  (byte) val, b2  );
+                        b1[0] = (byte) val;
+
+                        yield return new SourceTask() {Key = "byte[" + size + "] with nulls and val = " + val, Value = b1};
+                        yield return new SourceTask() {Key = "byte[" + size + "] with vals = " + val, Value = b2};
+                    }
                 }
+
+                yield break;
             }
         }
 
-        SortedList<string, byte[]> sources = new SortedList<string, byte[]>(128);
+        IEnumerable<SourceTask> sources = null;
 
         public void StartTests()
         {
