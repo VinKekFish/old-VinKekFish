@@ -25,6 +25,7 @@ namespace main_tests
 
         public readonly TestTaskFn  task;
         public readonly string      Name;
+        public          bool        start = false;
         public          bool        ended = false;
         public readonly List<Error> error = new List<Error>();
 
@@ -45,7 +46,8 @@ namespace main_tests
             // Этот тест вызываем в начале, чтобы посмотреть, что он не мешает продолжению работы программы
             new KeccakClearTest(tasks);
             new EmtyString(tasks);
-            // new KeccakSimpleHashTest(tasks);
+            new KeccakSimpleHashTest(tasks);
+            new KeccakSimpleHashTestByBits(tasks);
 
 
             // --------------------------------------------------------------------------------

@@ -39,7 +39,7 @@ namespace main_tests
             foreach (var task in tasks)
             {
                 var acceptableThreadCount = task.waitBefore ? 1 : PC;
-                waitForTasks(acceptableThreadCount);
+                waitForTasks(acceptableThreadCount, true);
 
                 Interlocked.Increment(ref started);
                 ThreadPool.QueueUserWorkItem
@@ -49,6 +49,7 @@ namespace main_tests
                         try
                         {
                             task.started = DateTime.Now;
+                            task.start   = true;
                             task.task();
                         }
                         catch (Exception e)
@@ -79,16 +80,10 @@ namespace main_tests
                 );
 
                 acceptableThreadCount = task.waitAfter ? 1 : PC;
-                waitForTasks(acceptableThreadCount);
+                waitForTasks(acceptableThreadCount, true);
             }
 
-            while (started > 0)
-                lock (sync)
-                {
-                    Monitor.Wait(sync, 2000);
-                    WaitMessages(true);
-                }
-
+            waitForTasks(1, true);
             WaitMessages(false, true);
 
             var endTime = DateTime.Now;
@@ -117,9 +112,10 @@ namespace main_tests
                     Console.WriteLine();
                     foreach (var task in tasks)
                     {
-                        if (!task.ended)
+                        if (!task.ended && task.start)
                         {
-                            Console.WriteLine(task.Name + ": " + HelperClass.TimeStampTo_HHMMSSfff_String(now - task.started));
+                            Console.WriteLine(task.Name);
+                            Console.WriteLine(HelperClass.TimeStampTo_HHMMSSfff_String(now - task.started));
                         }
                     }
                 }
@@ -141,13 +137,13 @@ namespace main_tests
                 }
             }
 
-            void waitForTasks(int acceptableThreadCount)
+            void waitForTasks(int acceptableThreadCount, bool showWaitTasks = false)
             {
                 while (started >= acceptableThreadCount)
                     lock (sync)
                     {
                         Monitor.Wait(sync, 2000);
-                        WaitMessages();
+                        WaitMessages(showWaitTasks);
                     }
             }
         }

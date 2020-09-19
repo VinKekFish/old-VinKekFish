@@ -24,12 +24,12 @@ namespace vinkekfish
 
         public static string TimeStampTo_HHMMSS_String(TimeSpan span)
         {
-            return span.ToString(@"hh\:mm\:ss");
+            return span.ToString(@"hh\'mm\:ss");
         }
 
         public static string TimeStampTo_HHMMSSfff_String(TimeSpan span)
         {
-            return span.ToString(@"hh\:mm\:ss\.fff");
+            return span.ToString(@"hh\'mm\:ss\.fff");
         }
     }
 }

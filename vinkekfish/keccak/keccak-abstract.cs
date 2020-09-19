@@ -3,6 +3,7 @@ using System.IO;
 using System.Net;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Threading;
 
 namespace vinkekfish
 {
@@ -35,7 +36,7 @@ namespace vinkekfish
                 this.ClearAfterUse = ClearAfterUse;
 
                 handle = GCHandle.Alloc(State, GCHandleType.Pinned);
-                CountToCheck++;
+                Interlocked.Increment(ref CountToCheck);
 
                 Base  = (byte *) handle.AddrOfPinnedObject().ToPointer();
                 B     = Base;
@@ -69,10 +70,11 @@ namespace vinkekfish
                 if (!Disposed)
                 try
                 {
+                    
                     if (ClearAfterUse)
                         BytesBuilder.ToNull(targetLength: Size, t: Base);
 
-                    CountToCheck--;
+                    Interlocked.Decrement(ref CountToCheck);
                 }
                 finally
                 {
@@ -446,6 +448,7 @@ namespace vinkekfish
                 *output = *(S + i + j + k);
 
                 output++;
+                len--;
             }
 
             End: ;

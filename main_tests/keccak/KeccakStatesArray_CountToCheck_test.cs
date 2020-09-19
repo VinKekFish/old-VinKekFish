@@ -22,7 +22,7 @@ namespace main_tests
         public void StartTests()
         {
             if (vinkekfish.Keccak_abstract.KeccakStatesArray.getCountToCheck != 0)
-                task.error.Add(new Error(){ Message = "vinkekfish.Keccak_abstract.KeccakStatesArray.getCountToCheck != 0" });
+                task.error.Add(new Error(){ Message = "vinkekfish.Keccak_abstract.KeccakStatesArray.getCountToCheck != 0: " + vinkekfish.Keccak_abstract.KeccakStatesArray.getCountToCheck });
         }
     }
 }

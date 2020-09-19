@@ -50,11 +50,8 @@ namespace vinkekfish
         // С другой стороны, всё-таки, перезаписать всё, что мы хотим перезаписать
         private unsafe static void AllocFullMemory()
         {
-            long number;
-            GCHandle h;
-            long* p2;
             bool hIsFreed = false;
-            AllocCheckArray(out number, out h, out p2);
+            AllocCheckArray(out long number, out GCHandle h, out long* p2);
 
             var co = new object();
             int MaxGenerationReached = 0;
