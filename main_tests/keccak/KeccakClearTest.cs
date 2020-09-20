@@ -1,4 +1,6 @@
-﻿using System;
+﻿// #define ManualTest_Clear
+
+using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
@@ -24,13 +26,15 @@ namespace main_tests
             CreateString();
 
             var k = new Keccak_20200918();
-            k.Clear(true);
+            k.Clear(true);                  // Здесь ставить точки останова, если хочется проверить перезатирание. Ставить две: до и после Clear(true)
             k.Clear();
         }
 
         // Раскомментировать для ручного тестирования, если есть необходимость
         private static void CreateString()
-        {/*
+        {
+            #if ManualTest_Clear
+
             // StringBuilder здесь для проверки сторонними приложениями что строка будет перезатёрта
             // https://www.cheatengine.org/ - для Windows (кнопка MemoryView)
             // https://hackware.ru/?p=10645 - mxtract для Linux
@@ -58,7 +62,8 @@ namespace main_tests
                 catch
                 {}
             }
-            bt.Clear();*/
+            bt.Clear();
+            #endif
         }
     }
 }

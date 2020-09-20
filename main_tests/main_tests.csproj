@@ -79,5 +79,8 @@
     </Content>
     <Content Include="Задачи и другое\Задачи.txt" />
   </ItemGroup>
+  <ItemGroup>
+    <Folder Include="Задачи и другое\Криптография\Размышления\" />
+  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
