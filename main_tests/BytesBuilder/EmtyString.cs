@@ -6,12 +6,13 @@ using System.Text;
 using System.Threading.Tasks;
 using vinkekfish;
 using System.Threading;
+using cryptoprime;
 
 namespace main_tests
 {
     class EmtyString
     {
-        TestTask task;
+        readonly TestTask task;
         public EmtyString(ConcurrentQueue<TestTask> tasks)
         {
             task = new TestTask("BytesBuilder.ClearString", StartTests);
@@ -20,15 +21,10 @@ namespace main_tests
 
         public void StartTests()
         {
-            List<string> testString = new List<string>(128);
-            testString.Add("");
-            testString.Add("1");
-            testString.Add(" ");
-            testString.Add("\t");
-            testString.Add("0123456789");
-            testString.Add("abcde[]");
-            testString.Add("абвгдеёждиклмя");
-            testString.Add("ʦʫ");
+            var testString = new List<string>(128)
+            {
+                "", "1", " ", "\t", "0123456789", "abcde[]", "абвгдеёждиклмя", "ʦʫ"
+            };
 
             foreach (var str in testString)
             {

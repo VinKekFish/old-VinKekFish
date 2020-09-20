@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace vinkekfish
+namespace cryptoprime
 {
     /// <summary>
     /// BytesBuilder
@@ -200,7 +200,7 @@ namespace vinkekfish
             if (resultA != null && resultA.Length < resultCount)
                 throw new System.ArgumentOutOfRangeException("resultA", "resultA is too small");
 
-            byte[] result = resultA == null ? new byte[resultCount] : resultA;
+            byte[] result = resultA ?? new byte[resultCount];
 
             long cursor = 0;
             for (int i = 0; i < bytes.Count; i++)
@@ -489,7 +489,7 @@ namespace vinkekfish
                 for (long i = start; i < start + 4; i++)
                 {
                     *(t + i) = (byte) data;
-                    data = data >> 8;
+                    data >>= 8;
                 }
             }
         }
@@ -511,7 +511,7 @@ namespace vinkekfish
                 for (long i = start; i < start + 8; i++)
                 {
                     *(t + i) = (byte) data;
-                    data = data >> 8;
+                    data >>= 8;
                 }
             }
         }
@@ -589,6 +589,7 @@ namespace vinkekfish
                 data += (byte) c;
             }
 
+            data = 0;
             // Возвращаем полный размер числа
             return j + 1;
         }

@@ -53,6 +53,7 @@
   <ItemGroup>
     <Compile Include="BytesBuilder\BytesBuilder.cs" />
     <Compile Include="BytesBuilder\EmtyString.cs" />
+    <Compile Include="keccak\KeccakSingleHashPerformanceTest.cs" />
     <Compile Include="keccak\KeccakSimpleHashTestByBits.cs" />
     <Compile Include="keccak\KeccakStatesArray_CountToCheck_test.cs" />
     <Compile Include="keccak\KeccakSimpleHashTest.cs" />
@@ -68,6 +69,10 @@
     <None Include="App.config" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\cryptoprime\cryptoprime.csproj">
+      <Project>{e9a150ce-af97-481b-9aca-c6eaaf3de4e4}</Project>
+      <Name>cryptoprime</Name>
+    </ProjectReference>
     <ProjectReference Include="..\vinkekfish\vinkekfish.csproj">
       <Project>{593efa79-fa33-4934-a740-6a4c2ecf24d9}</Project>
       <Name>vinkekfish</Name>

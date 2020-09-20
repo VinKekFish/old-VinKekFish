@@ -7,17 +7,20 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using vinkekfish;
+using cryptoprime;
 
 namespace main_tests
 {
     class KeccakClearTest
     {
-        TestTask task;
+        readonly TestTask task;
         public KeccakClearTest(ConcurrentQueue<TestTask> tasks)
         {
-            task = new TestTask("Keccak_base_20200918.Clear", StartTests);
-            task.waitAfter  = true;
-            task.waitBefore = true;
+            task = new TestTask("Keccak_base_20200918.Clear", StartTests)
+            {
+                waitAfter  = true,
+                waitBefore = true
+            };
             tasks.Enqueue(task);
         }
 

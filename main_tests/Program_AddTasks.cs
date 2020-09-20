@@ -45,9 +45,12 @@ namespace main_tests
             // Это делаем однопоточно, чтобы точно не помешать другим потомкам, т.к. это, по сути, аварийное выделение памяти
             // Этот тест вызываем в начале, чтобы посмотреть, что он не мешает продолжению работы программы
             new KeccakClearTest(tasks);
+            // Замер производительности
+            new KeccakSingleHashPerformanceTest(tasks);
+
             new EmtyString(tasks);
-            new KeccakSimpleHashTest(tasks);
-            new KeccakSimpleHashTestByBits(tasks);
+            //new KeccakSimpleHashTest(tasks);
+            //new KeccakSimpleHashTestByBits(tasks);
 
 
             // --------------------------------------------------------------------------------

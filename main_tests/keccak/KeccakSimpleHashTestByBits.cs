@@ -6,14 +6,14 @@ using System.Text;
 using System.Threading.Tasks;
 using vinkekfish;
 using keccak;   // keccak взят отсюда https://github.com/fdsc/old/releases
-using BytesBuilder = vinkekfish.BytesBuilder;
+using BytesBuilder = cryptoprime.BytesBuilder;
 using System.Runtime.CompilerServices;
 
 namespace main_tests
 {
     class KeccakSimpleHashTestByBits
     {
-        TestTask task;
+        readonly TestTask task;
         public KeccakSimpleHashTestByBits(ConcurrentQueue<TestTask> tasks)
         {
             task = new TestTask("Keccak simple hash test by bits Keccak_base_20200918.getHash512 (Keccak_20200918)", StartTests);
@@ -51,13 +51,13 @@ namespace main_tests
             }
         }
 
-        IEnumerable<SourceTask> sources = null;
+        readonly IEnumerable<SourceTask> sources = null;
 
         public unsafe void StartTests()
         {
             foreach (var ts in sources)
             {
-                var s = vinkekfish.BytesBuilder.CloneBytes(ts.Value);
+                var s = BytesBuilder.CloneBytes(ts.Value);
 
                 var k = new Keccak_20200918();
                 byte[] h1, h2;
@@ -67,12 +67,12 @@ namespace main_tests
                     h2 = new SHA3(1024).getHash512(s);
                 }
 
-                if (!vinkekfish.BytesBuilder.UnsecureCompare(s, ts.Value))
+                if (!BytesBuilder.UnsecureCompare(s, ts.Value))
                 {
                     task.error.Add(new Error() {Message = "Sources arrays has been changed for test array: " + ts.Key});
                 }
 
-                if (!vinkekfish.BytesBuilder.UnsecureCompare(h1, h2))
+                if (!BytesBuilder.UnsecureCompare(h1, h2))
                 {
                     task.error.Add(new Error() {Message = "Hashes are not equal for test array: " + ts.Key});
                 }
