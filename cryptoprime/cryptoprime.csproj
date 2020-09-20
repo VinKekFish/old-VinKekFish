@@ -48,6 +48,7 @@
   <ItemGroup>
     <Compile Include="BytesBuilder\BitToBytes.cs" />
     <Compile Include="BytesBuilder\BytesBuilder.cs" />
+    <Compile Include="threefish.cs" />
     <Compile Include="keccak.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>

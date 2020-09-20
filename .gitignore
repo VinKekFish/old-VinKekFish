@@ -338,3 +338,6 @@ ASALocalRun/
 
 # BeatPulse healthcheck temp database
 healthchecksdb
+/skein.pdf
+/skein.zip
+/skein1.3.pdf

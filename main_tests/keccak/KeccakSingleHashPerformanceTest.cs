@@ -42,9 +42,11 @@ namespace main_tests
 
             var dt2 = DateTime.Now;
             timeForMillion = dt2-dt1;
-            var CountsPerSecond = times / timeForMillion.TotalSeconds;
-            if (CountsPerSecond < 1_000_000)
-                task.error.Add(new Error() {Message = "Slow execution for hash512: count " + CountsPerSecond +  " time " + HelperClass.TimeStampTo_HHMMSSfff_String(timeForMillion)});
+            var CountsPermsecond = times / timeForMillion.TotalMilliseconds;
+
+            // Должно быть порядка 330 тысяч в секунду на одном старом ядре 2,8 ГГц с оптимизацией в cryptoprime, но без оптимизаций в остальных проектах
+            if (CountsPermsecond < 270)
+                task.error.Add(new Error() {Message = "Slow execution for hash512: count " + CountsPermsecond +  " pre 1 ms time " + HelperClass.TimeStampTo_HHMMSSfff_String(timeForMillion)});
         }
     }
 }

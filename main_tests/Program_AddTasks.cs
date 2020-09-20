@@ -42,15 +42,20 @@ namespace main_tests
     {
         private static void AddTasks(ConcurrentQueue<TestTask> tasks)
         {
+            ulong a = 0, b = 0;
+            byte r = 0;
+            cryptoprime.threefish.Mix(ref a, ref b, r);
+
             // Это делаем однопоточно, чтобы точно не помешать другим потомкам, т.к. это, по сути, аварийное выделение памяти
             // Этот тест вызываем в начале, чтобы посмотреть, что он не мешает продолжению работы программы
             new KeccakClearTest(tasks);
             // Замер производительности
             new KeccakSingleHashPerformanceTest(tasks);
 
+
             new EmtyString(tasks);
-            //new KeccakSimpleHashTest(tasks);
-            //new KeccakSimpleHashTestByBits(tasks);
+            new KeccakSimpleHashTest(tasks);
+            new KeccakSimpleHashTestByBits(tasks);
 
 
             // --------------------------------------------------------------------------------

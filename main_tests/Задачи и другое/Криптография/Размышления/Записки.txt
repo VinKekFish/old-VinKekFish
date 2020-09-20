@@ -15,6 +15,9 @@
 4. Расшифровывает ключ и хранит его некоторое время
 5. Предоставляет другой программе возможность отдавать команды на шифровку файлов этим ключом
 
+Реализация ThreeFish
+https://github.com/nitrocaster/SkeinFish
+https://www.schneier.com/academic/skein/threefish/
 
 https://docs.microsoft.com/ru-ru/dotnet/api/system.buffers?view=netcore-3.1
 Span<T> ReadonlySpan<T>
