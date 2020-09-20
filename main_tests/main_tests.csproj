@@ -78,9 +78,10 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="Задачи и другое\Задачи.txt" />
+    <Content Include="Задачи и другое\Криптография\Размышления\Записки.txt" />
+    <Content Include="Задачи и другое\Криптография\Размышления\Перемешивание.txt" />
+    <Content Include="Задачи и другое\Криптография\Размышления\РазмышленияПостроениеРасширенногоАлгоритма.txt" />
   </ItemGroup>
-  <ItemGroup>
-    <Folder Include="Задачи и другое\Криптография\Размышления\" />
-  </ItemGroup>
+  <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
