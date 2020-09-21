@@ -1,0 +1,98 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProjectGuid>{9E2B8071-9DD3-4DF5-9064-E668ECC52E31}</ProjectGuid>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>main_tests</RootNamespace>
+    <AssemblyName>main_tests</AssemblyName>
+    <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
+    <FileAlignment>512</FileAlignment>
+    <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
+    <Deterministic>true</Deterministic>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>bin\Debug\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+    <Prefer32Bit>false</Prefer32Bit>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <LangVersion>8.0</LangVersion>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>bin\Release\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+    <Prefer32Bit>false</Prefer32Bit>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <LangVersion>8.0</LangVersion>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="keccak, Version=1.11.3.2017, Culture=neutral, processorArchitecture=AMD64">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>.\keccak.dll</HintPath>
+    </Reference>
+    <Reference Include="System" />
+    <Reference Include="System.Core" />
+    <Reference Include="System.Xml.Linq" />
+    <Reference Include="System.Data.DataSetExtensions" />
+    <Reference Include="Microsoft.CSharp" />
+    <Reference Include="System.Data" />
+    <Reference Include="System.Net.Http" />
+    <Reference Include="System.Xml" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="BytesBuilder\BytesBuilder.cs" />
+    <Compile Include="BytesBuilder\EmtyString.cs" />
+    <Compile Include="keccak\KeccakSingleHashPerformanceTest.cs" />
+    <Compile Include="keccak\KeccakSimpleHashTestByBits.cs" />
+    <Compile Include="keccak\KeccakStatesArray_CountToCheck_test.cs" />
+    <Compile Include="keccak\KeccakSimpleHashTest.cs" />
+    <Compile Include="keccak\KeccakClearTest.cs" />
+    <Compile Include="Program_AddTasks.cs" />
+    <Compile Include="Program.cs" />
+    <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="threefish\alien\alien_ThreefishTransform.cs" />
+    <Compile Include="threefish\ThreefishPerformanceTest.cs" />
+    <Compile Include="threefish\ThreeFishGenTestByBits.cs" />
+    <Compile Include="threefish\ThreeFishTestByBits.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\.editorconfig">
+      <Link>.editorconfig</Link>
+    </None>
+    <None Include="App.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\cryptoprime\010_cryptoprime.csproj">
+      <Project>{e9a150ce-af97-481b-9aca-c6eaaf3de4e4}</Project>
+      <Name>010_cryptoprime</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\vinkekfish\001vinkekfish.csproj">
+      <Project>{593efa79-fa33-4934-a740-6a4c2ecf24d9}</Project>
+      <Name>001vinkekfish</Name>
+    </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="keccak.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Задачи и другое\Задачи.txt" />
+    <Content Include="Задачи и другое\Криптография\Размышления\Записки.txt" />
+    <Content Include="Задачи и другое\Криптография\Размышления\Перемешивание.txt" />
+    <Content Include="Задачи и другое\Криптография\Размышления\РазмышленияПостроениеРасширенногоАлгоритма.txt" />
+  </ItemGroup>
+  <ItemGroup />
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+</Project>

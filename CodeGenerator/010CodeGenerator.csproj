@@ -4,10 +4,10 @@
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{9E2B8071-9DD3-4DF5-9064-E668ECC52E31}</ProjectGuid>
+    <ProjectGuid>{E7674414-C452-4926-B0A4-FD587BE4E783}</ProjectGuid>
     <OutputType>Exe</OutputType>
-    <RootNamespace>main_tests</RootNamespace>
-    <AssemblyName>main_tests</AssemblyName>
+    <RootNamespace>CodeGenerator</RootNamespace>
+    <AssemblyName>CodeGenerator</AssemblyName>
     <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
@@ -22,25 +22,22 @@
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
-    <Prefer32Bit>false</Prefer32Bit>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <Prefer32Bit>false</Prefer32Bit>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <PlatformTarget>AnyCPU</PlatformTarget>
     <DebugType>pdbonly</DebugType>
-    <Optimize>false</Optimize>
+    <Optimize>true</Optimize>
     <OutputPath>bin\Release\</OutputPath>
-    <DefineConstants>TRACE</DefineConstants>
+    <DefineConstants>
+    </DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
     <Prefer32Bit>false</Prefer32Bit>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="keccak, Version=1.11.3.2017, Culture=neutral, processorArchitecture=AMD64">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>.\keccak.dll</HintPath>
-    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Xml.Linq" />
@@ -51,42 +48,24 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="BytesBuilder\BytesBuilder.cs" />
-    <Compile Include="BytesBuilder\EmtyString.cs" />
-    <Compile Include="keccak\KeccakSingleHashPerformanceTest.cs" />
-    <Compile Include="keccak\KeccakSimpleHashTestByBits.cs" />
-    <Compile Include="keccak\KeccakStatesArray_CountToCheck_test.cs" />
-    <Compile Include="keccak\KeccakSimpleHashTest.cs" />
-    <Compile Include="keccak\KeccakClearTest.cs" />
-    <Compile Include="Program_AddTasks.cs" />
+    <Compile Include="BaseCodeGenerator.cs" />
+    <Compile Include="Generated\Threefish_Static_Generated.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="ThreeFish_Gen.cs" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\.editorconfig">
-      <Link>.editorconfig</Link>
-    </None>
     <None Include="App.config" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\cryptoprime\cryptoprime.csproj">
+    <ProjectReference Include="..\cryptoprime\010_cryptoprime.csproj">
       <Project>{e9a150ce-af97-481b-9aca-c6eaaf3de4e4}</Project>
-      <Name>cryptoprime</Name>
+      <Name>010_cryptoprime</Name>
     </ProjectReference>
-    <ProjectReference Include="..\vinkekfish\vinkekfish.csproj">
+    <ProjectReference Include="..\vinkekfish\001vinkekfish.csproj">
       <Project>{593efa79-fa33-4934-a740-6a4c2ecf24d9}</Project>
-      <Name>vinkekfish</Name>
+      <Name>001vinkekfish</Name>
     </ProjectReference>
   </ItemGroup>
-  <ItemGroup>
-    <Content Include="keccak.dll">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Задачи и другое\Задачи.txt" />
-    <Content Include="Задачи и другое\Криптография\Размышления\Записки.txt" />
-    <Content Include="Задачи и другое\Криптография\Размышления\Перемешивание.txt" />
-    <Content Include="Задачи и другое\Криптография\Размышления\РазмышленияПостроениеРасширенногоАлгоритма.txt" />
-  </ItemGroup>
-  <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

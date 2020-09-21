@@ -1,4 +1,6 @@
-﻿using System;
+﻿// #define doPerformaceTest
+
+using System;
 using System.Collections.Generic;
 using System.Collections.Concurrent;
 using System.Linq;
@@ -29,8 +31,8 @@ namespace main_tests
         public          bool        ended = false;
         public readonly List<Error> error = new List<Error>();
 
-        public DateTime started = default(DateTime);
-        public DateTime endTime = default(DateTime);
+        public DateTime started = default;
+        public DateTime endTime = default;
 
         public bool waitBefore = false;
         public bool waitAfter  = false;
@@ -42,9 +44,9 @@ namespace main_tests
     {
         private static void AddTasks(ConcurrentQueue<TestTask> tasks)
         {
-            ulong a = 0, b = 0;
-            byte r = 0;
-            cryptoprime.threefish.Mix(ref a, ref b, r);
+            #if doPerformaceTest
+                new ThreefishPerformanceTest(tasks);
+            #else
 
             // Это делаем однопоточно, чтобы точно не помешать другим потомкам, т.к. это, по сути, аварийное выделение памяти
             // Этот тест вызываем в начале, чтобы посмотреть, что он не мешает продолжению работы программы
@@ -56,12 +58,15 @@ namespace main_tests
             new EmtyString(tasks);
             new KeccakSimpleHashTest(tasks);
             new KeccakSimpleHashTestByBits(tasks);
-
+            new ThreeFishTestByBits   (tasks);
+            new ThreeFishGenTestByBits(tasks);
 
             // --------------------------------------------------------------------------------
             // Завершающие тесты
             // --------------------------------------------------------------------------------
             new KeccakStatesArray_CountToCheck_test(tasks);
+
+            #endif
         }
     }
 }

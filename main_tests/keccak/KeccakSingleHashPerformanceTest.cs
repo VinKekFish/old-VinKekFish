@@ -14,12 +14,15 @@ namespace main_tests
     class KeccakSingleHashPerformanceTest
     {
         readonly TestTask task;
+        public   double   CountsPermsecond = 0;
         public KeccakSingleHashPerformanceTest(ConcurrentQueue<TestTask> tasks)
         {
-            task = new TestTask("Keccak Single Hash Performance Test Keccak_base_20200918.getHash512 (Keccak_20200918)", StartTests);
-            tasks.Enqueue(task);
-            task.waitAfter  = true;
-            task.waitBefore = true;
+            task = new TestTask("Keccak Single Hash Performance Test Keccak_base_20200918.getHash512 (Keccak_20200918)", StartTests)
+            {
+                waitAfter  = true,
+                waitBefore = true
+            };
+            tasks?.Enqueue(task);
         }
 
         public TimeSpan timeForMillion;
@@ -42,7 +45,7 @@ namespace main_tests
 
             var dt2 = DateTime.Now;
             timeForMillion = dt2-dt1;
-            var CountsPermsecond = times / timeForMillion.TotalMilliseconds;
+            CountsPermsecond = times / timeForMillion.TotalMilliseconds;
 
             // Должно быть порядка 330 тысяч в секунду на одном старом ядре 2,8 ГГц с оптимизацией в cryptoprime, но без оптимизаций в остальных проектах
             if (CountsPermsecond < 270)

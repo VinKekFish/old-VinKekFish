@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using vinkekfish;
 using keccak;   // keccak взят отсюда https://github.com/fdsc/old/releases
 using BytesBuilder = cryptoprime.BytesBuilder;
+using BitToBytes   = cryptoprime.BitToBytes;
 using System.Runtime.CompilerServices;
 
 namespace main_tests
