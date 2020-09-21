@@ -87,7 +87,7 @@ namespace main_tests
             WaitMessages(false, true);
 
             var endTime = DateTime.Now;
-            Console.WriteLine("Test ended in time " + HelperClass.TimeStampTo_HHMMSSfff_String(endTime - startTime));
+            Console.WriteLine("Tests ended in time " + HelperClass.TimeStampTo_HHMMSSfff_String(endTime - startTime));
             if (args.Length == 0)
             {
                 Console.WriteLine("Press 'Enter' to exit");
