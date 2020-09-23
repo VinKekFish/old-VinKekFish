@@ -24,7 +24,7 @@ namespace vinkekfish
         // Здесь сначала идёт B, потом C, потом S.
         // При перезаписи после конца с высокой вероятностью пострадает S, что даст возможность тестам сделать своё дело
         /// <summary>Внутреннее состояние keccak. Используйте KeccakStatesArray для того, чтобы разбить его на указатели</summary>
-        protected readonly byte[] State = new byte[(S_len2 + S_len + S_len2) << 3];
+        public readonly byte[] State = new byte[(S_len2 + S_len + S_len2) << 3];
         protected          ulong    d;
 
         /// <summary>Фиксирует объект State и создаёт на него ссылки
