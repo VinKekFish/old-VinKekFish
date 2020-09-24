@@ -14,11 +14,11 @@ namespace main_tests
     // Добавление новых тестов см. в файле Program_AddTasks.cs, метод AddTasks
     // Программа просто консольно запускается и выполняет написанные тесты многопоточно
     // Подсчитывает количество ошибок
-    partial class Program
+    public partial class Program
     {
-        static readonly string LogFileNameTempl = "tests-$.log";
-        static          string LogFileName      = null;
-        static int Main(string[] args)
+        public static readonly string LogFileNameTempl = "tests-$.log";
+        public static          string LogFileName      = null;
+        public static int Main(string[] args)
         {
             var now       = DateTime.Now;
             var startTime = now;
@@ -29,7 +29,7 @@ namespace main_tests
             File.AppendAllText (LogFileName, "\n");
 
             System.Collections.Concurrent.ConcurrentQueue<TestTask> tasks = new ConcurrentQueue<TestTask>();
-            AddTasks(tasks);
+            AddTasksFunc(tasks);
 
             Object sync = new Object();
             int started = 0;            // Количество запущенных прямо сейчас задач

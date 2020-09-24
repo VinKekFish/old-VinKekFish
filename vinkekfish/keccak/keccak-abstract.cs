@@ -125,11 +125,10 @@ namespace vinkekfish
         /// <summary>Эту функцию можно вызывать после keccak, если нужно состояние S, но хочется очистить B и C</summary>
         public void clearOnly_C_and_B()
         {
-            using (var state = new KeccakStatesArray(State))
-            {
-                Clear5x5(state.Blong);
-                Clear5  (state.Clong);
-            }
+            using var state = new KeccakStatesArray(State);
+
+            Clear5x5(state.Blong);
+            Clear5  (state.Clong);
         }
 
         /// <summary>Этот метод может использоваться для очистки матриц S и B после вычисления последнего шага хеша</summary>

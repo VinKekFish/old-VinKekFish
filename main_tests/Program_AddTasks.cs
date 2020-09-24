@@ -42,7 +42,9 @@ namespace main_tests
 
     partial class Program
     {
-        private static void AddTasks(ConcurrentQueue<TestTask> tasks)
+        public delegate void AddTasksDelegate(ConcurrentQueue<TestTask> tasks);
+        public static AddTasksDelegate AddTasksFunc = AddTasks;
+        protected static void AddTasks(ConcurrentQueue<TestTask> tasks)
         {
             #if doPerformaceTest
                 new ThreefishPerformanceTest(tasks);
