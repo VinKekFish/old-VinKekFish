@@ -55,6 +55,7 @@
     <Compile Include="keccak.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Threefish\Threefish_Static_Generated.cs" />
+    <Compile Include="VinKekFish\VinKekFishBase.cs" />
   </ItemGroup>
   <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

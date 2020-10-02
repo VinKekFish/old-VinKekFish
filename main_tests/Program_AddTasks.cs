@@ -36,6 +36,9 @@ namespace main_tests
 
         public bool waitBefore = false;
         public bool waitAfter  = false;
+
+        /// <summary>Выполнение задачи в процентах</summary>
+        public float done = 0f;
     }
 
     public delegate void TestTaskFn();

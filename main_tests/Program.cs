@@ -8,6 +8,7 @@ using System.Threading;
 using System.IO;
 using vinkekfish;
 using System.Diagnostics;
+using System.Data;
 
 namespace main_tests
 {
@@ -98,6 +99,12 @@ namespace main_tests
 
             void WaitMessages(bool showWaitTasks = false, bool endedAllTasks = false)
             {
+                if (!endedAllTasks && (DateTime.Now - waitForTasks_lastDateTime).TotalSeconds < 5)
+                    return;
+
+                waitForTasks_lastDateTime = DateTime.Now;
+
+                Thread.CurrentThread.Priority = ThreadPriority.Highest;
                 Console.Clear();
                 // Console.CursorLeft = 0;
                 // Console.CursorTop  = 0;
@@ -114,11 +121,16 @@ namespace main_tests
                     {
                         if (!task.ended && task.start)
                         {
-                            Console.WriteLine(task.Name);
+                            var str = "";
+                            if (task.done > 0)
+                                str = "\t\t" + task.done.ToString("F0") + "%";
+
+                            Console.WriteLine(task.Name + str);
                             Console.WriteLine(HelperClass.TimeStampTo_HHMMSSfff_String(now - task.started));
                         }
                     }
                 }
+                Thread.CurrentThread.Priority = ThreadPriority.BelowNormal;
 
                 if (endedAllTasks)
                 {
@@ -147,5 +159,7 @@ namespace main_tests
                     }
             }
         }
+
+        static DateTime waitForTasks_lastDateTime = default;
     }
 }
