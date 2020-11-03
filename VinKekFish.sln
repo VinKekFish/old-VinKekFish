@@ -16,6 +16,13 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "010_cryptoprime", "cryptopr
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "010CodeGenerator", "CodeGenerator\010CodeGenerator.csproj", "{E7674414-C452-4926-B0A4-FD587BE4E783}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Licenses", "Licenses", "{80EE532F-CC95-4BD9-B770-F0240F8311F6}"
+	ProjectSection(SolutionItems) = preProject
+		Licenses\audit.txt = Licenses\audit.txt
+		Licenses\c-EULA.txt = Licenses\c-EULA.txt
+		Licenses\EULA.txt = Licenses\EULA.txt
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
