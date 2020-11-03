@@ -10,7 +10,7 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("")]
 [assembly: AssemblyProduct("cryptoprime")]
-[assembly: AssemblyCopyright("Copyright ©  2020")]
+[assembly: AssemblyCopyright("Copyright © 2020 Vinogradov Sergey Vasilievich (Russia, Moscow R., Mitistchi)")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 
