@@ -21,6 +21,8 @@ namespace main_tests
         public static          string LogFileName      = null;
         public static int Main(string[] args)
         {
+            Process.GetCurrentProcess().PriorityClass = ProcessPriorityClass.BelowNormal;
+
             var now       = DateTime.Now;
             var startTime = now;
             LogFileName   = LogFileNameTempl.Replace("$", HelperClass.DateToDateFileString(now));

@@ -37,7 +37,7 @@ namespace main_tests
         public bool waitBefore = false;
         public bool waitAfter  = false;
 
-        /// <summary>Выполнение задачи в процентах</summary>
+        /// <summary>Выполнение задачи в процентах (0-100)</summary>
         public float done = 0f;
     }
 

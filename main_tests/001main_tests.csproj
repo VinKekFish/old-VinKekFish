@@ -73,6 +73,7 @@
       <Link>.editorconfig</Link>
     </None>
     <None Include="App.config" />
+    <None Include="Задачи и другое\Криптография\Размышления\VinKekFish.md" />
     <None Include="Задачи и другое\Криптография\Размышления\Модель.md" />
   </ItemGroup>
   <ItemGroup>
