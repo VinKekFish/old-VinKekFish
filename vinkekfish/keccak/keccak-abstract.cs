@@ -36,7 +36,7 @@ namespace vinkekfish
             public KeccakStatesArray(byte[] State, bool ClearAfterUse = true)
             {
                 this.ClearAfterUse = ClearAfterUse;
-
+                /*
                 handle = GCHandle.Alloc(State, GCHandleType.Pinned);
                 Interlocked.Increment(ref CountToCheck);
 
@@ -48,7 +48,23 @@ namespace vinkekfish
                 Slong = (ulong *) S;
                 Blong = (ulong *) B;
                 Clong = (ulong *) C;
-                Size  = State.LongLength;
+                Size  = State.LongLength;*/
+                getStatesArray(out handle, State, out S, out B, out C, out Base, out Slong, out Blong, out Clong);
+            }
+
+            public static void getStatesArray(out GCHandle handle, byte[] State, out byte * S, out byte * B, out byte * C, out byte * Base, out ulong * Slong, out ulong * Blong, out ulong * Clong)
+            {
+                handle = GCHandle.Alloc(State, GCHandleType.Pinned);
+                Interlocked.Increment(ref CountToCheck);
+
+                Base  = (byte *) handle.AddrOfPinnedObject().ToPointer();
+                B     = Base;
+                C     = B + (S_len2 << 3);
+                S     = C + (S_len  << 3);
+
+                Slong = (ulong *) S;
+                Blong = (ulong *) B;
+                Clong = (ulong *) C;
             }
 
             public readonly GCHandle handle;
@@ -67,8 +83,14 @@ namespace vinkekfish
             /// <summary>В конце программы, после GC.Collect() этот счётчик должен быть 0 (это счётчик того, что все объекты были удалены через Dispose)</summary>
             public    static   int getCountToCheck => CountToCheck;
 
-            public void Dispose()
+            protected virtual void Dispose(bool disposing)
             {
+                var errorFlag = false;
+                if (!disposing && !Disposed)
+                {
+                    errorFlag = true;
+                }
+
                 if (!Disposed)
                 try
                 {
@@ -82,12 +104,20 @@ namespace vinkekfish
                     Disposed = true;
                     handle.Free();
                 }
+
+                if (errorFlag)
+                    throw new Exception("Keccak_abstract.KeccakStatesArray: not all KeccakStatesArray is disoposed");
+            }
+
+            public void Dispose()
+            {
+                Dispose(true);
+                GC.SuppressFinalize(this);
             }
 
             ~KeccakStatesArray()
             {
-                if (!Disposed)
-                    throw new Exception("Keccak_abstract.KeccakStatesArray: not all KeccakStatesArray is disoposed");
+                Dispose(false);
             }
         }
 
