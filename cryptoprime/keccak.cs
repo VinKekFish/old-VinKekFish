@@ -232,6 +232,7 @@ namespace cryptoprime
         /// <param name="setPaddings">Если <see langword="true"/> - ввести padding в массив (при вычислении хеша делать на последнем блоке <= 71 байта)</param>
         // Сообщение P представляет собой массив элементов Pi,
         // каждый из которых в свою очередь является массивом 64-битных элементов
+        // НИЖЕ КОПИЯ Keccak_InputOverwrite_512 (разница в одной строке!)
         public static unsafe void Keccak_Input_512(byte * message, byte len, byte * S, bool setPaddings = false)
         {
             if (len > r_512b || len < 0)
@@ -249,8 +250,66 @@ namespace cryptoprime
             int i1 = 0, i2 = 0, i3 = 0, ss = S_len << 3;
             for (int i = 0; i < len; i++)
             {
+                lastS = S + (i1 << 3) + i2*ss + i3;   // i2*ss - не ошибка, т.к. индексы в матрице транспонированны
+                *lastS ^= *message;
+                message++;
+
+                // Выполняем приращения индексов в матрице
+                i3++;
+                if (i3 >= 8)
+                {
+                    i3 = 0;
+                    i2++;   // Приращаем следующий индекс
+                }
+                if (i2 >= S_len)
+                {
+                    i2 = S_len;
+                    i2 = 0;
+                    i1++;
+                }
+
+                // Это даже на последней итерации не должно выполняться
+                if (i1 >= S_len)
+                {
+                    throw new Exception();
+                }
+
+                // Это вычисление нужно для того, чтобы потом записать верно padding
+                // Для len = 71 значение lastS должно совпасть с es
                 lastS = S + (i1 << 3) + i2*ss + i3;
-                *lastS ^= *message;   // i2*ss - не ошибка, т.к. индексы в матрице транспонированны
+            }
+
+            if (setPaddings)
+            {
+                if (len >= r_512b)
+                    throw new ArgumentOutOfRangeException("len >= r_512b (must be < 72)");
+
+                 *lastS ^= 0x01;
+                 *es    ^= 0x80;
+            }
+        }
+
+        // Этот метод должен быть полной копией Keccak_Input_512
+        // Разница лишь в одной стркое: *lastS = *message
+        public static unsafe void Keccak_InputOverwrite_512(byte * message, byte len, byte * S, bool setPaddings = false)
+        {
+            if (len > r_512b || len < 0)
+            {
+                throw new ArgumentOutOfRangeException("len > r_512b || len < 0");
+            }
+
+            // В конце 72-хбайтового блока нужно поставить оконечный padding
+            // Мы пропустили 8 ulong (64-ре байта), то есть 8-5=3 сейчас индекс у нас 3, но т.к. матрица транспонирована, то нам нужен не индекс [1, 3], а индекс [3, 1]
+            // В индекс [3, 1] мы должны в старший байт записать 0x80. Значит, 3*5*8 + 1*8 + 7 = 135
+            byte * es    = S + 135;
+            byte * lastS = S;           // Если len = 0, то записываем в первый байт
+            // Общий смысл инициализации
+            // Массив информации в размере 72 байта записывается в начало состояния из 25-ти 8-мибайтовых слов; однако матрица S при этом имеет транспонированные индексы
+            int i1 = 0, i2 = 0, i3 = 0, ss = S_len << 3;
+            for (int i = 0; i < len; i++)
+            {
+                lastS = S + (i1 << 3) + i2*ss + i3;
+                *lastS = *message;   // ЗДЕСЬ ЕДИНСТВЕННОЕ ИЗМЕНЕНИЕ! Это впитывание не для Sponge, а для Overwrite
                 message++;
 
                 // Выполняем приращения индексов в матрице
