@@ -140,25 +140,6 @@ namespace cryptoprime
             return RemoveBlockAt(bytes.Count - 1);
         }
 
-        /// <summary>Удаляет последний блок из объекта, блок очищается нулями</summary>
-        /// <returns>Возвращает длину последнего блока</returns>
-        public long RemoveBlockAt(int position)
-        {
-            if (position < 0)
-                throw new ArgumentException("position must be >= 0");
-
-            if (position >= bytes.Count)
-                throw new ArgumentException("position must be in range");
-
-            var tmp = bytes[position];
-            long removedLength = tmp.LongLength;
-            bytes.RemoveAt(position);
-            BytesBuilder.BytesToNull(tmp);
-
-            count -= removedLength;
-            return removedLength;
-        }
-
         /// <summary>Удаляет несколько блоков с позиции position до позиции endPosition включительно</summary>
         /// <param name="position">Индекс первого удаляемого блока</param><param name="endPosition">Индекс последнего удаляемого блока</param>
         /// <returns>Количество удалённых байтов</returns>
@@ -194,8 +175,13 @@ namespace cryptoprime
         /// <returns></returns>
         public byte[] getBytes(long resultCount = -1, byte[] resultA = null)
         {
-            if (resultCount == -1 || resultCount > count)
+            if (resultCount == -1)
                 resultCount = count;
+
+            if (resultCount > count)
+            {
+                throw new System.ArgumentOutOfRangeException("resultCount", "resultCount is too large: resultCount > count");
+            }
 
             if (resultA != null && resultA.Length < resultCount)
                 throw new System.ArgumentOutOfRangeException("resultA", "resultA is too small");
@@ -214,6 +200,89 @@ namespace cryptoprime
 
             return result;
         }
+        
+        /// <summary>Удаляет блок из объекта с позиции position, блок очищается нулями</summary>
+        /// <returns>Возвращает длину удалённого блока</returns>
+        public long RemoveBlockAt(int position, bool doClear = true)
+        {
+            if (position < 0)
+                throw new ArgumentException("position must be >= 0");
+
+            if (position >= bytes.Count)
+                throw new ArgumentException("position must be in range");
+
+            var tmp = bytes[position];
+
+            long removedLength = tmp.LongLength;
+            bytes.RemoveAt(position);
+
+            if (doClear)
+                BytesBuilder.ToNull(tmp);
+
+            count -= removedLength;
+            return removedLength;
+        }
+
+        /// <summary>Создаёт массив байтов, включающий в себя resultCount символов, и удаляет их с очисткой из BytesBuilder</summary>
+        /// <param name="resultA">Массив, в который будет записан результат. Если resultA = null, то массив создаётся</param>
+        /// <param name="resultCount">Размер массива-результата</param>
+        /// <returns>Запрошенный результат (первые resultCount байтов)</returns>
+        // Эта функция может неожиданно обнулить часть массива или массив, сохранённый без копирования (если он где-то используется в другом месте)
+        public byte[] getBytesAndRemoveIt(byte[] resultA = null, long resultCount = -1)
+        {
+            if (resultCount == -1)
+            {
+                if (resultA == null)
+                    resultCount = count;
+                else
+                    resultCount = resultA.LongLength;
+            }
+
+            if (resultCount > count)
+            {
+                throw new System.ArgumentOutOfRangeException("resultCount", "resultCount is too large: resultCount > count");
+            }
+
+            if (resultA != null && resultA.Length < resultCount)
+                throw new System.ArgumentOutOfRangeException("resultA", "resultA is too small");
+
+            byte[] result = resultA ?? new byte[resultCount];
+
+            long cursor = 0;
+            for (int i = 0; i < bytes.Count; )
+            {
+                if (cursor == resultCount)
+                    break;
+
+                if (cursor > resultCount)
+                    throw new System.Exception("Fatal algorithmic error (getBytesAndRemoveIt): cursor > resultCount");
+
+                if (cursor + bytes[i].LongLength > resultCount)
+                {
+                    // Делим массив на две части. Левая уходит наружу, правая остаётся в массиве
+                    var left  = resultCount - cursor;
+                    var right = bytes[i].LongLength - left;
+
+                    var bLeft  = CloneBytes(bytes[i], 0, left);
+                    var bRight = CloneBytes(bytes[i], left);
+
+                    RemoveBlockAt(i);
+
+                    bytes.Insert(0, bLeft );
+                    bytes.Insert(1, bRight);
+
+                    count += left + right;
+                }
+
+                CopyTo(bytes[i], result, cursor);
+                cursor += bytes[i].LongLength;
+
+                RemoveBlockAt(i);
+            }
+
+            return result;
+        }
+
         /*
         public byte[] getBytes(long resultCount, long index)
         {

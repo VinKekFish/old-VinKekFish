@@ -18,7 +18,7 @@ namespace vinkekfish
      * Чтобы их изменять, по хорошему, надо создать новый класс с другой датой создания и добавить его в тесты
      * Наследники этого класса: Keccak_base_*
      * */
-    public unsafe abstract class Keccak_abstract
+    public unsafe abstract class Keccak_abstract: IDisposable
     {
         // Это внутреннее состояние keccak, а также вспомогательные переменные, не являющиеся состоянием
         // Здесь сначала идёт B, потом C, потом S.
@@ -47,8 +47,8 @@ namespace vinkekfish
 
                 Slong = (ulong *) S;
                 Blong = (ulong *) B;
-                Clong = (ulong *) C;
-                Size  = State.LongLength;*/
+                Clong = (ulong *) C;*/
+                Size  = State.LongLength;
                 getStatesArray(out handle, State, out S, out B, out C, out Base, out Slong, out Blong, out Clong);
             }
 
@@ -65,6 +65,15 @@ namespace vinkekfish
                 Slong = (ulong *) S;
                 Blong = (ulong *) B;
                 Clong = (ulong *) C;
+            }
+
+            public static void handleFree(GCHandle handle, byte * Base = null, long Size = 0)
+            {
+                if (Base != null)
+                    BytesBuilder.ToNull(targetLength: Size, t: Base);
+
+                handle.Free();
+                Interlocked.Decrement(ref CountToCheck);
             }
 
             public readonly GCHandle handle;
@@ -92,17 +101,9 @@ namespace vinkekfish
                 }
 
                 if (!Disposed)
-                try
                 {
-                    if (ClearAfterUse)
-                        BytesBuilder.ToNull(targetLength: Size, t: Base);
-
-                    Interlocked.Decrement(ref CountToCheck);
-                }
-                finally
-                {
+                    handleFree(handle, ClearAfterUse ? Base : null, Size);
                     Disposed = true;
-                    handle.Free();
                 }
 
                 if (errorFlag)
@@ -178,6 +179,16 @@ namespace vinkekfish
             var se  = C + S_len;
             for (; C < se; C++)
                 *C = 0;
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            Clear(false);
+        }
+
+        public void Dispose()
+        {
+            Dispose(true);
         }
     }
 }

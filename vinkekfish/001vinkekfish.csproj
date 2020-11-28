@@ -54,6 +54,7 @@
     <None Include="keccak\codereview\2020-0919\keccak-base-20200918.rev0.cs" />
     <Compile Include="keccak\keccak-20200918\keccak-base-20200918.cs" />
     <Compile Include="keccak\keccak-20200918\keccak-20200918.cs" />
+    <Compile Include="keccak\keccak-20200918\Keccak_PRNG_20201128.cs" />
     <Compile Include="keccak\keccak-abstract.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
