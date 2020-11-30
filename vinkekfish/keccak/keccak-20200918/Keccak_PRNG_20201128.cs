@@ -176,14 +176,26 @@ namespace vinkekfish.keccak.keccak_20200918
             }
         }
 
+        /// <summary>Получает случайное значение в диапазоне, указанном в функции getCutoffForUnsignedInteger</summary>
+        /// <param name="min">Минимальное значение</param>
+        /// <param name="cutoff">Результат функции getCutoffForUnsignedInteger</param>
+        /// <param name="range">Результат функции getCutoffForUnsignedInteger</param>
+        /// <returns>Случайное число в указанном диапазоне</returns>
+        public ulong getUnsignedInteger(ulong min, ulong cutoff, ulong range)
+        {
+            var random = getUnsignedInteger(cutoff) % range;
+
+            return random + min;
+        }
+
         /// <summary>Вычисляет параметры для применения в getUnsignedInteger</summary>
         /// <param name="min">Минимальное значение для генерации</param>
         /// <param name="max">Максимальное значнеие для генерации (включительно)</param>
         /// <param name="cutoff">Параметр cutoff для передачи getUnsignedInteger</param>
         // TODO: хорошо протестировать
-        public void getCutoffForUnsignedInteger(ulong min, ulong max, out ulong cutoff)
+        public void getCutoffForUnsignedInteger(ulong min, ulong max, out ulong cutoff, out ulong range)
         {
-            var range = max - min + 1;
+            range = max - min + 1;
 
             if (range >= 0x8000_0000__0000_0000U)
             {
