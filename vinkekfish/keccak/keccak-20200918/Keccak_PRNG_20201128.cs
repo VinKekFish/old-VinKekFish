@@ -291,6 +291,9 @@ namespace vinkekfish.keccak.keccak_20200918
                 var i2 = (int) getUnsignedInteger(0, cutoff, range);
                 var i3 = (int) getUnsignedInteger(0, cutoff, range);
 
+                if (i1 == i2 && i2 == i3)
+                    continue;
+
                 if (i1 == i2)
                 {
                     do2Permutation(i1, i3);
