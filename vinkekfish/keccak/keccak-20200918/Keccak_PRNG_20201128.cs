@@ -272,6 +272,7 @@ namespace vinkekfish.keccak.keccak_20200918
             InputBytes(initVector);
             InputKey(key);
 
+            // Иначе всё равно будет слишком долго
             if (table.LongLength > int.MaxValue)
                 throw new ArgumentException("doRandomCubicPermutationForUShorts: table is very long");
             if (table.Length <= 3)
