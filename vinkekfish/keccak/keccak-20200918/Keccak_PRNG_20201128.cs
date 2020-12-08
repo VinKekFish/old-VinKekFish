@@ -89,6 +89,50 @@ namespace vinkekfish.keccak.keccak_20200918
             }
         }
 
+        public void calcStepAndSaveBytes()
+        {
+            calcStep(saveBytes: true);
+        }
+
+        /// <summary>Расчитывает шаг губки keccak. Если есть InputSize (64) байта для ввода (точнее, inputReady == true), то вводит первые 64-ре байта</summary>
+        /// <param name="Overwrite">Если <see langword="true"/>, то вместо xor применяет перезапись внешней части состояния на вводе данных (конструкция Overwrite)</param>
+        protected void calcStep(bool saveBytes = false, bool Overwrite = true)
+        {
+            Keccak_abstract.KeccakStatesArray.getStatesArray(out GCHandle handle, this.State, out byte * S, out byte * B, out byte * C, out byte * Base, out ulong * Slong, out ulong * Blong, out ulong * Clong);
+            try
+            {
+                // InputBytesImmediately();    // Это на всякий случай добавлено
+                if (inputReady)
+                {
+                    fixed (byte * input = inputTo)
+                    {
+                        if (Overwrite)
+                            Keccak_InputOverwrite64_512(message: input, len: InputSize, S: S);
+                        else
+                            Keccak_Input_512(message: input, len: InputSize, S: S);
+
+                        inputReady = false;
+                        InputBytesImmediately();
+                    }
+                }
+
+                Keccackf(a: Slong, c: Clong, b: Blong);
+
+                if (saveBytes)
+                {
+                    var result = new byte[64];
+                    fixed (byte * output = result)
+                        Keccak_Output_512(output: output, len: 64, S: S);
+
+                    output.add(result);
+                }
+            }
+            finally
+            {
+                Keccak_abstract.KeccakStatesArray.handleFree(handle);
+            }
+        }
+
         protected readonly BytesBuilder output = new BytesBuilder();
 
         /// <summary>Выдаёт случайные криптостойкие значения байтов. Выгодно использовать при большом количестве байтов (64 и более)</summary>
@@ -219,47 +263,69 @@ namespace vinkekfish.keccak.keccak_20200918
             cutoff = result;
         }
 
-        public void calcStepAndSaveBytes()
+        /// <summary>Осуществляет перестановки таблицы 2-хбайтовых целых чисел</summary>
+        /// <param name="table">Исходная таблица для перестановок длиной не более int.MaxValue</param>
+        /// <param name="key">Ключ для перестановок</param>
+        /// <param name="initVector">Открытый вектор инициализации размера, кратного 64-м байтам</param>
+        public void doRandomCubicPermutationForUShorts(ushort[] table, byte[] key, byte[] initVector, int basePermutationCount = 0)
         {
-            calcStep(saveBytes: true);
-        }
+            InputBytes(initVector);
+            InputKey(key);
 
-        /// <summary>Расчитывает шаг губки keccak. Если есть InputSize (64) байта для ввода (точнее, inputReady == true), то вводит первые 64-ре байта</summary>
-        /// <param name="Overwrite">Если <see langword="true"/>, то вместо xor применяет перезапись внешней части состояния на вводе данных (конструкция Overwrite)</param>
-        protected void calcStep(bool saveBytes = false, bool Overwrite = true)
-        {
-            Keccak_abstract.KeccakStatesArray.getStatesArray(out GCHandle handle, this.State, out byte * S, out byte * B, out byte * C, out byte * Base, out ulong * Slong, out ulong * Blong, out ulong * Clong);
-            try
+            if (table.LongLength > int.MaxValue)
+                throw new ArgumentException("doRandomCubicPermutationForUShorts: table is very long");
+            if (table.Length <= 3)
+                throw new ArgumentException("doRandomCubicPermutationForUShorts: table is very short");
+
+            var len = table.Length;
+            if (basePermutationCount <= 16)
+                basePermutationCount = len;
+
+            var max = basePermutationCount*basePermutationCount*basePermutationCount;
+
+            getCutoffForUnsignedInteger(0, (ulong) len, out ulong cutoff, out ulong range);
+            for (int i = 0; i < max; i++)
             {
-                // InputBytesImmediately();    // Это на всякий случай добавлено
-                if (inputReady)
-                {
-                    fixed (byte * input = inputTo)
-                    {
-                        if (Overwrite)
-                            Keccak_InputOverwrite64_512(message: input, len: InputSize, S: S);
-                        else
-                            Keccak_Input_512(message: input, len: InputSize, S: S);
+                var i1 = (int) getUnsignedInteger(0, cutoff, range);
+                var i2 = (int) getUnsignedInteger(0, cutoff, range);
+                var i3 = (int) getUnsignedInteger(0, cutoff, range);
 
-                        inputReady = false;
-                        InputBytesImmediately();
-                    }
+                if (i1 == i2)
+                {
+                    do2Permutation(i1, i3);
                 }
-
-                Keccackf(a: Slong, c: Clong, b: Blong);
-
-                if (saveBytes)
+                else
+                if (i1 == i3)
                 {
-                    var result = new byte[64];
-                    fixed (byte * output = result)
-                        Keccak_Output_512(output: output, len: 64, S: S);
-
-                    output.add(result);
+                    do2Permutation(i1, i2);
+                }
+                else
+                if (i2 == i3)
+                {
+                    do2Permutation(i1, i2);
+                }
+                else
+                {
+                    do3Permutation(i1, i2, i3);
                 }
             }
-            finally
+
+            void do2Permutation(int i1, int i2)
             {
-                Keccak_abstract.KeccakStatesArray.handleFree(handle);
+                var a     = table[i1];
+                table[i1] = table[i2];
+                table[i2] = a;
+            }
+
+            void do3Permutation(int i1, int i2, int i3)
+            {
+                var a1    = table[i1];
+                var a2    = table[i2];
+                var a3    = table[i3];
+
+                table[i1] = a2;
+                table[i2] = a3;
+                table[i3] = a1;
             }
         }
     }
