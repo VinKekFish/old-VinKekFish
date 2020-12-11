@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using CodeGenerated.Cryptoprimes;
 
 namespace cryptoprime.VinKekFish
 {
@@ -14,18 +15,58 @@ namespace cryptoprime.VinKekFish
             
         }
 
-        private static unsafe void DoThreefishForAllBlocks(byte* msgSource, byte * msgToEncrypt, byte * tweak, long len, int blockLen, int step)
+        public static int getNumberFromRing(int i, int ringModulo)
         {
-            byte* cur = msgSource;
-            for (int i = 0; i <= len - blockLen; i += blockLen)
+            while (i < 0)
+                i += ringModulo;
+
+            while (i >= ringModulo)
+                i -= ringModulo;
+
+            return i;
+        }
+
+        const int ThreeFishBlockLen = 128;
+        const int    KeccakBlockLen = 200;
+
+        /// <summary>Применяет ThreeFish поблочно ко всему состоянию алгоритма</summary>
+        /// <param name="beginCryptoState"></param>
+        /// <param name="finalCryptoState"></param>
+        /// <param name="tweak">Базовый tweak для раунда</param>
+        /// <param name="len">Длина криптографического состояния в блоках ThreeFish1024 (по 128-мь байтов; ThreeFishBlockLen). len - нечётное</param>
+        private static unsafe void DoThreefishForAllBlocks(byte* beginCryptoState, byte * finalCryptoState, byte * tweak, int len)
+        {
+            if ((len & 1) == 0)
+                throw new ArgumentException("'len' must be odd", "len");
+            
+            byte* cur = finalCryptoState;
+            byte* key = beginCryptoState;
+
+            int j   = len >> 1;
+            int add = 0;
+
+            for (int i = 0; i < len; i++, j++, cur += ThreeFishBlockLen)
             {
-                var key = cur + 128;
-                if (i == len - blockLen*step)
-                    key = msgToEncrypt;
+                if (j >= len)
+                    j = 0;
 
-                CodeGenerated.Cryptoprimes.Threefish_Static_Generated.Threefish1024_step((ulong *) key, (ulong *) tweak, (ulong *) cur);
+                add = j << 7; // blockLen * j;
+                key = beginCryptoState + add;
 
-                cur += blockLen;
+                Threefish_Static_Generated.Threefish1024_step((ulong *) key, (ulong *) tweak, (ulong *) cur);
+            }
+        }
+
+        /// <summary>Применяет к криптографическому состоянию CryptoState поблочное преобразование keccak</summary>
+        /// <param name="CryptoState">Криптографическое состояние</param>
+        /// <param name="len">Длина криптографического состояния в блоках keccak (длина по 200 байтов; KeccakBlockLen)</param>
+        private static unsafe void DoKeccakForAllBlocks(byte* CryptoState, int len, ulong * b, ulong * c)
+        {
+            byte* cur = CryptoState;
+
+            for (int i = 0; i < len; i++, cur += KeccakBlockLen)
+            {
+                keccak.Keccackf(a: (ulong *) cur, c: c, b: b);
             }
         }
 
