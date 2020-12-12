@@ -70,55 +70,46 @@ namespace cryptoprime.VinKekFish
             }
         }
 
-        public const int MaxTableNumber = 16;
-        public static readonly ushort[][] tables64_7 = new ushort[MaxTableNumber][];
-        public static readonly ushort[][] tables64_1 = new ushort[MaxTableNumber][];
-        public static readonly ushort [,] tables     = new ushort[32, BlockSize];
+        public static ushort[] transpose200_3200 = null;
+        public static ushort[] transpose400_3200 = null;
+        public static ushort[] transpose128_3200 = null;
+        public static ushort[] transpose256_3200 = null;
+        public static ushort[] transpose387_3200 = null;
 
-        public const int BlockSize = 2048;
-
-        public static readonly ushort[] valueToAdd = {1, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71, 73, 79, 83, 89, 97, 101, 103, 107, 109, 113, 127, 131, 137};
-        public static void GenerateTables()
+        public static void GenTables()
         {
-            for (int i = 0; i < MaxTableNumber; i++)
-                tables64_7[i] = GenBaseTable(64, i+1, 7);
+            if (transpose200_3200 != null)
+                return;
 
-            for (int i = 1; i <= MaxTableNumber; i++)
-                tables64_1[i] = GenBaseTable(64, i+1, 1);
-
-            for (int i = 0; i < MaxTableNumber; i++)
-            {
-                var add = BlockSize * MaxTableNumber;
-
-                fixed (ushort * ts = tables, s = tables64_1[i])
-                    BytesBuilder.CopyTo(BlockSize, BlockSize, (byte *) s, (byte *) (ts + i*BlockSize));
-
-                fixed (ushort * ts = tables, s = tables64_7[i])
-                    BytesBuilder.CopyTo(BlockSize, BlockSize, (byte *) s, (byte *) (ts + add + i*BlockSize));
-            }
+            transpose200_3200 = GenTransposeTable(3200, 200);
+            transpose400_3200 = GenTransposeTable(3200, 400);
+            transpose128_3200 = GenTransposeTable(3200, 128);
+            transpose256_3200 = GenTransposeTable(3200, 256);
+            transpose387_3200 = GenTransposeTable(3200, 387);
         }
 
-        public static ushort[] GenBaseTable(int blockSize, int step, int numberOfRetries = 1)
+        public static ushort[] GenTransposeTable(ushort blockSize, ushort step, int numberOfRetries = 1)
         {
-            var newTable = new ushort[BlockSize];
-            var buffer   = new ushort[BlockSize];
+            var newTable = new ushort[blockSize];
+            var buffer   = new ushort[blockSize];
             for (ushort i = 0; i < newTable.Length; i++)
             {
                 newTable[i] = i;
-                buffer[i] = i;
+                buffer  [i] = i;
             }
 
             for (int z = 0; z < numberOfRetries; z++)
             {
                 ushort j = 0, k = 0;
-                for (ushort i = 0; i < newTable.Length; i++)
+                for (ushort i = 0; i < blockSize; i++)
                 {
                     buffer[j++] = newTable[k];
 
-                    k += (ushort) (blockSize + step);
-                    if (k >= buffer.Length)
+                    k += step;
+                    if (k >= blockSize)
                     {
-                        k -= (ushort)buffer.Length;
+                        k -= blockSize;
+                        k++;
                     }
                 }
 
