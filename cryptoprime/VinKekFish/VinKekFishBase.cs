@@ -25,7 +25,7 @@ namespace cryptoprime.VinKekFish
         /// <param name="tablesForPermutations">Массив таблиц перестановок на каждый раунд. Длина должна быть countOfRounds*4 (*CryptoStateLen*ushort на каждую таблицу)</param>
         /// <param name="b">Вспомогательный массив b для keccak.Keccackf</param>
         /// <param name="c">Вспомогательный массив c для keccak.Keccackf</param>
-        public static void step(ulong countOfRounds, bool FinalKeccakStep = false, ulong * tweak, ulong * tweakTmp, ulong * tweakTmp2, byte * state, byte * state2, ushort * tablesForPermutations, byte* b, byte* c)
+        public static void step(ulong countOfRounds, ulong * tweak, ulong * tweakTmp, ulong * tweakTmp2, byte * state, byte * state2, ushort * tablesForPermutations, byte* b, byte* c, ushort * transpose200_3200)
         {
             tweakTmp[0] = tweak[0];
             tweakTmp[1] = tweak[1];
@@ -56,9 +56,16 @@ namespace cryptoprime.VinKekFish
                 tweakTmp[0] += 0x1_0000_0000U;
             }
 
-            // Защита в соответствии с пунктом 3.2
-            if (FinalKeccakStep)
-                DoKeccakForAllBlocks(state, CryptoStateLenKeccak, b: (ulong*) b, c: (ulong*) c);
+            // После последнего раунда производится рандомизация поблочной keccak-f
+            DoKeccakForAllBlocks(state, CryptoStateLenKeccak, b: (ulong*) b, c: (ulong*) c);
+            DoPermutation(state, state2, CryptoStateLen, transpose200_3200);
+            DoKeccakForAllBlocks(state2, CryptoStateLenKeccak, b: (ulong*) b, c: (ulong*) c);
+            DoPermutation(state2, state, CryptoStateLen, transpose200_3200);
+
+            DoKeccakForAllBlocks(state, CryptoStateLenKeccak, b: (ulong*) b, c: (ulong*) c);
+            DoPermutation(state, state2, CryptoStateLen, transpose200_3200);
+            DoKeccakForAllBlocks(state2, CryptoStateLenKeccak, b: (ulong*) b, c: (ulong*) c);
+            DoPermutation(state2, state, CryptoStateLen, transpose200_3200);
         }
 
         /// <summary>Выравнивает целое число i на интервал [0; ringModulo)</summary>
