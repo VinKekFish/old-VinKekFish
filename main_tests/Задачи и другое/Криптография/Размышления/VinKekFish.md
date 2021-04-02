@@ -1,5 +1,5 @@
 ﻿Привязать репозиторий к другой локации
-
+ 
 Реализация VinKekFish см.
 VinKekFish\cryptoprime\VinKekFish\VinKekFishBase.cs
 
