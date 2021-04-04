@@ -22,8 +22,9 @@ VinKekFish\cryptoprime\VinKekFish\VinKekFishBase.cs
 	Количество раундов: не менее 4 (4 рандомизирующих keccak-f в количестве раундов не учитывается).
 	Рекомендуемое количество раундов: 64.
 	
-	Максимальное количество шифруемой информации на одном ключе (нагрузка на ключ): 2^(20\*(R-1)) байтов, но не более нормативной длины гаммы, где R - количество раундов алгоритма. При R = 4 можно зашифровать 2^60 байтов (примерно, 1 Петабайт).
-	
+	Максимальное количество шифруемой информации на одном ключе (нагрузка на ключ):
+	2^(20*(R-1)) байтов, но не более нормативной длины гаммы, где R - количество раундов алгоритма. При R = 4 можно зашифровать 2^60 байтов (примерно, 1 Петабайт).
+
 
 ## Вводимая информация
 
@@ -36,7 +37,8 @@ VinKekFish\cryptoprime\VinKekFish\VinKekFishBase.cs
 
 ### Ключ
 	Размер ключа не ограничен. Рекомендуется к вводу не менее 8192 бита ключевой информации.
-	Вводится в VinKekFish во внутреннее состояние с помощью простого xor с внутренним состоянием, ключ при вводе конкатенируется с его размером (см. func ВводКлюча).
+	Вводится в VinKekFish во внутреннее состояние с помощью простого xor с внутренним состоянием,
+	ключ при вводе конкатенируется с его размером (см. func VinKekFish.ВводКлюча).
 	Таким образом возможно ввести до 16384 битов (2048 байтов) ключевой информации. Это константа MAX_SINGLE_KEY = 2048.
 
 	Возможен ввод удлинённого ключа. В таком случае, ввод производится аналогично, но поблочно.
@@ -45,7 +47,7 @@ VinKekFish\cryptoprime\VinKekFish\VinKekFishBase.cs
 
 # Алгоритмическое описание
 
-	func ВводКлюча
+	func VinKekFish.ВводКлюча
 	ввод
 		key:[512, *] массив байтов произвольной длины
 			Ключ
@@ -66,9 +68,20 @@ VinKekFish\cryptoprime\VinKekFish\VinKekFishBase.cs
 			Если записываются последующие блоки - рекомендуется использовать true.
 	
 		b, c: вспомогательные массивы для функции keccak-f
-	
+		tweak: массив из двух 8-мибайтовых целых чисел
+			Используется в ThreeFish в преобразовании VinKekFish
+		R: int
+			Количество раундов для шифрования
+		RE: int
+			Количество раундов для шифрования при отбое (перезаписи нулями)
+			Не может быть равно нулю при пользовательском вызове (иначе не произойдёт отбоя)
+			Равно нулю при рекурсивном вызове
+
+		State: структура для вывода информации о прогрессе алгоритма
+
 	старт
-	
+		State.SetProgress(1, StartIndexOfKey, key.length)
+
 		var len  = Минимум(MAX_SINGLE_KEY /* 2048 */, key.length - StartIndexOfKey)
 		var len1 = младший байт от len
 		var len2 = старший байт от len
@@ -82,8 +95,11 @@ VinKekFish\cryptoprime\VinKekFish\VinKekFishBase.cs
 			for i = [0, len - 1] step 1
 				S[i+2] = key[i + StartIndexOfKey]
 	
-		if (OIV != null and OIV.length != 0)
-	
+		if OIV != null and OIV.length != 0
+		
+			if RE == 0
+				ОШИБКА Рекурсивный вызов не принимает вектора инициализации
+
 			var len1 = младший байт от OIV.length
 			var len2 = старший байт от OIV.length
 	
@@ -91,10 +107,37 @@ VinKekFish\cryptoprime\VinKekFish\VinKekFishBase.cs
 			S[2051] = S[2051] xor len2
 	
 			for i = [0, OIV.length - 1] step 1
-				S[i+2052] = S[i+2052] xor OIV[i]
+				S[i+2052] = OIV[i]
+
+		// После ввода значений делаем шаг VinKekFish
+		VinKekFish.Step(R, S, tweak, b, c)
+		
+		len = StartIndexOfKey + len
+
+		if len < key.length
+			VinKekFish.ВводКлюча
+			(
+				key: 			 key,
+				key.length: 	 key.length,
+				StartIndexOfKey: len,
+				Initiated: 		 true,
+				R:				 R,
+				RE: 			 0,
+				OIV: 			 null,
+
+				S: S, b: b, c: c, tweak: tweak, State: State
+			)
+
+		if RE != 0
+			State.SetProgress(2, 0)
+
+			// Защита от обратного преобразования для вычисления ключа шифрования
+			// После ввода всех блоков ключа, выполняется перезапись 4096 битов информации нулями
+			// И делается шаг алгоритма
+			VinKekFish.Input(data: null, length: 0, Overwrite: true)
+			VinKekFish.Step(RE, S, tweak, b, c)
 			
-		
-		
-		
+			State.SetProgress(2, 1)
+
+
 	конец.
-	
