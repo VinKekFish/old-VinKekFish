@@ -8,25 +8,103 @@ using CodeGenerated.Cryptoprimes;
 
 namespace cryptoprime.VinKekFish
 {
-    public static unsafe class VinKekFishBase
+    /// <summary>Базовая однопоточная реализация VinKekFish для K = 1. Использование для тестирования. См. также desc.md</summary>
+    public static unsafe class VinKekFishBase_etalonK1
     {
+        // Размер криптографического состояния
         const int CryptoStateLen          = 3200; // В байтах
-        const int CryptoStateLenKeccak    = CryptoStateLen / KeccakBlockLen;
-        const int CryptoStateLenThreeFish = CryptoStateLen / ThreeFishBlockLen;
+        const int CryptoStateLenKeccak    = CryptoStateLen / KeccakBlockLen;    // Размер криптографического состояния в блоках keccak
+        const int CryptoStateLenThreeFish = CryptoStateLen / ThreeFishBlockLen; // Размер криптографического состояния в блоках ThreeFish
+        const int BLOCK_SIZE              = 512;
+
+        public static void InputKey(byte * key, ulong key_length, ulong StartIndexOfKey, byte * OIV, ulong OIV_length, byte * state, byte * state2, byte * b, byte *c, ulong * tweak, bool Initiated, bool SecondKey, int R, int RE, int RM)
+        {
+            tweak[0] += 1253539379;
+        }
+
+        /// <summary>Сырой ввод данных. Вводит данные в состояние путём перезатирания</summary>
+        /// <param name="data"></param>
+        /// <param name="state"></param>
+        /// <param name="dataLen"></param>
+        /// <param name="tweak"></param>
+        public static void InputData_Overwrite(byte * data, byte * state, ulong dataLen, ulong * tweak, byte regime)
+        {
+            if (dataLen > BLOCK_SIZE)
+                throw new ArgumentOutOfRangeException();
+
+            ulong i = 0;
+            for (; i < dataLen; i++, data++)
+            {
+                state[i] = *data;
+            }
+
+            for (; i < BLOCK_SIZE; i++)
+            {
+                state[i] = 0;
+            }
+
+            byte len1 = (byte) dataLen;
+            byte len2 = (byte) (dataLen >> 8);
+
+            len1 &= 0x80;   // Старший бит количества вводимых байтов устанавливается в 1, если используется режим Overwrite
+
+            state[BLOCK_SIZE+0] ^= len1;
+            state[BLOCK_SIZE+1] ^= len2;
+            state[BLOCK_SIZE+2] ^= regime;
+
+            InputData_ChangeTweak(tweak: tweak, dataLen: dataLen, Overwrite: true, regime: regime);
+        }
+
+        /// <summary>Сырой ввод данных. Вводит данные в состояние через xor</summary>
+        public static void InputData_Xor(byte * data, byte * state, ulong dataLen, ulong * tweak, byte regime)
+        {
+            if (dataLen > BLOCK_SIZE)
+                throw new ArgumentOutOfRangeException();
+
+            for (ulong i = 0; i < dataLen; i++, data++)
+            {
+                state[i] ^= *data;
+            }
+
+            byte len1 = (byte) dataLen;
+            byte len2 = (byte) (dataLen >> 8);
+
+            state[BLOCK_SIZE+0] ^= len1;
+            state[BLOCK_SIZE+1] ^= len2;
+            state[BLOCK_SIZE+2] ^= regime;
+
+            InputData_ChangeTweak(tweak: tweak, dataLen: dataLen, Overwrite: false, regime: regime);
+        }
+
+        /// <summary>Этот метод вызывать не надо. Он автоматически вызывается при вызове InputData_*</summary>
+        public static void InputData_ChangeTweak(ulong * tweak, ulong dataLen, bool Overwrite, byte regime)
+        {
+            // Приращение tweak перед вводом данных
+            tweak[0] += 1253539379;
+
+            tweak[1] += dataLen;
+            if (Overwrite)
+                tweak[1] += 0x0100_0000_0000_0000;
+
+            var reg = ((ulong) regime) << 40; // 8*5 - третий по старшинству байт, нумерация с 1
+            tweak[1] += reg;
+        }
 
         /// <summary>Шаг алгоритма ПОСЛЕ ввода данных</summary>
         /// <param name="countOfRounds">Количество раундов</param>
         /// <param name="tweak">Tweak после ввода данных, 16 байтов (все массивы могут быть в одном, если это удобно). Не изменяется в функции.</param>
         /// <param name="tweakTmp">Дополнительный массив для временного tweak, 16 байтов. Изменяется в функции.</param>
         /// <param name="tweakTmp2">Дополнительный массив для временного tweak, 16 байтов. Изменяется в функции.</param>
-        /// /// <param name="tweakTmp3">Дополнительный массив для временного tweak, 16 байтов. Изменяется в функции.</param>
         /// <param name="state">Криптографическое состояние</param>
-        /// <param name="state2">Второй массив для криптографического состояния</param>
+        /// <param name="state2">Вспомогательный массив для криптографического состояния</param>
         /// <param name="tablesForPermutations">Массив таблиц перестановок на каждый раунд. Длина должна быть countOfRounds*4 (*CryptoStateLen*ushort на каждую таблицу)</param>
         /// <param name="b">Вспомогательный массив b для keccak.Keccackf</param>
         /// <param name="c">Вспомогательный массив c для keccak.Keccackf</param>
         public static void step(ulong countOfRounds, ulong * tweak, ulong * tweakTmp, ulong * tweakTmp2, byte * state, byte * state2, ushort * tablesForPermutations, byte* b, byte* c, ushort * transpose200_3200)
         {
+            DoPermutation(state, state2, CryptoStateLen, transpose200_3200);
+            BytesBuilder.CopyTo(CryptoStateLen, CryptoStateLen, state2, state);
+
             tweakTmp[0] = tweak[0];
             tweakTmp[1] = tweak[1];
 
@@ -56,7 +134,7 @@ namespace cryptoprime.VinKekFish
                 tweakTmp[0] += 0x1_0000_0000U;
             }
 
-            // После последнего раунда производится рандомизация поблочной keccak-f
+            // После последнего раунда производится рандомизация поблочной функцией keccak-f
             DoKeccakForAllBlocks(state, CryptoStateLenKeccak, b: (ulong*) b, c: (ulong*) c);
             DoPermutation(state, state2, CryptoStateLen, transpose200_3200);
             DoKeccakForAllBlocks(state2, CryptoStateLenKeccak, b: (ulong*) b, c: (ulong*) c);
