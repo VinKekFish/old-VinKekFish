@@ -16,10 +16,92 @@ namespace cryptoprime.VinKekFish
         const int CryptoStateLenKeccak    = CryptoStateLen / KeccakBlockLen;    // Размер криптографического состояния в блоках keccak
         const int CryptoStateLenThreeFish = CryptoStateLen / ThreeFishBlockLen; // Размер криптографического состояния в блоках ThreeFish
         const int BLOCK_SIZE              = 512;
+        const int MAX_SINGLE_KEY          = 2048;
+        const int MAX_OIV                 = 1148;
+        const int MIN_ROUNDS              = 4;
 
-        public static void InputKey(byte * key, ulong key_length, ulong StartIndexOfKey, byte * OIV, ulong OIV_length, byte * state, byte * state2, byte * b, byte *c, ulong * tweak, bool Initiated, bool SecondKey, int R, int RE, int RM)
+        public static void InputKey(byte * key, ulong key_length, byte * OIV, ulong OIV_length, byte * state, byte * state2, byte * b, byte *c, ulong * tweak, ulong * tweakTmp, ulong * tweakTmp2, bool Initiated, bool SecondKey, ulong R, ulong RE, ulong RM)
         {
+            if (SecondKey && OIV != null)
+                throw new ArgumentException("VinKekFishBase_etalonK1.InputKey: SecondKey && OIV != null");
+
+            if (OIV == null && OIV_length != 0)
+                throw new ArgumentOutOfRangeException("VinKekFishBase_etalonK1.InputKey: OIV == null && OIV_length != 0");
+
+            if (OIV != null && OIV_length > MAX_OIV)
+                throw new ArgumentOutOfRangeException("VinKekFishBase_etalonK1.InputKey: OIV_length > MAX_OIV");
+
+            if (key == null)
+                throw new ArgumentNullException("VinKekFishBase_etalonK1.InputKey: key == null");
+
+            if (key_length == 0)
+                throw new ArgumentNullException("VinKekFishBase_etalonK1.InputKey: key_length == 0");
+
+            if (R < MIN_ROUNDS)
+                throw new ArgumentOutOfRangeException("R < MIN_ROUNDS");
+
+            var dataLen = key_length;
+            var data    = key;
+            if (SecondKey)
+            {
+                if (dataLen > BLOCK_SIZE)
+                    dataLen = BLOCK_SIZE;
+
+                for (ulong i = 0; i < dataLen; i++, data++)
+                {
+                    state[i+2] ^= *data;
+                }
+            }
+            else
+            {
+                if (dataLen > MAX_SINGLE_KEY)
+                    dataLen = MAX_SINGLE_KEY;
+
+                for (ulong i = 0; i < dataLen; i++, data++)
+                {
+                    state[i+2] = *data;
+                }
+            }
+
+            byte len1 = (byte) dataLen;
+            byte len2 = (byte) (dataLen >> 8);
+
+            state[0] ^= len1;
+            state[1] ^= len2;
+
             tweak[0] += 1253539379;
+
+            if (!SecondKey)
+                tweak[1] += key_length + OIV_length;
+
+            // TODO: указатели на таблицы перестановок
+            step
+            (
+                countOfRounds: R, tablesForPermutations: null, transpose200_3200: null,
+                tweak: tweak, tweakTmp: tweakTmp, tweakTmp2: tweakTmp2, state: state, state2: state, b: b, c: c
+            );
+
+            key_length -= dataLen;
+            if (key_length > 0)
+            {
+                InputKey
+                (
+                    key:        data,
+                    key_length: key_length,
+
+                    SecondKey:  true,
+                    Initiated:  true,
+
+                    OIV:        null,
+                    OIV_length: 0,
+
+                    R:          RM,             // Повторный ввод ключа осуществляется под RM раундов
+                    RM:         RM,
+                    RE:         RE,
+
+                    state: state, state2: state2, tweak: tweak, tweakTmp: tweakTmp, tweakTmp2: tweakTmp2, b: b, c: c
+                );
+            }
         }
 
         /// <summary>Сырой ввод данных. Вводит данные в состояние путём перезатирания</summary>
@@ -35,12 +117,12 @@ namespace cryptoprime.VinKekFish
             ulong i = 0;
             for (; i < dataLen; i++, data++)
             {
-                state[i] = *data;
+                state[i+3] = *data;
             }
 
             for (; i < BLOCK_SIZE; i++)
             {
-                state[i] = 0;
+                state[i+3] = 0;
             }
 
             byte len1 = (byte) dataLen;
@@ -48,9 +130,9 @@ namespace cryptoprime.VinKekFish
 
             len1 &= 0x80;   // Старший бит количества вводимых байтов устанавливается в 1, если используется режим Overwrite
 
-            state[BLOCK_SIZE+0] ^= len1;
-            state[BLOCK_SIZE+1] ^= len2;
-            state[BLOCK_SIZE+2] ^= regime;
+            state[0] ^= len1;
+            state[1] ^= len2;
+            state[2] ^= regime;
 
             InputData_ChangeTweak(tweak: tweak, dataLen: dataLen, Overwrite: true, regime: regime);
         }
@@ -63,15 +145,15 @@ namespace cryptoprime.VinKekFish
 
             for (ulong i = 0; i < dataLen; i++, data++)
             {
-                state[i] ^= *data;
+                state[i+3] ^= *data;
             }
 
             byte len1 = (byte) dataLen;
             byte len2 = (byte) (dataLen >> 8);
 
-            state[BLOCK_SIZE+0] ^= len1;
-            state[BLOCK_SIZE+1] ^= len2;
-            state[BLOCK_SIZE+2] ^= regime;
+            state[0] ^= len1;
+            state[1] ^= len2;
+            state[2] ^= regime;
 
             InputData_ChangeTweak(tweak: tweak, dataLen: dataLen, Overwrite: false, regime: regime);
         }
