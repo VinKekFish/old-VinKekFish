@@ -1,6 +1,6 @@
 ﻿В папке находятся реализации VinKekFish
 
-Тестовая реализация для K = 1, как описана в
+Тестовая реализация для K = 1, как описана в файле
 \VinKekFish\main_tests\Задачи и другое\Криптография\Размышления\VinKekFish\SingleThreadEtalon1K-2021.md
 находится в файле
 VinKekFishBase_etalonK1.cs

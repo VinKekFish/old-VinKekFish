@@ -15,12 +15,19 @@ namespace cryptoprime.VinKekFish
         const int CryptoStateLen          = 3200; // В байтах
         const int CryptoStateLenKeccak    = CryptoStateLen / KeccakBlockLen;    // Размер криптографического состояния в блоках keccak
         const int CryptoStateLenThreeFish = CryptoStateLen / ThreeFishBlockLen; // Размер криптографического состояния в блоках ThreeFish
+
         const int BLOCK_SIZE              = 512;
         const int MAX_SINGLE_KEY          = 2048;
         const int MAX_OIV                 = 1148;
         const int MIN_ROUNDS              = 4;
 
-        public static void InputKey(byte * key, ulong key_length, byte * OIV, ulong OIV_length, byte * state, byte * state2, byte * b, byte *c, ulong * tweak, ulong * tweakTmp, ulong * tweakTmp2, bool Initiated, bool SecondKey, ulong R, ulong RE, ulong RM)
+        public class VinKekFishBase_etalonK1_Implementation
+        {
+        }
+
+        // b.len = 25*8, c.len = 5*8
+        // var prt = System.Runtime.InteropServices.Marshal.AllocHGlobal(len) and FreeHGlobal либо stackalloc
+        public static void InputKey(byte * key, ulong key_length, byte * OIV, ulong OIV_length, byte * state, byte * state2, byte * b, byte *c, ulong * tweak, ulong * tweakTmp, ulong * tweakTmp2, bool Initiated, bool SecondKey, ulong R, ulong RE, ulong RM, ushort * tablesForPermutations, ushort * transpose200_3200)
         {
             if (SecondKey && OIV != null)
                 throw new ArgumentException("VinKekFishBase_etalonK1.InputKey: SecondKey && OIV != null");
@@ -78,22 +85,37 @@ namespace cryptoprime.VinKekFish
             tweak[0] += 1253539379;
 
             if (!SecondKey)
+            {
                 tweak[1] += key_length;
+
+                if (OIV != null && OIV_length > 0)
+                {
+                    len1 = (byte) OIV_length;
+                    len2 = (byte) (OIV_length >> 8);
+
+                    state[2050] ^= len1;
+                    state[2051] ^= len2;
+
+                    for (ulong i = 0; i < OIV_length; i++, OIV++)
+                    {
+                        state[i+2052] = *OIV;
+                    }
+                }
+            }
 
             // TODO: указатели на таблицы перестановок
             step
             (
-                countOfRounds: R, tablesForPermutations: null, transpose200_3200: null,
+                countOfRounds: R, tablesForPermutations: tablesForPermutations, transpose200_3200: transpose200_3200,
                 tweak: tweak, tweakTmp: tweakTmp, tweakTmp2: tweakTmp2, state: state, state2: state, b: b, c: c
             );
 
-            key_length -= dataLen;
-            if (key_length > 0)
+            if (key_length > dataLen)
             {
                 InputKey
                 (
                     key:        data,
-                    key_length: key_length,
+                    key_length: key_length - dataLen,
 
                     SecondKey:  true,
                     Initiated:  true,
@@ -115,17 +137,18 @@ namespace cryptoprime.VinKekFish
                 InputData_Overwrite(data: null, state: state, dataLen: 0, tweak: tweak, regime: 255);
                 step
                 (
-                    countOfRounds: RE, tablesForPermutations: null, transpose200_3200: null,
+                    countOfRounds: RE, tablesForPermutations: tablesForPermutations, transpose200_3200: transpose200_3200,
                     tweak: tweak, tweakTmp: tweakTmp, tweakTmp2: tweakTmp2, state: state, state2: state, b: b, c: c
                 );
             }
         }
 
-        /// <summary>Сырой ввод данных. Вводит данные в состояние путём перезатирания</summary>
-        /// <param name="data"></param>
-        /// <param name="state"></param>
-        /// <param name="dataLen"></param>
-        /// <param name="tweak"></param>
+        /// <summary>Сырой ввод данных. Вводит данные в состояние путём перезатирания (режим OVERWRITE), изменяет tweak</summary>
+        /// <param name="data">Указатель на вводимые данные</param>
+        /// <param name="state">Указатель на криптографическое состояние</param>
+        /// <param name="dataLen">Длина вводимых данных, не более BLOCK_SIZE</param>
+        /// <param name="tweak">Указатель на tweak (для соответствующего изменения tweak)</param>
+        /// <param name="regime">Счётчик режима ввода</param>
         public static void InputData_Overwrite(byte * data, byte * state, ulong dataLen, ulong * tweak, byte regime)
         {
             if (dataLen > BLOCK_SIZE)
@@ -145,7 +168,7 @@ namespace cryptoprime.VinKekFish
             byte len1 = (byte) dataLen;
             byte len2 = (byte) (dataLen >> 8);
 
-            len1 &= 0x80;   // Старший бит количества вводимых байтов устанавливается в 1, если используется режим Overwrite
+            len2 &= 0x80;   // Старший бит количества вводимых байтов устанавливается в 1, если используется режим Overwrite
 
             state[0] ^= len1;
             state[1] ^= len2;
@@ -154,7 +177,7 @@ namespace cryptoprime.VinKekFish
             InputData_ChangeTweak(tweak: tweak, dataLen: dataLen, Overwrite: true, regime: regime);
         }
 
-        /// <summary>Сырой ввод данных. Вводит данные в состояние через xor</summary>
+        /// <summary>Сырой ввод данных. Вводит данные в состояние через xor (режим ввода sponge)</summary>
         public static void InputData_Xor(byte * data, byte * state, ulong dataLen, ulong * tweak, byte regime)
         {
             if (dataLen > BLOCK_SIZE)
@@ -234,15 +257,13 @@ namespace cryptoprime.VinKekFish
             }
 
             // После последнего раунда производится рандомизация поблочной функцией keccak-f
-            DoKeccakForAllBlocks(state, CryptoStateLenKeccak, b: (ulong*) b, c: (ulong*) c);
-            DoPermutation(state, state2, CryptoStateLen, transpose200_3200);
-            DoKeccakForAllBlocks(state2, CryptoStateLenKeccak, b: (ulong*) b, c: (ulong*) c);
-            DoPermutation(state2, state, CryptoStateLen, transpose200_3200);
-
-            DoKeccakForAllBlocks(state, CryptoStateLenKeccak, b: (ulong*) b, c: (ulong*) c);
-            DoPermutation(state, state2, CryptoStateLen, transpose200_3200);
-            DoKeccakForAllBlocks(state2, CryptoStateLenKeccak, b: (ulong*) b, c: (ulong*) c);
-            DoPermutation(state2, state, CryptoStateLen, transpose200_3200);
+            for (int i = 0; i < 2; i++)
+            {
+                DoKeccakForAllBlocks(state, CryptoStateLenKeccak, b: (ulong*) b, c: (ulong*) c);
+                DoPermutation(state, state2, CryptoStateLen, transpose200_3200);
+                DoKeccakForAllBlocks(state2, CryptoStateLenKeccak, b: (ulong*) b, c: (ulong*) c);
+                DoPermutation(state2, state, CryptoStateLen, transpose200_3200);
+            }
         }
 
         /// <summary>Выравнивает целое число i на интервал [0; ringModulo)</summary>
