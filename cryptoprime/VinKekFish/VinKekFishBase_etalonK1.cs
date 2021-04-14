@@ -25,6 +25,12 @@ namespace cryptoprime.VinKekFish
             if (SecondKey && OIV != null)
                 throw new ArgumentException("VinKekFishBase_etalonK1.InputKey: SecondKey && OIV != null");
 
+            if (SecondKey && RE != 0)
+                throw new ArgumentOutOfRangeException("SecondKey && RE != 0");
+
+            if (SecondKey != Initiated)
+                throw new ArgumentOutOfRangeException("SecondKey != Initiated");
+
             if (OIV == null && OIV_length != 0)
                 throw new ArgumentOutOfRangeException("VinKekFishBase_etalonK1.InputKey: OIV == null && OIV_length != 0");
 
@@ -72,7 +78,7 @@ namespace cryptoprime.VinKekFish
             tweak[0] += 1253539379;
 
             if (!SecondKey)
-                tweak[1] += key_length + OIV_length;
+                tweak[1] += key_length;
 
             // TODO: указатели на таблицы перестановок
             step
@@ -97,9 +103,20 @@ namespace cryptoprime.VinKekFish
 
                     R:          RM,             // Повторный ввод ключа осуществляется под RM раундов
                     RM:         RM,
-                    RE:         RE,
+                    RE:         0,
 
                     state: state, state2: state2, tweak: tweak, tweakTmp: tweakTmp, tweakTmp2: tweakTmp2, b: b, c: c
+                );
+            }
+
+            // Завершаем ввод ключа отбоем. Т.к. вызов функции рекурсивный, отбой происходит только в самой верхней функции - SecondKey = false
+            if (!SecondKey)
+            {
+                InputData_Overwrite(data: null, state: state, dataLen: 0, tweak: tweak, regime: 255);
+                step
+                (
+                    countOfRounds: RE, tablesForPermutations: null, transpose200_3200: null,
+                    tweak: tweak, tweakTmp: tweakTmp, tweakTmp2: tweakTmp2, state: state, state2: state, b: b, c: c
                 );
             }
         }
