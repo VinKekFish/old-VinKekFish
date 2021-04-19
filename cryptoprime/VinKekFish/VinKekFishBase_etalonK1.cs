@@ -8,7 +8,7 @@ using CodeGenerated.Cryptoprimes;
 
 namespace cryptoprime.VinKekFish
 {
-    /// <summary>Базовая однопоточная реализация VinKekFish для K = 1. Использование для тестирования. См. также desc.md</summary>
+    /// <summary>Базовая однопоточная реализация VinKekFish для K = 1. Использование для тестирования. См. также descr.md</summary>
     public static unsafe class VinKekFishBase_etalonK1
     {
         // Размер криптографического состояния
@@ -20,10 +20,6 @@ namespace cryptoprime.VinKekFish
         const int MAX_SINGLE_KEY          = 2048;
         const int MAX_OIV                 = 1148;
         const int MIN_ROUNDS              = 4;
-
-        public class VinKekFishBase_etalonK1_Implementation
-        {
-        }
 
         // b.len = 25*8, c.len = 5*8
         // var prt = System.Runtime.InteropServices.Marshal.AllocHGlobal(len) and FreeHGlobal либо stackalloc
@@ -127,7 +123,7 @@ namespace cryptoprime.VinKekFish
                     RM:         RM,
                     RE:         0,
 
-                    state: state, state2: state2, tweak: tweak, tweakTmp: tweakTmp, tweakTmp2: tweakTmp2, b: b, c: c
+                    state: state, state2: state2, tweak: tweak, tweakTmp: tweakTmp, tweakTmp2: tweakTmp2, b: b, c: c, tablesForPermutations: tablesForPermutations, transpose200_3200: transpose200_3200
                 );
             }
 
@@ -289,7 +285,7 @@ namespace cryptoprime.VinKekFish
         /// <param name="finalCryptoState"></param>
         /// <param name="tweak">Базовый tweak для раунда. Не изменяется</param>
         /// <param name="len">Длина криптографического состояния в блоках ThreeFish1024 (по 128-мь байтов; ThreeFishBlockLen). len - нечётное</param>
-        private static unsafe void DoThreefishForAllBlocks(byte* beginCryptoState, byte * finalCryptoState, ulong * tweak, ulong * tweakTmp)
+        public static unsafe void DoThreefishForAllBlocks(byte* beginCryptoState, byte * finalCryptoState, ulong * tweak, ulong * tweakTmp)
         {
             int len = CryptoStateLenThreeFish;
             /*
@@ -327,7 +323,7 @@ namespace cryptoprime.VinKekFish
         /// <summary>Применяет к криптографическому состоянию CryptoState поблочное преобразование keccak</summary>
         /// <param name="CryptoState">Криптографическое состояние</param>
         /// <param name="len">Длина криптографического состояния в блоках keccak (длина по 200 байтов; KeccakBlockLen)</param>
-        private static unsafe void DoKeccakForAllBlocks(byte* CryptoState, int len, ulong * b, ulong * c)
+        public static unsafe void DoKeccakForAllBlocks(byte* CryptoState, int len, ulong * b, ulong * c)
         {
             byte* cur = CryptoState;
 
@@ -342,7 +338,7 @@ namespace cryptoprime.VinKekFish
         /// <param name="target">Целевой массив: в него записываются значения</param>
         /// <param name="len">Длины обоих массивов в байтах</param>
         /// <param name="permutationTable">Таблица перестановок</param>
-        private static void DoPermutation(byte* source, byte* target, int len, ushort* permutationTable)
+        public static void DoPermutation(byte* source, byte* target, int len, ushort* permutationTable)
         {
             /*
              * Перестановка:
@@ -361,22 +357,30 @@ namespace cryptoprime.VinKekFish
         public static ushort[] transpose128_3200 = null;
         public static ushort[] transpose200_3200 = null;
 
+        public static readonly object sync = new object();
+
+        /// <summary>Эту процедуру нужно вызвать для инициализации таблиц перестановок перед любым вызовом методов класса. Допускается многопоточный вызов без синхронизации. Вызов производится один раз на всю программу (на весь процесс)</summary>
         public static void GenTables()
         {
-            if (transpose128_3200 != null)
-                return;
+            lock (sync)
+            {
+                if (transpose128_3200 != null)
+                    return;
 
-            transpose128_3200 = GenTransposeTable(3200, 128);
-            transpose200_3200 = GenTransposeTable(3200, 200);
+                transpose128_3200 = GenTransposeTable(3200, 128);
+                transpose200_3200 = GenTransposeTable(3200, 200);
+            }
 
             if (transpose128_3200[1] != 128)
                 throw new Exception("VinKekFish: fatal algotirhmic error: GenTables - transpose128_3200[1] != 128");
             if (transpose128_3200[8] != 1024)
                 throw new Exception("VinKekFish: fatal algotirhmic error: GenTables - transpose128_3200[8] != 1024");
-            if (transpose128_3200[1] != 200)
-                throw new Exception("VinKekFish: fatal algotirhmic error: GenTables - transpose128_3200[1] != 200");
-            if (transpose128_3200[8] != 1600)
-                throw new Exception("VinKekFish: fatal algotirhmic error: GenTables - transpose128_3200[8] != 1600");
+            if (transpose200_3200[1] != 200)
+                throw new Exception("VinKekFish: fatal algotirhmic error: GenTables - transpose200_3200[1] != 200");
+            if (transpose200_3200[8] != 1600)
+                throw new Exception("VinKekFish: fatal algotirhmic error: GenTables - transpose200_3200[8] != 1600");
+            if (transpose200_3200[400] != 25)
+                throw new Exception("VinKekFish: fatal algotirhmic error: GenTables - transpose200_3200[400] != 25");
         }
 
         public static ushort[] GenTransposeTable(ushort blockSize, ushort step, int numberOfRetries = 1)
@@ -419,15 +423,15 @@ namespace cryptoprime.VinKekFish
                     throw new Exception("VinKekFish: fatal algotirhmic error 1: GenTransposeTable");
                 }
             }
-
+            /*
             var buffer1  = new byte[blockSize];
             var buffer2  = new byte[blockSize];
-            // Двойное транспонирование 
+            // Двойное транспонирование: эта штука не работает. Здесь транспонирование не является операцией, которая обратна самой себе
             for (ushort i = 0; i < blockSize; i++)
             {
                 buffer1[i] = (byte) i;
             }
-
+            
             fixed (ushort* nt = newTable)
             fixed (byte*   b1 = buffer1, b2 = buffer2)
             {
@@ -440,7 +444,9 @@ namespace cryptoprime.VinKekFish
                 if (buffer1[i] != i)
                     throw new Exception("VinKekFish: fatal algotirhmic error 2: GenTransposeTable");
             }
-
+            buffer1 = null;
+            buffer2 = null;
+            */
             return newTable;
         }
     }
