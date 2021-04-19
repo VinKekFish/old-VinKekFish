@@ -12,14 +12,14 @@ namespace cryptoprime.VinKekFish
     public static unsafe class VinKekFishBase_etalonK1
     {
         // Размер криптографического состояния
-        const int CryptoStateLen          = 3200; // В байтах
-        const int CryptoStateLenKeccak    = CryptoStateLen / KeccakBlockLen;    // Размер криптографического состояния в блоках keccak
-        const int CryptoStateLenThreeFish = CryptoStateLen / ThreeFishBlockLen; // Размер криптографического состояния в блоках ThreeFish
+        public const int CryptoStateLen          = 3200; // В байтах
+        public const int CryptoStateLenKeccak    = CryptoStateLen / KeccakBlockLen;    // Размер криптографического состояния в блоках keccak
+        public const int CryptoStateLenThreeFish = CryptoStateLen / ThreeFishBlockLen; // Размер криптографического состояния в блоках ThreeFish
 
-        const int BLOCK_SIZE              = 512;
-        const int MAX_SINGLE_KEY          = 2048;
-        const int MAX_OIV                 = 1148;
-        const int MIN_ROUNDS              = 4;
+        public const int BLOCK_SIZE              = 512;
+        public const int MAX_SINGLE_KEY          = 2048;
+        public const int MAX_OIV                 = 1148;
+        public const int MIN_ROUNDS              = 4;
 
         // b.len = 25*8, c.len = 5*8
         // var prt = System.Runtime.InteropServices.Marshal.AllocHGlobal(len) and FreeHGlobal либо stackalloc

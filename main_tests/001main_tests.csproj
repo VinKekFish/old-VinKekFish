@@ -98,6 +98,7 @@
     <Content Include="Задачи и другое\Криптография\Размышления\ПарольныеПреобразования.txt" />
     <Content Include="Задачи и другое\Криптография\Размышления\Перемешивание.txt" />
     <Content Include="Задачи и другое\Криптография\Размышления\РазмышленияПостроениеРасширенногоАлгоритма.txt" />
+    <Content Include="Задачи и другое\Проверки\Проверки.txt" />
   </ItemGroup>
   <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

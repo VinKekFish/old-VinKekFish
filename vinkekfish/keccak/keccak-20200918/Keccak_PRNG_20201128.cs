@@ -1,8 +1,5 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Runtime.InteropServices;
-using System.Text;
 using System.Threading.Tasks;
 using cryptoprime;
 using static cryptoprime.keccak;
@@ -35,7 +32,7 @@ namespace vinkekfish.keccak.keccak_20200918
         protected readonly byte[] inputTo = new byte[InputSize];
         protected          bool   inputReady  = false;
 
-        /// <summary>Ввести рандомизирующие байты</summary>
+        /// <summary>Ввести рандомизирующие байты. Не выполняет криптографических операций</summary>
         /// <param name="bytesToInput">Рандомизирующие байты</param>
         public void InputBytes(byte[] bytesToInput)
         {
@@ -43,9 +40,9 @@ namespace vinkekfish.keccak.keccak_20200918
             InputBytesImmediately();
         }
 
-        /// <summary>Ввести секретный ключ</summary>
+        /// <summary>Ввести секретный ключ (вместе с криптографическим преобразованием и отбоем в режиме OVERWITE)</summary>
         /// <param name="key">Ключ, кратный 64-ём байтам</param>
-        public void InputKey(byte[] key)
+        public void InputKeyAndStep(byte[] key)
         {
             if (INPUT.countOfBlocks > 0)
                 throw new ArgumentException("key must be input before the generation or input an initialization vector", "key");
@@ -78,6 +75,7 @@ namespace vinkekfish.keccak.keccak_20200918
             base.Clear(GcCollect);
         }
 
+        /// <summary>Переносит байты из очереди ожидания в массив байтов для непосредственного ввода в криптографическое состояние. Не выполняет криптографических операций</summary>
         protected void InputBytesImmediately()
         {
             if (!inputReady)
@@ -96,7 +94,7 @@ namespace vinkekfish.keccak.keccak_20200918
 
         /// <summary>Расчитывает шаг губки keccak. Если есть InputSize (64) байта для ввода (точнее, inputReady == true), то вводит первые 64-ре байта</summary>
         /// <param name="Overwrite">Если <see langword="true"/>, то вместо xor применяет перезапись внешней части состояния на вводе данных (конструкция Overwrite)</param>
-        protected void calcStep(bool saveBytes = false, bool Overwrite = true)
+        public void calcStep(bool saveBytes = false, bool Overwrite = true)
         {
             Keccak_abstract.KeccakStatesArray.getStatesArray(out GCHandle handle, this.State, out byte * S, out byte * B, out byte * C, out byte * Base, out ulong * Slong, out ulong * Blong, out ulong * Clong);
             try
@@ -156,6 +154,7 @@ namespace vinkekfish.keccak.keccak_20200918
                     BytesBuilder.ToNull(readyLen, bp);
                 }
 
+                output += readyLen;
                 len -= readyLen;
 
                 if (len <= 0)
@@ -195,8 +194,8 @@ namespace vinkekfish.keccak.keccak_20200918
             return result;
         }
 
-        /// <summary>Выдаёт случайное криптостойкое число от 0 до cutoff включительно</summary>
-        /// <param name="cutoff">Максимальное число (включительно) для генерации</param>
+        /// <summary>Выдаёт случайное криптостойкое число от 0 до cutoff включительно. Это вспомогательная функция для основной функции генерации случайных чисел</summary>
+        /// <param name="cutoff">Максимальное число (включительно) для генерации. cutoff должен быть близок к ulong.MaxValue или к 0x8000_0000__0000_0000U, иначе неопределённая отсрочка будет очень долгой</param>
         /// <returns>Случайное число в диапазоне [0; cutoff]</returns>
         public ulong getUnsignedInteger(ulong cutoff = ulong.MaxValue)
         {
@@ -265,62 +264,33 @@ namespace vinkekfish.keccak.keccak_20200918
 
         /// <summary>Осуществляет перестановки таблицы 2-хбайтовых целых чисел</summary>
         /// <param name="table">Исходная таблица для перестановок длиной не более int.MaxValue</param>
-        /// <param name="key">Ключ для перестановок</param>
-        /// <param name="initVector">Открытый вектор инициализации размера, кратного 64-м байтам</param>
-        public void doRandomCubicPermutationForUShorts(ushort[] table, byte[] key, byte[] initVector, int basePermutationCount = 0)
+        public void doRandomPermutationForUShorts(ushort[] table)
         {
-            InputBytes(initVector);
-            InputKey(key);
-
             // Иначе всё равно будет слишком долго
             if (table.LongLength > int.MaxValue)
                 throw new ArgumentException("doRandomCubicPermutationForUShorts: table is very long");
             if (table.Length <= 3)
                 throw new ArgumentException("doRandomCubicPermutationForUShorts: table is very short");
 
-            var len = table.Length;
-            if (basePermutationCount <= 16)
-                basePermutationCount = len;
+            var len = (ulong) table.LongLength;
 
-            var max = basePermutationCount*basePermutationCount*basePermutationCount;
-
-            getCutoffForUnsignedInteger(0, (ulong) len, out ulong cutoff, out ulong range);
-            for (int i = 0; i < max; i++)
+            // Алгоритм тасования Дурштенфельда
+            // https://ru.wikipedia.org/wiki/Тасование_Фишера_—_Йетса
+            for (ulong i = 0; i < len; i++)
             {
-                var i1 = (int) getUnsignedInteger(0, cutoff, range);
-                var i2 = (int) getUnsignedInteger(0, cutoff, range);
-                var i3 = (int) getUnsignedInteger(0, cutoff, range);
+                getCutoffForUnsignedInteger(0, (ulong) len - i - 1, out ulong cutoff, out ulong range);
+                var index = getUnsignedInteger(0, cutoff, range) + i;
 
-                if (i1 == i2 && i2 == i3)
-                    continue;
-
-                if (i1 == i2)
-                {
-                    do2Permutation(i1, i3);
-                }
-                else
-                if (i1 == i3)
-                {
-                    do2Permutation(i1, i2);
-                }
-                else
-                if (i2 == i3)
-                {
-                    do2Permutation(i1, i2);
-                }
-                else
-                {
-                    do3Permutation(i1, i2, i3);
-                }
+                do2Permutation(i, index);
             }
 
-            void do2Permutation(int i1, int i2)
+            void do2Permutation(ulong i1, ulong i2)
             {
                 var a     = table[i1];
                 table[i1] = table[i2];
                 table[i2] = a;
             }
-
+            /*
             void do3Permutation(int i1, int i2, int i3)
             {
                 var a1    = table[i1];
@@ -330,7 +300,7 @@ namespace vinkekfish.keccak.keccak_20200918
                 table[i1] = a2;
                 table[i2] = a3;
                 table[i3] = a1;
-            }
+            }*/
         }
     }
 }

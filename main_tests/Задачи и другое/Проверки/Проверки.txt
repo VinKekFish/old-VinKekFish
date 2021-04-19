@@ -1,0 +1,6 @@
+﻿1. Выход за диапазон допустимых индексов
+
+2. Тайминг-атаки, список https://vincryptoos.github.io/errors/errorsconding.html
+
+3. При проектировании криптографии, список https://vincryptoos.github.io/errors/errorsmain.html
+
