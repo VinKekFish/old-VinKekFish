@@ -47,7 +47,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="VinKekFish\VinKekFish-20210419\VinKekFish_base_20210419.cs" />
+    <Compile Include="VinKekFish\VinKekFish-20210419\VinKekFish_k1_base_20210419.cs" />
     <None Include="CSharp-help\Help1.cs" />
     <Compile Include="HelperClass.cs" />
     <None Include="keccak\codereview\2020-0919\keccak-abstract.rev.cs" />

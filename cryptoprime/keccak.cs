@@ -171,8 +171,8 @@ namespace cryptoprime
         // Полный keccak
         /// <summary>Все раунды keccak. a == S, c= C, b = B</summary>
         /// <param name="a">Зафиксированное внутреннее состояние S</param>
-        /// <param name="c">Массив C (значения не важны)</param>
-        /// <param name="b">Матрица B (значения не важны)</param>
+        /// <param name="c">Массив C (значения не важны):   5 * ulong</param>
+        /// <param name="b">Матрица B (значения не важны): 25 * ulong</param>
         public static unsafe void Keccackf(ulong * a, ulong * c, ulong * b)
         {
             roundB(a, c, b);

@@ -16,6 +16,8 @@ namespace cryptoprime.VinKekFish
         public const int CryptoStateLenKeccak    = CryptoStateLen / KeccakBlockLen;    // Размер криптографического состояния в блоках keccak
         public const int CryptoStateLenThreeFish = CryptoStateLen / ThreeFishBlockLen; // Размер криптографического состояния в блоках ThreeFish
 
+        public const int CryptoTweakLen          = 8*2; // В байтах
+
         public const int BLOCK_SIZE              = 512;
         public const int MAX_SINGLE_KEY          = 2048;
         public const int MAX_OIV                 = 1148;
@@ -47,6 +49,8 @@ namespace cryptoprime.VinKekFish
                 throw new ArgumentNullException("VinKekFishBase_etalonK1.InputKey: key_length == 0");
 
             if (R < MIN_ROUNDS)
+                throw new ArgumentOutOfRangeException("R < MIN_ROUNDS");
+            if (RE < MIN_ROUNDS && !SecondKey)
                 throw new ArgumentOutOfRangeException("R < MIN_ROUNDS");
 
             var dataLen = key_length;
