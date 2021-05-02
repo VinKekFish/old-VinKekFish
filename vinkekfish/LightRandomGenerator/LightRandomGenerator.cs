@@ -16,8 +16,8 @@ namespace vinkekfish
         protected readonly Thread rthread = null;
         protected readonly Thread wthread = null;
 
-        protected volatile ushort  curCNT = 0;
-        protected volatile ushort lastCNT = 0;
+        protected volatile byte   curCNT  = 0;
+        protected volatile byte   lastCNT = 0;
         public LightRandomGenerator(int CountToGenerate)
         {
             var allocator  = new AllocHGlobal_AllocatorForUnsafeMemory();
@@ -60,6 +60,7 @@ namespace vinkekfish
                     {
                         while (!ended)
                         {
+                            Thread.Sleep(0);
                             while (lastCNT == curCNT)
                                 Thread.Sleep(0);
 
@@ -69,7 +70,7 @@ namespace vinkekfish
                             {
                                 if (GeneratedCount < CountToGenerate)
                                 {
-                                    GeneratedBytes.array[(GeneratedCount + StartOfGenerated) % CountToGenerate] = (byte) curCNT;
+                                    GeneratedBytes.array[(GeneratedCount + StartOfGenerated) % CountToGenerate] = curCNT;
                                     GeneratedCount++;
                                 }
                                 else
