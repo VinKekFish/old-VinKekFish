@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 using static cryptoprime.BytesBuilderForPointers;
 
-namespace vinkekfish.LightRandomGenerator
+namespace vinkekfish
 {
     /// <summary>Класс, генерирующий некриптостойкие значения на основе ожидания потоков</summary>
     public unsafe class LightRandomGenerator: IDisposable
@@ -94,16 +94,20 @@ namespace vinkekfish.LightRandomGenerator
 
             wthread.Priority = ThreadPriority.Lowest;
             rthread.Priority = ThreadPriority.Lowest;
+
+            wthread.Start();
+            rthread.Start();
         }
 
-        protected readonly   Record GeneratedBytes   = null;
+        /// <summary>Брать байты можно и прямо из массива после WaitForGenerator. После взятия вызвать ResetGeneratedBytes</summary>
+        public    readonly   Record GeneratedBytes   = null;
         protected readonly   int    CountToGenerate  = 0;
         protected volatile   int    GeneratedCount   = 0;
         protected volatile   int    StartOfGenerated = 0;
         protected volatile   int    isEnded          = 2;
 
-        /// <summary>Сбрасывает все сгенерированные байты без полезного использования</summary>
-        public void ResetGeneratedBytes()
+        /// <summary>Сбрасывает все сгенерированные байты без полезного использования. Это стоит вызвать, если GeneratedBytes использованы напрямую</summary>
+        public virtual void ResetGeneratedBytes()
         {
             StartOfGenerated = 0;
             GeneratedCount   = 0;
@@ -113,17 +117,16 @@ namespace vinkekfish.LightRandomGenerator
                 Monitor.PulseAll(this);
         }
 
-        /// <summary>Получает из генератора псевдослучайные некриптостойкие байты</summary>
-        /// <param name="result">Некриптостойкий результат</param>
-        public void GetRandomBytes(byte[] result)
+        /// <summary>Получает из генератора псевдослучайные некриптостойкие байты. Брать байты можно и прямо из массива GeneratedBytes</summary>
+        /// <param name="result">Некриптостойкий результат. result != <see langword="null"/>, result.Length must be less or equal CountToGenerate</param>
+        public virtual void GetRandomBytes(byte[] result)
         {
-            if (ended)
-                throw new Exception("LightRandomGenerator.GetRandomBytes: LightRandomGenerator is end of work");
-
             if (result.Length > CountToGenerate)
                 throw new ArgumentOutOfRangeException("LightRandomGenerator.GetRandomBytes: result.Length > CountToGenerate");
             
-            WaitForGenerator(result);
+            WaitForGenerator(result.LongLength);
+            if (ended)
+                throw new Exception("LightRandomGenerator.GetRandomBytes: LightRandomGenerator is end of work");
 
             lock (this)
             for (int i = 0; i < result.Length; i++)
@@ -141,11 +144,11 @@ namespace vinkekfish.LightRandomGenerator
                 Monitor.PulseAll(this);
         }
 
-        private void WaitForGenerator(byte[] result)
+        public virtual void WaitForGenerator(long mustGenerated)
         {
             lock (this)
             {
-                while (GeneratedCount < result.Length)
+                while (GeneratedCount < mustGenerated && !ended)
                 {
                     Monitor.PulseAll(this);
                     Monitor.Wait(this, 1000);
@@ -154,6 +157,14 @@ namespace vinkekfish.LightRandomGenerator
         }
 
         public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        /// <summary>Очищает объект</summary>
+        /// <param name="disposing"><see langword="true"/> во всех случаях, кроме вызова из деструктора</param>
+        public virtual void Dispose(bool disposing)
         {
             ended = true;
 
@@ -167,7 +178,11 @@ namespace vinkekfish.LightRandomGenerator
 
                 GeneratedBytes.Dispose();
             }
-            keccak.keccak_20200918.Keccak_PRNG_20201128.AllocFullMemoryInLongBlocksWithSecondAlloc();
+        }
+
+        ~LightRandomGenerator()
+        {
+            Dispose(false);
         }
     }
 }

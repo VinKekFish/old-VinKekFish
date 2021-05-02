@@ -22,10 +22,40 @@ namespace cryptoprime
 
             public AllocatorForUnsafeMemoryInterface allocator = null;
 
+            #if DEBUG
+            public        string DebugName = null;
+
+            public        long   DebugNum  = 0;
+            public static long   CurrentDebugNum = 0;
+            #endif
 
             /// <summary>Этот метод вызывать не надо. Используйте AllocatorForUnsafeMemoryInterface.AllocMemory</summary>
             public Record()
             {
+                #if DEBUG
+                DebugNum = CurrentDebugNum++;
+                // if (DebugNum == 7)
+                // DebugName = new System.Diagnostics.StackTrace().ToString();
+                #endif
+            }
+
+            /// <summary>Выводит строковое представление для отладки</summary>
+            public override string ToString()
+            {
+                var sb = new StringBuilder();
+
+                sb.AppendLine($"length = {len}");
+                if (array != null)
+                {
+                    for (int i = 0; i < len; i++)
+                        sb.Append(array[i].ToString("D3") + "  ");
+                }
+                else
+                {
+                    sb.Append("array == null");
+                }
+
+                return sb.ToString();
             }
 
             public object Clone()
@@ -35,6 +65,7 @@ namespace cryptoprime
 
             public Record Clone(long start = 0, long PostEnd = -1, AllocatorForUnsafeMemoryInterface allocator = null)
             {
+                // allocator будет взят из this, если он null
                 return CloneBytes(this, allocator, start, PostEnd);
             }
 
@@ -57,14 +88,17 @@ namespace cryptoprime
             /// <summary>Очищает выделенную область памяти. Но не освобождает её. См. Dispose()</summary>
             public void Clear()
             {
-                BytesBuilder.ToNull(len, array);
+                if (array != null)
+                    BytesBuilder.ToNull(len, array);
             }
 
             /// <summary>Очищает и освобождает выделенную область памяти</summary>
+            // TODO: протестировать на двойной вызов (должно всё работать)
+            protected bool isDisposed = false;
             public void Dispose()
             {
                 Dispose(true);
-                GC.SuppressFinalize(this);
+                // GC.SuppressFinalize(this);
             }
 
             /// <summary>Вызывает Dispose()</summary>
@@ -73,26 +107,33 @@ namespace cryptoprime
                 Dispose();
             }
 
-            /// <summary></summary>
+            /// <summary>Очищает массив и освобождает выделенную под него память</summary>
             /// <param name="disposing"></param>
             protected virtual void Dispose(bool disposing)
             {
+                bool allocatorExists = allocator != null;
+
                 Clear();
                 allocator?.FreeMemory(this);
 
-                len    = 0;
-                array  = null;
-                ptr    = default;
-                handle = default;
+                len        = 0;
+                array     = null;
+                ptr       = default;
+                handle    = default;
+                allocator = null;
+
+                isDisposed = true;
 
                 // TODO: Проверить, что это исключение действительно работает, то есть оно будет залогировано при окончании программы
-                if (!disposing)
+                // Если аллокатора нет, то и вызывать Dispose не обязательно
+                if (!disposing && allocatorExists)
                     throw new Exception("BytesBuilderForPointers.Record ~Record() executed");
             }
 
             ~Record()
             {
-                Dispose(false);
+                if (!isDisposed)
+                    Dispose(false);
             }
 
             public static implicit operator byte * (Record t)
@@ -137,6 +178,12 @@ namespace cryptoprime
             /// <param name="array">Исходный массив</param>
             /// <returns>Зафиксированный массив</returns>
             public Record FixMemory(byte[] array);
+
+            /// <summary>Производит фиксацию в памяти объекта, длиной length байтов</summary>
+            /// <param name="array">Закрепляемый объект</param>
+            /// <param name="length">Длина объекта в байтах. Длины массивов необходимо домножать на размер элемента массива</param>
+            /// <returns></returns>
+            public Record FixMemory(object array, long length);
         }
 
         public class AllocHGlobal_AllocatorForUnsafeMemory : AllocatorForUnsafeMemoryInterface
@@ -150,7 +197,7 @@ namespace cryptoprime
                     throw new ArgumentOutOfRangeException("BytesBuilderForPointers.AllocatorForUnsafeMemory.AllocatorForUnsafeMemory: len > int.MaxValue");
 
                 var ptr = Marshal.AllocHGlobal(  (int) len  );
-                return new Record() { len = len, array = (byte *) ptr.ToPointer(), ptr = ptr };
+                return new Record() { len = len, array = (byte *) ptr.ToPointer(), ptr = ptr, allocator = this };
             }
 
             /// <summary>Освобождает выделенную область памяти. Не очищает память (не перезабивает её нулями)</summary>
@@ -165,14 +212,21 @@ namespace cryptoprime
             {
                 throw new NotImplementedException();
             }
+
+            /// <summary>Не реализовано</summary>
+            public Record FixMemory(object array, long length)
+            {
+                throw new NotImplementedException();
+            }
         }
 
         public class Fixed_AllocatorForUnsafeMemory : AllocatorForUnsafeMemoryInterface
         {
-            /// <summary>Не реализовано</summary>
+            /// <summary>Выделяет память с помощью сборщика мусора, а потом фиксирует её</summary>
             public Record AllocMemory(long len)
             {
-                throw new NotImplementedException();
+                var b = new byte[len];
+                return FixMemory(b);
             }
 
             /// <summary>Освобождает выделенную область памяти. Не очищает память (не перезабивает её нулями)</summary>
@@ -187,29 +241,26 @@ namespace cryptoprime
             /// <returns>Зафиксированный массив</returns>
             public Record FixMemory(byte[] array)
             {
-                var h = GCHandle.Alloc(array, GCHandleType.Pinned);
-                var p = h.AddrOfPinnedObject();
-
-                return new Record()
-                {
-                    len     = array.LongLength,
-                    ptr     = p,
-                    array   = (byte *) p.ToPointer(),
-                    handle  = h
-                };
+                return FixMemory(array, array.LongLength);
             }
 
             public Record FixMemory(ushort[] array)
+            {
+                return FixMemory(array, array.LongLength * sizeof(ushort));
+            }
+
+            public Record FixMemory(object array, long length)
             {
                 var h = GCHandle.Alloc(array, GCHandleType.Pinned);
                 var p = h.AddrOfPinnedObject();
 
                 return new Record()
                 {
-                    len     = array.LongLength * sizeof(ushort),
-                    ptr     = p,
-                    array   = (byte *) p.ToPointer(),
-                    handle  = h
+                    len       = length,
+                    ptr       = p,
+                    array     = (byte *) p.ToPointer(),
+                    handle    = h,
+                    allocator = this
                 };
             }
         }
@@ -373,7 +424,8 @@ namespace cryptoprime
         // Эта функция может неожиданно обнулить часть массива или массив, сохранённый без копирования (если он где-то используется в другом месте)
         public Record getBytesAndRemoveIt(Record result)
         {
-            long cursor = 0;
+            long   cursor  = 0;
+            Record current = null;
             for (int i = 0; i < bytes.Count; )
             {
                 if (cursor == result.len)
@@ -382,15 +434,16 @@ namespace cryptoprime
                 if (cursor > result.len)
                     throw new System.Exception("Fatal algorithmic error (getBytesAndRemoveIt): cursor > resultCount");
 
-                if (cursor + bytes[i].len > result.len)
+                current = bytes[i];
+                if (cursor + current.len > result.len)
                 {
                     // Делим массив на две части. Левая уходит наружу, правая остаётся в массиве
                     var left  = result.len - cursor;
-                    var right = bytes[i].len - left;
+                    var right = current.len - left;
 
-                    var bLeft  = bytes[i].Clone(0, left);
-                    var bRight = bytes[i].Clone(left);
-
+                    var bLeft  = current.Clone(0, left, allocator: current.allocator ?? result.allocator);
+                    var bRight = current.Clone(left,    allocator: current.allocator ?? result.allocator);
+                    
                     RemoveBlockAt(i);
 
                     bytes.Insert(0, bLeft );
@@ -399,12 +452,14 @@ namespace cryptoprime
                     count += left + right;
                 }
 
+                // bytes[i] != current
                 BytesBuilder.CopyTo(bytes[i].len, result.len, bytes[i].array, result.array, cursor);
                 cursor += bytes[i].len;
 
                 RemoveBlockAt(i);
             }
-
+                                
+            
             return result;
         }
 

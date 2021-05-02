@@ -15,15 +15,7 @@ namespace vinkekfish
     /// <summary>В этом классе объявлена только инициализация и финализация: остальное в классах-потомках, реализующих конкретные схемы шифрования</summary>
     public unsafe class VinKekFish_k1_base_20210419: IDisposable
     {
-        // Место на
-        // Криптографическое состояние
-        // Копию криптографического состояния
-        // 4 tweak (основной и запасные)
-        // new byte[CryptoStateLen * 2 + CryptoTweakLen * 4];
-        // место для вспомогательных матриц c и b
-        public readonly byte  [] state   = null;
-        public          ushort[] pTables = null;
-        public          int      RTables = 0;
+        public          int    RTables = 0;
 
         public          Record _state = null, _state2 = null, t0 = null, t1 = null, t2 = null, _transpose200_3200 = null, _b = null, _c = null;
         public          Record stateHandle   = null;
@@ -32,15 +24,14 @@ namespace vinkekfish
         protected bool isInited1 = false;
         protected bool isInited2 = false;
 
+        public static readonly AllocatorForUnsafeMemoryInterface AllocHGlobal_allocator = new AllocHGlobal_AllocatorForUnsafeMemory();
+
         public VinKekFish_k1_base_20210419()
         {
             GC.Collect();
 
             GenTables();
             GC.Collect();
-
-            state = new byte[CryptoStateLen * 2 + CryptoTweakLen * 4 + cryptoprime.keccak.b_size + cryptoprime.keccak.c_size];
-            BytesBuilder.ToNull(state);
         }
 
         /// <summary>Первичная инициализация: генерация таблиц перестановок (перед началом вызывает Clear)</summary>
@@ -53,13 +44,37 @@ namespace vinkekfish
             Clear();
             GC.Collect();
 
-            RTables = RoundsForTables;
-            pTables = GenStandardPermutationTables(Rounds: RTables, key: additionalKeyForTables, key_length: additionalKeyForTables_length, OpenInitVector: OpenInitVectorForTables, PreRoundsForTranspose: PreRoundsForTranspose);
-            pTablesHandle = new Fixed_AllocatorForUnsafeMemory().FixMemory(pTables);
+            // Место на
+            // Криптографическое состояние
+            // Копию криптографического состояния
+            // 4 tweak (основной и запасные)
+            // new byte[CryptoStateLen * 2 + CryptoTweakLen * 4];
+            // место для вспомогательных матриц c и b
+            stateHandle = AllocHGlobal_allocator.AllocMemory(CryptoStateLen * 2 + CryptoTweakLen * 4 + cryptoprime.keccak.b_size + cryptoprime.keccak.c_size);
+            stateHandle.Clear();
 
-            _transpose200_3200 = new Fixed_AllocatorForUnsafeMemory().FixMemory(transpose200_3200);
+            // При изменении не забыть обнулить указатели в ClearState()
+            _state  = stateHandle.NoCopyClone(CryptoStateLen);
+            _state2 = _state  + CryptoStateLen; // Это перегруженная операция сложения, _state2 идёт за массивом _state и имеет длину CryptoStateLen
+            t0      = _state2 + CryptoTweakLen;
+            t1      = t0      + CryptoTweakLen;
+            t2      = t1      + CryptoTweakLen;
+            _b      = t2      + cryptoprime.keccak.b_size;
+            _c      = _b      + cryptoprime.keccak.c_size;
+
+            _transpose200_3200 = AllocHGlobal_allocator.AllocMemory(transpose200_3200.Length * sizeof(ushort));
+            fixed (ushort * t = transpose200_3200)
+            {
+                byte * tt = (byte *) t;
+                BytesBuilder.CopyTo(_transpose200_3200.len, _transpose200_3200.len, tt, _transpose200_3200);
+            }
+
+            RTables       = RoundsForTables;
+            pTablesHandle = GenStandardPermutationTables(Rounds: RTables, key: additionalKeyForTables, key_length: additionalKeyForTables_length, OpenInitVector: OpenInitVectorForTables, PreRoundsForTranspose: PreRoundsForTranspose);
+
 
             GC.Collect();
+            GC.WaitForPendingFinalizers();  // Это чтобы сразу получить все проблемные вызовы, связанные с утечками памяти
             isInited1 = true;
         }
 
@@ -76,24 +91,14 @@ namespace vinkekfish
 
             // В этой и вызываемых функциях требуется проверка на наличие ошибок в неверных параметрах
             ClearState();
-            if (pTables == null)
+            if (pTablesHandle == null)
                 throw new ArgumentOutOfRangeException("VinKekFish_k1_base_20210419: Init1 must be executed before Init2 (pTables == null)");
-
-            // При изменении не забыть обнулить указатели в ClearState()
-            stateHandle = new Fixed_AllocatorForUnsafeMemory().FixMemory(state);
-            _state       = stateHandle.NoCopyClone(CryptoStateLen);
-            _state2 = _state  + CryptoStateLen; // Это перегруженная операция сложения, _state2 идёт за массивом _state и имеет длину CryptoStateLen
-            t0      = _state2 + CryptoTweakLen;
-            t1      = t0      + CryptoTweakLen;
-            t2      = t1      + CryptoTweakLen;
-            _b      = t2      + cryptoprime.keccak.b_size;
-            _c      = _b      + cryptoprime.keccak.c_size;
 
             fixed (byte * oiv = OpenInitVector)
             {
                 InputKey
                 (
-                    key: key, key_length: key_length, OIV: oiv, OpenInitVector == null ? (ulong) OpenInitVector.LongLength : 0,
+                    key: key, key_length: key_length, OIV: oiv, OpenInitVector == null ? 0 : (ulong) OpenInitVector.LongLength,
                     state: _state, state2: _state2, b: _b, c: _c,
                     tweak: t0, tweakTmp: t1, tweakTmp2: t2,
                     Initiated: false, SecondKey: false,
@@ -101,6 +106,8 @@ namespace vinkekfish
                 );
             }
 
+            GC.Collect();
+            GC.WaitForPendingFinalizers();  // Это чтобы сразу получить все проблемные вызовы, связанные с утечками памяти
             isInited2 = true;
         }
 
@@ -113,21 +120,6 @@ namespace vinkekfish
             pTablesHandle?.Dispose();
             _transpose200_3200?.Dispose();
 
-            RTables            = 0;
-            pTablesHandle      = null;
-            pTables            = null;
-            _transpose200_3200 = null;
-
-            Keccak_base_20200918.AllocPartOfMemory();
-            GC.Collect();
-        }
-
-        /// <summary>Обнуляет состояние без перезаписи таблиц перестановок. Использовать после окончания шифрования, если нужно использовать объект повторно с другим ключом</summary>
-        public void ClearState()
-        {
-            isInited2 = false;
-
-            // Здесь обнуление состояния
             stateHandle?.Dispose();
             stateHandle = null;
             _state      = null;
@@ -139,18 +131,36 @@ namespace vinkekfish
             t2          = null;
             _b          = null;
             _c          = null;
+
+            RTables            = 0;
+            pTablesHandle      = null;
+            _transpose200_3200 = null;
+
+            GC.Collect();
+        }
+
+        /// <summary>Обнуляет состояние без перезаписи таблиц перестановок. Использовать после окончания шифрования, если нужно использовать объект повторно с другим ключом</summary>
+        public void ClearState()
+        {
+            isInited2 = false;
+
+            // Здесь обнуление состояния
+            stateHandle?.Clear();
         }
 
         /// <summary>Генерирует стандартную таблицу перестановок</summary>
         /// <param name="Rounds">Количество раундов, для которых идёт генерация. Для каждого раунда по 4-ре таблицы</param>
         /// <param name="key">Это вспомогательный ключ для генерации таблиц перестановок. Основной ключ вводить нельзя! Этот ключ не может быть ключом, вводимым в VinKekFish, см. описание VinKekFish.md</param>
         /// <param name="PreRoundsForTranspose">Количество раундов, где таблицы перестановок не генерируются от ключа, а идут стандартно transpose128_3200 и transpose200_3200</param>
-        public static ushort[] GenStandardPermutationTables(int Rounds, byte * key = null, long key_length = 0, byte[] OpenInitVector = null, int PreRoundsForTranspose = 8)
+        public static Record GenStandardPermutationTables(int Rounds, AllocatorForUnsafeMemoryInterface allocator = null, byte * key = null, long key_length = 0, byte[] OpenInitVector = null, int PreRoundsForTranspose = 8)
         {
             if (PreRoundsForTranspose < 1 || PreRoundsForTranspose > Rounds)
                 throw new ArgumentOutOfRangeException("VinKekFish_base_20210419.GenStandardPermutationTables: PreRoundsForTranspose < 1 || PreRoundsForTranspose > Rounds");
 
-            var prng = new Keccak_PRNG_20201128();
+            if (allocator == null)
+                allocator = AllocHGlobal_allocator;
+
+            using var prng = new Keccak_PRNG_20201128();
 
             if (key != null && key_length > 0)
                 prng.InputKeyAndStep(key, key_length);
@@ -164,20 +174,20 @@ namespace vinkekfish
             long len1  = VinKekFishBase_etalonK1.CryptoStateLen;
             long len2  = VinKekFishBase_etalonK1.CryptoStateLen << 1;
 
-            var result = new ushort[len1 * Rounds * 4];
+            var result = allocator.AllocMemory(len1 * Rounds * 4 * sizeof(ushort));
             var table1 = new ushort[len1];
             var table2 = new ushort[len1];
 
             for (ushort i = 0; i < table1.Length; i++)
             {
                 table1[i] = i;
-                table2[i] = (ushort) (table1.Length - i);
+                table2[i] = (ushort) (table1.Length - i - 1);
             }
 
-            fixed (ushort * R = result)
             fixed (ushort * transpose200_3200_u = VinKekFishBase_etalonK1.transpose200_3200, transpose128_3200_u = VinKekFishBase_etalonK1.transpose128_3200)
             fixed (ushort * Table1 = table1, Table2 = table2)
             {
+                ushort * R = result;
                 ushort * r = R;
                 byte * transpose200_3200 = (byte *) transpose200_3200_u;
                 byte * transpose128_3200 = (byte *) transpose128_3200_u;
@@ -190,25 +200,50 @@ namespace vinkekfish
                     BytesBuilder.CopyTo(len2, len2, transpose128_3200, (byte *) r); r += len1;
                 }
 
-                prng.doRandomPermutationForUShorts(table1);
-                prng.doRandomPermutationForUShorts(table2);
-
                 for (; Rounds > 0; Rounds--)
                 {
-                    BytesBuilder.CopyTo(len2, len2, (byte *) Table1,   (byte *) r); r += len1;
-                    BytesBuilder.CopyTo(len2, len2, (byte *) Table2,   (byte *) r); r += len1;
-                    BytesBuilder.CopyTo(len2, len2, transpose200_3200, (byte *) r); r += len1;
-                    BytesBuilder.CopyTo(len2, len2, transpose128_3200, (byte *) r); r += len1;
+                    prng.doRandomPermutationForUShorts(table1);
+                    prng.doRandomPermutationForUShorts(table2);
+/*  // Если необходимо, раскомментировать отладочный код: здесь проверяется, что перестановки были корректны (что они перестановки, а не какие-то ошибки)
+#if DEBUG
+                    CheckPermutationTable(table1);
+                    CheckPermutationTable(table2);
+#endif
+*/
+                    BytesBuilder.CopyTo(len2, len2, (byte*)Table1, (byte*)r); r += len1;
+                    BytesBuilder.CopyTo(len2, len2, (byte*)Table2, (byte*)r); r += len1;
+                    BytesBuilder.CopyTo(len2, len2, transpose200_3200, (byte*)r); r += len1;
+                    BytesBuilder.CopyTo(len2, len2, transpose128_3200, (byte*)r); r += len1;
                 }
+
+                BytesBuilder.ToNull(table1.Length * sizeof(ushort), (byte *) Table1);
+                BytesBuilder.ToNull(table1.Length * sizeof(ushort), (byte *) Table2);
             }
 
             return result;
         }
 
-        public void Dispose()
+#if DEBUG
+        private static void CheckPermutationTable(ushort[] table1)
         {
-            Clear();
+            bool found;
+            for (int i = 0; i < table1.Length; i++)
+            {
+                found = false;
+                for (int j = 0; j < table1.Length; j++)
+                {
+                    if (table1[j] == i)
+                    {
+                        found = true;
+                        break;
+                    }
+                }
+
+                if (!found)
+                    throw new Exception($"DEBUG: doRandomPermutationForUShorts incorrect: value {i} not found");
+            }
         }
+#endif
 
         public void outputData(byte * output, long start, long outputLen, long countToOutput)
         {
@@ -219,6 +254,27 @@ namespace vinkekfish
                 throw new ArgumentOutOfRangeException("VinKekFish_k1_base_20210419.outputData: start + lenToOutput > len");
 
             BytesBuilder.CopyTo(countToOutput, outputLen, _state, output, start);
+        }
+
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        /// <summary>Очищает объект</summary>
+        /// <param name="disposing"><see langword="true"/> при всех вызовах, исключая деструктор</param>
+        public virtual void Dispose(bool disposing)
+        {
+            Clear();
+
+            if (!disposing)
+                throw new Exception("VinKekFish_k1_base_20210419.Dispose: ~VinKekFish_k1_base_20210419 executed");
+        }
+
+        ~VinKekFish_k1_base_20210419()
+        {
+            Dispose(false);
         }
     }
 }

@@ -181,7 +181,7 @@ namespace vinkekfish
                 *C = 0;
         }
 
-        protected virtual void Dispose(bool disposing)
+        public virtual void Dispose(bool disposing)
         {
             Clear(false);
         }

@@ -69,6 +69,7 @@ namespace main_tests
             new ThreeFishTestByBits   (tasks);
             new ThreeFishGenTestByBits(tasks);
             */
+            new LightRandomGenerator_test01(tasks);
 
             // --------------------------------------------------------------------------------
             // Завершающие тесты

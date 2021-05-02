@@ -27,8 +27,25 @@ namespace cryptoprime.VinKekFish
         public const int NORMAL_KEY              = 4096;
         public const int RECOMMENDED_KEY         = 8192;
 
-        // b.len = 25*8, c.len = 5*8
-        // var prt = System.Runtime.InteropServices.Marshal.AllocHGlobal(len) and FreeHGlobal либо stackalloc
+        /// <summary>Поглощение ключа губкой. Полное поглощение, включая криптографию. Пользователю не нужно, т.к. нужно использовать более специфические классы, например, VinKekFish_k1_base_20210419_keyGeneration</summary>
+        /// <param name="key">Ключ</param>
+        /// <param name="key_length">Длина ключа</param>
+        /// <param name="OIV">Открытый вектор инициализации. Может быть null</param>
+        /// <param name="OIV_length">Длина открытого вектора инициализации</param>
+        /// <param name="state">Криптографическое состояние</param>
+        /// <param name="state2">Вспомогательный массив криптографического состояния</param>
+        /// <param name="b">Вспомогательный массив для функции keccak-f, размер b_size (25*8)</param>
+        /// <param name="c">Вспомогательный массив для функции keccak-f, размер b_size (05*8)</param>
+        /// <param name="tweak">Tweak</param>
+        /// <param name="tweakTmp">Вспомогательный массив для хранения tweak</param>
+        /// <param name="tweakTmp2">Второй вспомогательный массив для хранения tweak</param>
+        /// <param name="Initiated"> При пользовательском вызове всегда false. Если <see langword="false"/>, то state инициализированно, но никакие данные не вводились. Если true, то в state уже вводились данные: например, другой ключ. Если false - идёт перезапись. Если <see langword="true"/> - поглощение через xor</param>
+        /// <param name="SecondKey">При пользовательском вызове всегда false. Вторичный отрезок ключа: при рекурсивном вызове этот параметр равен true, означая, что идёт поглощение следующих за первым отрезков ключей</param>
+        /// <param name="R">Количество раундов для первого поглощения</param>
+        /// <param name="RE">Количество раундов для отбоя после поглощения всего ключа (не рекомендуется делать низким)</param>
+        /// <param name="RM">Количество раундов для поглощения дополнительных участков ключа (можно сделать низким, например, REDUCED_ROUNDS)</param>
+        /// <param name="tablesForPermutations">Таблицы перестановок для всех раундов</param>
+        /// <param name="transpose200_3200">Таблица перестановок transpose200_3200, см. GenTables()</param>
         public static void InputKey(byte * key, ulong key_length, byte * OIV, ulong OIV_length, byte * state, byte * state2, byte * b, byte *c, ulong * tweak, ulong * tweakTmp, ulong * tweakTmp2, bool Initiated, bool SecondKey, int R, int RE, int RM, ushort * tablesForPermutations, ushort * transpose200_3200)
         {
             if (SecondKey && OIV != null)
@@ -49,8 +66,8 @@ namespace cryptoprime.VinKekFish
             if (key == null)
                 throw new ArgumentNullException("VinKekFishBase_etalonK1.InputKey: key == null");
 
-            if (key_length == 0)
-                throw new ArgumentNullException("VinKekFishBase_etalonK1.InputKey: key_length == 0");
+            if (key_length <= 0)
+                throw new ArgumentNullException("VinKekFishBase_etalonK1.InputKey: key_length <= 0");
 
             if (R < MIN_ROUNDS)
                 throw new ArgumentOutOfRangeException("R < MIN_ROUNDS");
@@ -147,7 +164,7 @@ namespace cryptoprime.VinKekFish
             }
         }
 
-        /// <summary>Сырой ввод данных. Вводит данные в состояние путём перезатирания (режим OVERWRITE), изменяет tweak</summary>
+        /// <summary>Сырой ввод данных. Вводит данные в состояние путём перезатирания (режим OVERWRITE), изменяет tweak. Не вызывает криптографические функции</summary>
         /// <param name="data">Указатель на вводимые данные</param>
         /// <param name="state">Указатель на криптографическое состояние</param>
         /// <param name="dataLen">Длина вводимых данных, не более BLOCK_SIZE</param>
@@ -181,7 +198,7 @@ namespace cryptoprime.VinKekFish
             InputData_ChangeTweak(tweak: tweak, dataLen: dataLen, Overwrite: true, regime: regime);
         }
 
-        /// <summary>Сырой ввод данных. Вводит данные в состояние через xor (режим ввода sponge)</summary>
+        /// <summary>Сырой ввод данных. Вводит данные в состояние через xor (режим ввода sponge), изменяет tweak. Не вызывает криптографические функции</summary>
         public static void InputData_Xor(byte * data, byte * state, ulong dataLen, ulong * tweak, byte regime)
         {
             if (dataLen > BLOCK_SIZE)
@@ -202,7 +219,7 @@ namespace cryptoprime.VinKekFish
             InputData_ChangeTweak(tweak: tweak, dataLen: dataLen, Overwrite: false, regime: regime);
         }
 
-        /// <summary>Этот метод вызывать не надо. Он автоматически вызывается при вызове InputData_*</summary>
+        /// <summary>Этот метод вызывать не надо, изменяет tweak. Он автоматически вызывается при вызове InputData_*</summary>
         public static void InputData_ChangeTweak(ulong * tweak, ulong dataLen, bool Overwrite, byte regime)
         {
             // Приращение tweak перед вводом данных
@@ -216,7 +233,7 @@ namespace cryptoprime.VinKekFish
             tweak[1] += reg;
         }
 
-        /// <summary>Если никаких данных не введено в режиме Sponge (xor)</summary>
+        /// <summary>Если никаких данных не введено в режиме Sponge (xor), изменяет tweak</summary>
         public static void NoInputData_ChangeTweak(ulong * tweak, byte regime)
         {
             // Приращение tweak перед вводом данных

@@ -9,7 +9,9 @@ namespace vinkekfish.keccak.keccak_20200918
 {
     public unsafe class Keccak_PRNG_20201128 : Keccak_base_20200918
     {
-        public readonly AllocHGlobal_AllocatorForUnsafeMemory allocator = new BytesBuilderForPointers.AllocHGlobal_AllocatorForUnsafeMemory();
+        public readonly AllocatorForUnsafeMemoryInterface allocator             = new BytesBuilderForPointers.AllocHGlobal_AllocatorForUnsafeMemory();
+        public          AllocatorForUnsafeMemoryInterface allocatorForSaveBytes = new BytesBuilderForPointers.Fixed_AllocatorForUnsafeMemory();
+
         public Keccak_PRNG_20201128(AllocHGlobal_AllocatorForUnsafeMemory allocator = null)
         {
             if (allocator != null)
@@ -20,7 +22,7 @@ namespace vinkekfish.keccak.keccak_20200918
 
         public Record AllocMemory(long len)
         {
-            return AllocMemory(len);
+            return allocator.AllocMemory(len);
         }
 
         // TODO: сделать тесты на Clone
@@ -96,9 +98,19 @@ namespace vinkekfish.keccak.keccak_20200918
         public override void Clear(bool GcCollect = false)
         {
             inputTo.Clear();
+
+            INPUT  .clear();
             output .clear();
 
+            inputReady = false;
+
             base.Clear(GcCollect);
+        }
+
+        public override void Dispose(bool disposing)
+        {
+            inputTo?.Dispose();
+            base.Dispose(disposing);
         }
 
         /// <summary>Переносит байты из очереди ожидания в массив байтов для непосредственного ввода в криптографическое состояние. Не выполняет криптографических операций</summary>
@@ -115,13 +127,14 @@ namespace vinkekfish.keccak.keccak_20200918
 
         public void calcStepAndSaveBytes()
         {
-            calcStep(allocatorForSaveBytes: allocator);
+            calcStep(SaveBytes: true);
         }
 
         /// <summary>Расчитывает шаг губки keccak. Если есть InputSize (64) байта для ввода (точнее, inputReady == true), то вводит первые 64-ре байта</summary>
-        /// <param name="allocatorForSaveBytes">Если <see langword="null"/>, выход не сохраняется</param>
+        /// <param name="SaveBytes">Если <see langword="null"/>, выход не сохраняется</param>
         /// <param name="Overwrite">Если <see langword="true"/>, то вместо xor применяет перезапись внешней части состояния на вводе данных (конструкция Overwrite)</param>
-        public void calcStep(AllocatorForUnsafeMemoryInterface allocatorForSaveBytes = null, bool Overwrite = true)
+        // TODO: Разобраться с тем, что состояние не зафиксировано в памяти, а может перемещаться
+        public void calcStep(bool SaveBytes = false, bool Overwrite = true)
         {
             Keccak_abstract.KeccakStatesArray.getStatesArray(out GCHandle handle, this.State, out byte * S, out byte * B, out byte * C, out byte * Base, out ulong * Slong, out ulong * Blong, out ulong * Clong);
             try
@@ -139,10 +152,10 @@ namespace vinkekfish.keccak.keccak_20200918
                     inputReady = false;
                     InputBytesImmediately();
                 }
-
+                
                 Keccackf(a: Slong, c: Clong, b: Blong);
 
-                if (allocatorForSaveBytes != null)
+                if (SaveBytes)
                 {
                     var result = allocatorForSaveBytes.AllocMemory(InputSize);
                     Keccak_Output_512(output: result.array, len: InputSize, S: S);
@@ -214,10 +227,9 @@ namespace vinkekfish.keccak.keccak_20200918
                 calcStepAndSaveBytes();
             }
 
-            var b = output.getBytesAndRemoveIt(  AllocMemory(1)  );
+            using var b = output.getBytesAndRemoveIt(  AllocMemory(1)  );
 
             var result = b.array[0];
-            b.Clear();
 
             return result;
         }
@@ -225,26 +237,35 @@ namespace vinkekfish.keccak.keccak_20200918
         /// <summary>Выдаёт случайное криптостойкое число от 0 до cutoff включительно. Это вспомогательная функция для основной функции генерации случайных чисел</summary>
         /// <param name="cutoff">Максимальное число (включительно) для генерации. cutoff должен быть близок к ulong.MaxValue или к 0x8000_0000__0000_0000U, иначе неопределённая отсрочка будет очень долгой</param>
         /// <returns>Случайное число в диапазоне [0; cutoff]</returns>
-        public ulong getUnsignedInteger(ulong cutoff = ulong.MaxValue)
+        public ulong getUnsignedInteger(ulong cutoff = ulong.MaxValue, Record arrayAt8Length = null)
         {
-            using var b = AllocMemory(8);
-            while (true)
+            var b = arrayAt8Length ?? AllocMemory(8);
+            try
             {
-                if (this.output.Count < 8)
+                while (true)
                 {
-                    calcStepAndSaveBytes();
+                    if (this.output.Count < 8)
+                    {
+                        calcStepAndSaveBytes();
+                    }
+                    
+                    output.getBytesAndRemoveIt(b);
+
+                    BytesBuilderForPointers.BytesToULong(out ulong result, b.array, 0, b.len);
+
+                    if (cutoff < 0x8000_0000__0000_0000U)
+                        result &= 0x7FFF_FFFF__FFFF_FFFFU;  // Сбрасываем старший бит, т.к. он не нужен никогда
+
+                    if (result <= cutoff)
+                        return result;
                 }
-
-                output.getBytesAndRemoveIt(b);
-
-                BytesBuilderForPointers.BytesToULong(out ulong result, b.array, 0, b.len);
-
-                if (cutoff < 0x8000_0000__0000_0000U)
-                    result &= 0x7FFF_FFFF__FFFF_FFFFU;  // Сбрасываем старший бит, т.к. он не нужен никогда
-
-                if (result <= cutoff)
-                    return result;
             }
+            finally
+            {
+                if (arrayAt8Length == null)
+                    b.Dispose();
+            }
+            
         }
 
         /// <summary>Получает случайное значение в диапазоне, указанном в функции getCutoffForUnsignedInteger</summary>
@@ -252,9 +273,9 @@ namespace vinkekfish.keccak.keccak_20200918
         /// <param name="cutoff">Результат функции getCutoffForUnsignedInteger</param>
         /// <param name="range">Результат функции getCutoffForUnsignedInteger</param>
         /// <returns>Случайное число в указанном диапазоне</returns>
-        public ulong getUnsignedInteger(ulong min, ulong cutoff, ulong range)
+        public ulong getUnsignedInteger(ulong min, ulong cutoff, ulong range, Record arrayAt8Length = null)
         {
-            var random = getUnsignedInteger(cutoff) % range;
+            var random = getUnsignedInteger(cutoff, arrayAt8Length) % range;
 
             return random + min;
         }
@@ -278,7 +299,7 @@ namespace vinkekfish.keccak.keccak_20200918
 
             if (mod == 0)
             {
-                cutoff = range;
+                cutoff = 0x8000_0000__0000_0000U;
                 return;
             }
 
@@ -304,10 +325,11 @@ namespace vinkekfish.keccak.keccak_20200918
 
             // Алгоритм тасования Дурштенфельда
             // https://ru.wikipedia.org/wiki/Тасование_Фишера_—_Йетса
-            for (ulong i = 0; i < len; i++)
+            using var b8 = allocator.AllocMemory(8);
+            for (ulong i = 0; i < len - 1; i++)
             {
                 getCutoffForUnsignedInteger(0, (ulong) len - i - 1, out ulong cutoff, out ulong range);
-                var index = getUnsignedInteger(0, cutoff, range) + i;
+                var index = getUnsignedInteger(0, cutoff, range, b8) + i;
 
                 do2Permutation(i, index);
             }

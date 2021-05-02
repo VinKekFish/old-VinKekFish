@@ -4,13 +4,22 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 using static cryptoprime.BytesBuilderForPointers;
 using static cryptoprime.VinKekFish.VinKekFishBase_etalonK1;
 
-namespace vinkekfish.VinKekFish.VinKekFish_20210419
+namespace vinkekfish
 {
+    /// <summary>
+    /// При использовании класса обязательно вызвать Init1, затем Init2.
+    /// После использования вызвать Dispose, или использовать конструкцию using
+    /// 
+    /// Класс предназначен для
+    /// 1. Генерации ключей на основе основного ключа и открытого вектора инициализации. См. GetNewKey
+    /// 2. Генерации любых последовательностей, в том числе, не повторяемых заново. См. GetNewKey, InputRandom, EnterToBackgroundCycle
+    /// </summary>
     public unsafe class VinKekFish_k1_base_20210419_keyGeneration: VinKekFish_k1_base_20210419
     {
         public VinKekFish_k1_base_20210419_keyGeneration()
@@ -61,17 +70,12 @@ namespace vinkekfish.VinKekFish.VinKekFish_20210419
             long start  = 0;
             do
             {
-                // Режим 255 - это режим отбоя после ввода основного ключа. 254 - это EmptyStep и EmptyStepOverwrite
-                if (regime >= 254)
+                // Режим 255 - это режим отбоя после ввода основного ключа. 254 - это EmptyStep и EmptyStepOverwrite. 253 - InputRandom
+                if (regime >= 253)
                     regime = 0;
 
                 NoInputData_ChangeTweak(t0, regime++);
-
-                step
-                (
-                    countOfRounds: CountOfRounds, tablesForPermutations: pTablesHandle, transpose200_3200: _transpose200_3200,
-                    tweak: t0, tweakTmp: t1, tweakTmp2: t2, state: _state, state2: _state, b: _b, c: _c
-                );
+                DoStep(CountOfRounds);
 
                 outputData(result, start, outputLen: len, countToOutput: len - start > blockLen ? blockLen : len - start);
                 start += blockLen;
@@ -89,11 +93,7 @@ namespace vinkekfish.VinKekFish.VinKekFish_20210419
                 throw new ArgumentOutOfRangeException("VinKekFish_k1_base_20210419_keyGeneration.GetNewKey: CountOfRounds < MIN_ROUNDS");
 
             NoInputData_ChangeTweak(t0, 254);
-            step
-            (
-                countOfRounds: CountOfRounds, tablesForPermutations: pTablesHandle, transpose200_3200: _transpose200_3200,
-                tweak: t0, tweakTmp: t1, tweakTmp2: t2, state: _state, state2: _state, b: _b, c: _c
-            );
+            DoStep(CountOfRounds);
         }
 
         /// <summary>Пропустить один шаг с перезаписью в режиме OVERWRITE (для большей отбивки от других значений и реализации необратимости: после ввода ключа это и так делается)</summary>
@@ -104,11 +104,106 @@ namespace vinkekfish.VinKekFish.VinKekFish_20210419
                 throw new ArgumentOutOfRangeException("VinKekFish_k1_base_20210419_keyGeneration.GetNewKey: CountOfRounds < MIN_ROUNDS");
 
             InputData_Overwrite(null, _state, 0, t0, 254);
+            DoStep(CountOfRounds);
+        }
+
+        /// <summary>Вводит рандомизирующие данные в губку (выполняет криптографические операции)</summary>
+        /// <param name="data">Данные для ввода</param>
+        /// <param name="data_length">Длина вводимых данных</param>
+        /// <param name="CountOfRounds">Количество раундов</param>
+        public void InputRandom(byte * data, ulong data_length, int CountOfRounds = VinKekFishBase_etalonK1.NORMAL_ROUNDS)
+        {
+            ulong len = 0;
+            while (data_length > 0)
+            {
+                if (data_length > BLOCK_SIZE)
+                    len = BLOCK_SIZE;
+                else
+                    len = data_length;
+
+                InputData_Xor(data, _state, len, t0, 253);
+                data        += len;
+                data_length -= len;
+
+                DoStep(CountOfRounds);
+            }
+        }
+
+        /// <summary>Выполняет один шаг криптографического преобразования. Это сокращённый вызов step без подготовки tweak. Не использовать напрямую</summary>
+        /// <param name="CountOfRounds">Количество раундов</param>
+        protected void DoStep(int CountOfRounds)
+        {
             step
             (
                 countOfRounds: CountOfRounds, tablesForPermutations: pTablesHandle, transpose200_3200: _transpose200_3200,
                 tweak: t0, tweakTmp: t1, tweakTmp2: t2, state: _state, state2: _state, b: _b, c: _c
             );
+        }
+
+        protected          Thread               backgroundThread = null;
+        protected volatile LightRandomGenerator LightGenerator   = null;
+
+        /// <summary>Войти в цикл дополнительной инициализации псевдослучайными значениями. До вызова ExitFromBackgroundCycle пользователь не должен использовать других методов</summary>
+        public void EnterToBackgroundCycle(LightRandomGenerator generator = null)
+        {
+            if (backgroundThread != null)
+                throw new Exception("VinKekFish_k1_base_20210419_keyGeneration.EnterToBackgroundCycle: backgroundThread != null");
+
+            if (generator == null)
+                generator = new LightRandomGenerator(BLOCK_SIZE);
+
+            LightGenerator   = generator;
+            backgroundThread = new Thread
+            (
+                delegate()
+                {
+                    do
+                    {
+                        Thread.Sleep(0);
+
+                        lock (this)
+                        {
+                            if (LightGenerator == null)
+                                break;
+
+                            LightGenerator.WaitForGenerator(BLOCK_SIZE);
+                            if (LightGenerator.ended)
+                                break;
+
+                            // System.IO.File.AppendAllText(@"Z:\tmp.txt", LightGenerator.GeneratedBytes.ToString());
+
+                            InputRandom(LightGenerator.GeneratedBytes, (ulong) LightGenerator.GeneratedBytes.len, MIN_ROUNDS);
+                            LightGenerator.ResetGeneratedBytes();
+                            GC.Collect();       // Иначе бывает так,что программа занимает лишнюю системную память
+                            GC.WaitForPendingFinalizers();
+                        }
+                    }
+                    while (LightGenerator != null);
+                }
+            );
+
+            backgroundThread.Priority = ThreadPriority.Lowest;
+            backgroundThread.Start();
+        }
+
+        public void ExitFromBackgroundCycle()
+        {
+            lock (this)
+            {
+                LightGenerator?.Dispose();
+                LightGenerator = null;
+            }
+
+            InputData_Overwrite(null, _state, 0, t0, 253);
+            DoStep(NORMAL_ROUNDS);
+        }
+
+        public override void Dispose(bool disposing)
+        {
+            if (LightGenerator != null)
+                ExitFromBackgroundCycle();
+
+            base.Dispose(disposing);
         }
     }
 }

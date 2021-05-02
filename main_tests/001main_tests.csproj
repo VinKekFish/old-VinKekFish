@@ -67,6 +67,7 @@
     <Compile Include="threefish\ThreefishPerformanceTest.cs" />
     <Compile Include="threefish\ThreeFishGenTestByBits.cs" />
     <Compile Include="threefish\ThreeFishTestByBits.cs" />
+    <Compile Include="VinKekFish\LightRandomGenerator\LightRandomGenerator_test01.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\.editorconfig">
