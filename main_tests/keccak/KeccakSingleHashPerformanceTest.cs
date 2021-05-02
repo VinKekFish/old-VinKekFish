@@ -48,8 +48,13 @@ namespace main_tests
             CountsPermsecond = times / timeForMillion.TotalMilliseconds;
 
             // Должно быть порядка 330 тысяч в секунду на одном старом ядре 2,8 ГГц с оптимизацией в cryptoprime, но без оптимизаций в остальных проектах
+            // Если тест даёт плохие показатели, посмотреть, нет ли настроек снижения производительности в BIOS или Windows
             if (CountsPermsecond < 270)
-                task.error.Add(new Error() {Message = "Slow execution for hash512: count " + CountsPermsecond +  " pre 1 ms time " + HelperClass.TimeStampTo_HHMMSSfff_String(timeForMillion)});
+                task.error.Add(new Error() {Message = "Slow execution for hash512: count " + CountsPermsecond +  " per 1 ms time " + HelperClass.TimeStampTo_HHMMSSfff_String(timeForMillion)});
+            else
+            {
+                task.error.Add(new Error() {Message = "Normal execution for hash512: count " + CountsPermsecond +  " per 1 ms time " + HelperClass.TimeStampTo_HHMMSSfff_String(timeForMillion)});
+            }
         }
     }
 }

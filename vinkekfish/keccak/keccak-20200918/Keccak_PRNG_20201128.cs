@@ -3,11 +3,26 @@ using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using cryptoprime;
 using static cryptoprime.keccak;
+using static cryptoprime.BytesBuilderForPointers;
 
 namespace vinkekfish.keccak.keccak_20200918
 {
     public unsafe class Keccak_PRNG_20201128 : Keccak_base_20200918
     {
+        public readonly AllocHGlobal_AllocatorForUnsafeMemory allocator = new BytesBuilderForPointers.AllocHGlobal_AllocatorForUnsafeMemory();
+        public Keccak_PRNG_20201128(AllocHGlobal_AllocatorForUnsafeMemory allocator = null)
+        {
+            if (allocator != null)
+                this.allocator = allocator;
+
+            inputTo = AllocMemory(InputSize);
+        }
+
+        public Record AllocMemory(long len)
+        {
+            return AllocMemory(len);
+        }
+
         // TODO: сделать тесты на Clone
         public override Keccak_abstract Clone()
         {
@@ -25,38 +40,48 @@ namespace vinkekfish.keccak.keccak_20200918
 
 
         /// <summary>Сюда можно добавлять байты для ввода</summary>
-        protected readonly BytesBuilder INPUT = new BytesBuilder(); // Не забыт ли вызов InputBytesImmediately при добавлении сюда?
-        public const int InputSize = 64;
+        protected readonly BytesBuilderForPointers INPUT = new BytesBuilderForPointers(); // Не забыт ли вызов InputBytesImmediately при добавлении сюда?
+        public    const    int InputSize = 64;
 
         /// <summary>Это массив для немедленного введения в Sponge на следующем шаге</summary>
-        protected readonly byte[] inputTo = new byte[InputSize];
+        protected readonly Record inputTo;
         protected          bool   inputReady  = false;
 
-        /// <summary>Ввести рандомизирующие байты. Не выполняет криптографических операций</summary>
-        /// <param name="bytesToInput">Рандомизирующие байты</param>
+        /// <summary>Ввести рандомизирующие байты (в том числе, открытый вектор инициализации). Не выполняет криптографических операций</summary>
+        /// <param name="bytesToInput">Рандомизирующие байты. Копируются. bytesToInput должны быть очищены вручную</param>
         public void InputBytes(byte[] bytesToInput)
         {
-            INPUT.add(bytesToInput);
+            INPUT.add(BytesBuilderForPointers.CloneBytes(bytesToInput, allocator));
+            InputBytesImmediately();
+        }
+
+        /// <summary>Ввести рандомизирующие байты (в том числе, открытый вектор инициализации). Не выполняет криптографических операций</summary>
+        /// <param name="bytesToInput">Рандомизирующие байты. Копируются. bytesToInput должны быть очищены вручную</param>
+        /// <param name="len">Длина рандомизирующей последовательности</param>
+        public void InputBytes(byte * bytesToInput, long len)
+        {
+            INPUT.add(BytesBuilderForPointers.CloneBytes(bytesToInput, 0, len, allocator));
             InputBytesImmediately();
         }
 
         /// <summary>Ввести секретный ключ (вместе с криптографическим преобразованием и отбоем в режиме OVERWITE)</summary>
         /// <param name="key">Ключ, кратный 64-ём байтам</param>
-        public void InputKeyAndStep(byte[] key)
+        public void InputKeyAndStep(byte * key, long key_length)
         {
             if (INPUT.countOfBlocks > 0)
-                throw new ArgumentException("key must be input before the generation or input an initialization vector", "key");
+                throw new ArgumentException("key must be input before the generation or input an initialization vector (or see InputKeyAndStep code)", "key");
 
-            INPUT.add(key);
+            INPUT.add(key, key_length);
             InputBytesImmediately();
             do
             {
                 calcStep(Overwrite: false);
+                InputBytesImmediately();
             }
             while (inputReady);
 
             // Завершаем ввод ключа конструкцией Overwrite, которая даёт некую необратимость состояния в отношении ключа
-            BytesBuilder.ToNull(inputTo);
+            inputTo.Clear();
             inputReady = true;
             calcStep(Overwrite: true);
 
@@ -70,8 +95,9 @@ namespace vinkekfish.keccak.keccak_20200918
 
         public override void Clear(bool GcCollect = false)
         {
-            BytesBuilder.ToNull(inputTo);
-            output.clear();
+            inputTo.Clear();
+            output .clear();
+
             base.Clear(GcCollect);
         }
 
@@ -82,19 +108,20 @@ namespace vinkekfish.keccak.keccak_20200918
             if (INPUT.Count >= InputSize)
             {
                 // TODO: сделать тесты на верность getBytesAndRemoveIt и, по возможности, на его использование
-                INPUT.getBytesAndRemoveIt(inputTo, InputSize);
+                INPUT.getBytesAndRemoveIt(inputTo);
                 inputReady = true;
             }
         }
 
         public void calcStepAndSaveBytes()
         {
-            calcStep(saveBytes: true);
+            calcStep(allocatorForSaveBytes: allocator);
         }
 
         /// <summary>Расчитывает шаг губки keccak. Если есть InputSize (64) байта для ввода (точнее, inputReady == true), то вводит первые 64-ре байта</summary>
+        /// <param name="allocatorForSaveBytes">Если <see langword="null"/>, выход не сохраняется</param>
         /// <param name="Overwrite">Если <see langword="true"/>, то вместо xor применяет перезапись внешней части состояния на вводе данных (конструкция Overwrite)</param>
-        public void calcStep(bool saveBytes = false, bool Overwrite = true)
+        public void calcStep(AllocatorForUnsafeMemoryInterface allocatorForSaveBytes = null, bool Overwrite = true)
         {
             Keccak_abstract.KeccakStatesArray.getStatesArray(out GCHandle handle, this.State, out byte * S, out byte * B, out byte * C, out byte * Base, out ulong * Slong, out ulong * Blong, out ulong * Clong);
             try
@@ -102,25 +129,23 @@ namespace vinkekfish.keccak.keccak_20200918
                 // InputBytesImmediately();    // Это на всякий случай добавлено
                 if (inputReady)
                 {
-                    fixed (byte * input = inputTo)
-                    {
-                        if (Overwrite)
-                            Keccak_InputOverwrite64_512(message: input, len: InputSize, S: S);
-                        else
-                            Keccak_Input_512(message: input, len: InputSize, S: S);
+                    byte * input = inputTo.array;
 
-                        inputReady = false;
-                        InputBytesImmediately();
-                    }
+                    if (Overwrite)
+                        Keccak_InputOverwrite64_512(message: input, len: InputSize, S: S);
+                    else
+                        Keccak_Input_512(message: input, len: InputSize, S: S);
+
+                    inputReady = false;
+                    InputBytesImmediately();
                 }
 
                 Keccackf(a: Slong, c: Clong, b: Blong);
 
-                if (saveBytes)
+                if (allocatorForSaveBytes != null)
                 {
-                    var result = new byte[64];
-                    fixed (byte * output = result)
-                        Keccak_Output_512(output: output, len: 64, S: S);
+                    var result = allocatorForSaveBytes.AllocMemory(InputSize);
+                    Keccak_Output_512(output: result.array, len: InputSize, S: S);
 
                     output.add(result);
                 }
@@ -131,13 +156,18 @@ namespace vinkekfish.keccak.keccak_20200918
             }
         }
 
-        protected readonly BytesBuilder output = new BytesBuilder();
+        protected readonly BytesBuilderForPointers output = new BytesBuilderForPointers();
 
-        /// <summary>Выдаёт случайные криптостойкие значения байтов. Выгодно использовать при большом количестве байтов (64 и более)</summary>
+        /// <summary>Количество элементов, которые доступны для вывода без применения криптографических операций</summary>
+        public long outputCount { get => output.Count; }
+
+        /// <summary>Выдаёт случайные криптостойкие значения байтов. Выгодно использовать при большом количестве байтов (64 и более). Выполняет криптографические операции, если байтов не хватает</summary>
         /// <param name="output">Массив, в который записывается результат</param>
-        /// <param name="len">Количество байтов, которые необходимо записать</param>
-        public void getBytes(byte * output, long len)
+        /// <param name="len">Количество байтов, которые необходимо записать. Используйте outputCount, чтобы узнать, сколько байтов уже готово к выводу (без выполнения криптографических операций)</param>
+        public void getBytes(Record outputRecord, long len)
         {
+            var output = outputRecord.array;
+
             // Проверяем уже готовые байты
             if (this.output.Count > 0)
             {
@@ -147,15 +177,12 @@ namespace vinkekfish.keccak.keccak_20200918
                     readyLen = len;
                 }
 
-                var b = this.output.getBytesAndRemoveIt(null, readyLen);
-                fixed (byte * bp = b)
-                {
-                    BytesBuilder.CopyTo(readyLen, readyLen, bp, output);
-                    BytesBuilder.ToNull(readyLen, bp);
-                }
+                using var b = this.output.getBytesAndRemoveIt(  AllocMemory(readyLen)  );
+
+                BytesBuilder.CopyTo(b.len, readyLen, b.array, output);
 
                 output += readyLen;
-                len -= readyLen;
+                len    -= readyLen;
 
                 if (len <= 0)
                     return;
@@ -187,10 +214,11 @@ namespace vinkekfish.keccak.keccak_20200918
                 calcStepAndSaveBytes();
             }
 
-            var b = output.getBytesAndRemoveIt(null, 1);
+            var b = output.getBytesAndRemoveIt(  AllocMemory(1)  );
 
-            var result = b[0];
-            b[0] = 0;
+            var result = b.array[0];
+            b.Clear();
+
             return result;
         }
 
@@ -199,6 +227,7 @@ namespace vinkekfish.keccak.keccak_20200918
         /// <returns>Случайное число в диапазоне [0; cutoff]</returns>
         public ulong getUnsignedInteger(ulong cutoff = ulong.MaxValue)
         {
+            using var b = AllocMemory(8);
             while (true)
             {
                 if (this.output.Count < 8)
@@ -206,10 +235,9 @@ namespace vinkekfish.keccak.keccak_20200918
                     calcStepAndSaveBytes();
                 }
 
-                var b = output.getBytesAndRemoveIt(null, 8);
+                output.getBytesAndRemoveIt(b);
 
-                BytesBuilder.BytesToULong(out ulong result, b, 0);
-                BytesBuilder.ToNull(b);
+                BytesBuilderForPointers.BytesToULong(out ulong result, b.array, 0, b.len);
 
                 if (cutoff < 0x8000_0000__0000_0000U)
                     result &= 0x7FFF_FFFF__FFFF_FFFFU;  // Сбрасываем старший бит, т.к. он не нужен никогда
@@ -257,7 +285,7 @@ namespace vinkekfish.keccak.keccak_20200918
             var result = 0x8000_0000__0000_0000U - mod;
 
             if (result % range != 0)
-                throw new Exception();
+                throw new Exception("Fatal error: Keccak_PRNG_20201128.getCutoffForUnsignedInteger");
 
             cutoff = result;
         }

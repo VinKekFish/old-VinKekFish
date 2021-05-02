@@ -7,6 +7,7 @@ using static cryptoprime.VinKekFish.VinKekFishBase_etalonK1;
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using System.Runtime.InteropServices;
 
 namespace vinkekfish
 {
@@ -21,10 +22,15 @@ namespace vinkekfish
         public readonly byte  [] state   = null;
         public          ushort[] pTables = null;
 
+        public          GCHandle stateHandle   = default;
+        public          GCHandle pTablesHandle = default;
+
+        protected bool isInited1 = false;
+        protected bool isInited2 = false;
+
         public VinKekFish_k1_base_20210419()
         {
             GC.Collect();
-            GC.WaitForPendingFinalizers();
 
             GenTables();
             GC.Collect();
@@ -38,29 +44,37 @@ namespace vinkekfish
         /// <param name="additionalKeyForTables">Дополнительный ключ: это ключ для таблиц перестановок</param>
         /// <param name="OpenInitVectorForTables">Дополнительный вектор инициализации для перестановок (используется совместно с ключом)</param>
         /// <param name="PreRoundsForTranspose">Количество раундов со стандартными таблицами transpose< (не менее 1)/param>
-        public void Init1(int RoundsForTables, byte[] additionalKeyForTables, byte[] OpenInitVectorForTables = null, int PreRoundsForTranspose = 8)
+        public virtual void Init1(int RoundsForTables, byte * additionalKeyForTables, long additionalKeyForTables_length, byte[] OpenInitVectorForTables = null, int PreRoundsForTranspose = 8)
         {
             Clear();
             GC.Collect();
 
-            pTables = GenStandardPermutationTables(Rounds: RoundsForTables, key: additionalKeyForTables, OpenInitVector: OpenInitVectorForTables, PreRoundsForTranspose: PreRoundsForTranspose);
+            pTables = GenStandardPermutationTables(Rounds: RoundsForTables, key: additionalKeyForTables, key_length: additionalKeyForTables_length, OpenInitVector: OpenInitVectorForTables, PreRoundsForTranspose: PreRoundsForTranspose);
+            pTablesHandle = GCHandle.Alloc(pTables, GCHandleType.Pinned);
+
             GC.Collect();
+            isInited1 = true;
         }
 
         /// <summary>Вторая инициализация: ввод ключа и ОВИ, обнуление состояния и т.п.</summary>
         /// <param name="key">Основной ключ</param>
         /// <param name="OpenInitVector">Основной вектор инициализации, может быть null</param>
         /// <param name="Rounds">Количество раундов при шифровании первого блока ключа (рекомендуется 16-64)</param>
-        /// <param name="RoundsForEnd">Количество раундов при широфвании последующих блоков ключа</param>
+        /// <param name="RoundsForEnd">Количество раундов при широфвании последующих блоков ключа (допустимо 4)</param>
         /// <param name="RoundsForExtendedKey">Количество раундов отбоя ключа (рекомендуется 64)</param>
-        public void Init2(byte[] key, byte[] OpenInitVector, ulong Rounds = 64, ulong RoundsForEnd = 64, ulong RoundsForExtendedKey = 4)
+        public virtual void Init2(byte * key, ulong key_length, byte[] OpenInitVector, ulong Rounds = 64, ulong RoundsForEnd = 64, ulong RoundsForExtendedKey = 4)
         {
+            if (!isInited1)
+                throw new ArgumentOutOfRangeException("VinKekFish_k1_base_20210419: Init1 must be executed before Init2");
+
             // В этой и вызываемых функциях требуется проверка на наличие ошибок в неверных параметрах
             ClearState();
             if (pTables == null)
-                throw new ArgumentOutOfRangeException("VinKekFish_k1_base_20210419: Init1 must be executed before Init2");
+                throw new ArgumentOutOfRangeException("VinKekFish_k1_base_20210419: Init1 must be executed before Init2 (pTables == null)");
 
-            fixed (byte   * k  = key, oiv = OpenInitVector, st1 = state)
+            stateHandle = GCHandle.Alloc(state, GCHandleType.Pinned);
+
+            fixed (byte   * oiv = OpenInitVector, st1 = state)
             fixed (ushort * pt = pTables, tr = transpose200_3200)
             {
                 byte * b = stackalloc byte[25*8];
@@ -69,7 +83,7 @@ namespace vinkekfish
 
                 InputKey
                 (
-                    key: k, key_length: (ulong) key.LongLength, OIV: oiv, OpenInitVector == null ? (ulong) OpenInitVector.LongLength : 0,
+                    key: key, key_length: key_length, OIV: oiv, OpenInitVector == null ? (ulong) OpenInitVector.LongLength : 0,
                     state: st1, state2: st1 + CryptoStateLen, b: b, c: c,
                     tweak: (ulong *) t, tweakTmp: (ulong *) (t + CryptoTweakLen * 1), tweakTmp2: (ulong *) (t + CryptoTweakLen * 2),
                     Initiated: false, SecondKey: false,
@@ -79,11 +93,14 @@ namespace vinkekfish
                 BytesBuilder.ToNull(25*8, b);
                 BytesBuilder.ToNull( 5*8, c);
             }
+
+            isInited2 = true;
         }
 
         /// <summary>Очистка всех данных, включая таблицы перестановок. Использовать после окончания использования объекта (либо использовать Dispose)</summary>
         public void Clear()
         {
+            isInited1 = false;
             ClearState();
 
             if (pTables != null)
@@ -94,29 +111,42 @@ namespace vinkekfish
                     BytesBuilder.ToNull(pTables.LongLength << 1, p);
                 }
 
-                pTables = null;
+                pTablesHandle.Free();
+
+                pTablesHandle = default;
+                pTables       = null;
             }
+
+            Keccak_base_20200918.AllocPartOfMemory();
+            GC.Collect();
         }
 
         /// <summary>Обнуляет состояние без перезаписи таблиц перестановок. Использовать после окончания шифрования, если нужно использовать объект повторно с другим ключом</summary>
         public void ClearState()
         {
+            isInited2 = false;
+
             BytesBuilder.ToNull(state);
+            if (stateHandle.IsAllocated)
+            {
+                stateHandle.Free();
+                stateHandle = default;
+            }
         }
 
         /// <summary>Генерирует стандартную таблицу перестановок</summary>
         /// <param name="Rounds">Количество раундов, для которых идёт генерация. Для каждого раунда по 4-ре таблицы</param>
         /// <param name="key">Это вспомогательный ключ для генерации таблиц перестановок. Основной ключ вводить нельзя! Этот ключ не может быть ключом, вводимым в VinKekFish, см. описание VinKekFish.md</param>
         /// <param name="PreRoundsForTranspose">Количество раундов, где таблицы перестановок не генерируются от ключа, а идут стандартно transpose128_3200 и transpose200_3200</param>
-        public static ushort[] GenStandardPermutationTables(int Rounds, byte[] key = null, byte[] OpenInitVector = null, int PreRoundsForTranspose = 8)
+        public static ushort[] GenStandardPermutationTables(int Rounds, byte * key = null, long key_length = 0, byte[] OpenInitVector = null, int PreRoundsForTranspose = 8)
         {
             if (PreRoundsForTranspose < 1 || PreRoundsForTranspose > Rounds)
                 throw new ArgumentOutOfRangeException("VinKekFish_base_20210419.GenStandardPermutationTables: PreRoundsForTranspose < 1 || PreRoundsForTranspose > Rounds");
 
             var prng = new Keccak_PRNG_20201128();
-            
-            if (key != null && key.Length > 0)
-                prng.InputKeyAndStep(key);
+
+            if (key != null && key_length > 0)
+                prng.InputKeyAndStep(key, key_length);
 
             if (OpenInitVector != null && OpenInitVector.Length > 0)
             {

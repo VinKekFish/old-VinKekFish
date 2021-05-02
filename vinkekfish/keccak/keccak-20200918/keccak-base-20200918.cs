@@ -28,7 +28,7 @@ namespace vinkekfish
                     for (int i = 0; i < 1; i++)
                     {
                         // Выносим в отдельную функцию, чтобы всё, что там выделено, выходило из контекста и успешно удалялось
-                        AllocFullMemory();
+                        AllocPartOfMemory();
                         GC.Collect();
                     }
                 }
@@ -42,7 +42,7 @@ namespace vinkekfish
         }
 
         // Смысл функции состоит в выделении большого количества памяти
-        // Однако, она не ждёт, пока память совсем закончится
+        // Однако, она не ждёт, пока память совсем закончится (это негативно влияет даже на другие приложения)
         // Вместо этого она выделяет проверочный массив и запоминает указатель на него в неперемещаемом виде
         // и создаёт проверочный объект co
         // Когда объект co переходит в иное поколение сборщика, мы позволяем сборщику мусора очистить всю выделенную нами память
@@ -52,7 +52,7 @@ namespace vinkekfish
         // И когда он уже перезатрся, выходим из функции
         // Весь этот маразм нужен для того, чтобы попытаться, с одной стороны, не выделять 100% всей памяти, доступной в ОС, а выделить 95%
         // С другой стороны, всё-таки, перезаписать всё, что мы хотим перезаписать
-        private unsafe static void AllocFullMemory()
+        public unsafe static void AllocPartOfMemory()
         {
             bool hIsFreed = false;
             AllocCheckArray(out long number, out GCHandle h, out long* p2);
@@ -132,6 +132,43 @@ namespace vinkekfish
                 GC.Collect();
                 h.Free();
                 hIsFreed = true;
+            }
+        }
+
+        /// <summary>Эта функция старается выделить для себя всю доступную память</summary>
+        public unsafe static void AllocFullMemory()
+        {
+            List<byte[]> bytes = new List<byte[]>(1024);
+            try
+            {
+                // Выделяем сначала большими блоками по 4096*256 = 1 Мб
+                long  memSize = (Environment.SystemPageSize << 8) * 4;
+                while (memSize >= Environment.SystemPageSize)
+                {
+                    try
+                    {
+                        var obj = new byte[memSize];
+                        BytesBuilder.ToNull(obj, 0x3737_3737__3737_3737);
+                        bytes.Add(obj);
+
+                        // Создаём ещё один паразитный объект
+                        // Чтобы сборщику мусора было что собирать: это поможет быстро нарастить номер поколения для проверочного объекта co
+                        // Это может быть плохо, но, в целом, как-то работает
+                        var a = new byte[memSize];
+                        BytesBuilder.ToNull(a, 0x3737_3737__3737_3737);
+                        a = null;
+                    }
+                    catch (OutOfMemoryException)
+                    {
+                        memSize >>= 1;
+                    }
+                }
+            }
+            catch (OutOfMemoryException)
+            {
+            }
+            finally
+            {
             }
         }
 
