@@ -28,7 +28,7 @@ namespace vinkekfish
                     for (int i = 0; i < 1; i++)
                     {
                         // Выносим в отдельную функцию, чтобы всё, что там выделено, выходило из контекста и успешно удалялось
-                        AllocPartOfMemory();
+                        AllocFullMemoryInLongBlocksWithSecondAlloc();
                         GC.Collect();
                     }
                 }
@@ -52,6 +52,7 @@ namespace vinkekfish
         // И когда он уже перезатрся, выходим из функции
         // Весь этот маразм нужен для того, чтобы попытаться, с одной стороны, не выделять 100% всей памяти, доступной в ОС, а выделить 95%
         // С другой стороны, всё-таки, перезаписать всё, что мы хотим перезаписать
+        /// <summary>Попытка очистить часть памяти</summary>
         public unsafe static void AllocPartOfMemory()
         {
             bool hIsFreed = false;
@@ -135,15 +136,21 @@ namespace vinkekfish
             }
         }
 
-        /// <summary>Эта функция старается выделить для себя всю доступную память</summary>
-        public unsafe static void AllocFullMemory()
+        /// <summary>Эта функция старается выделить для себя всю доступную память- это функция пытается жёстко очистить память, может вызвать нехватку памяти у других приложений влоть до падения системных приложений</summary>
+        public unsafe static void AllocFullMemory(long minSize = 0)
         {
+            if (minSize <= 0)
+                minSize = Environment.SystemPageSize;
+
+            // Выделяем сначала большими блоками по 4096*256 = 1 Мб
+            long  memSize = (Environment.SystemPageSize << 8) * 4;
+            if (memSize < minSize)
+                memSize = minSize;
+
             List<byte[]> bytes = new List<byte[]>(1024);
             try
             {
-                // Выделяем сначала большими блоками по 4096*256 = 1 Мб
-                long  memSize = (Environment.SystemPageSize << 8) * 4;
-                while (memSize >= Environment.SystemPageSize)
+                while (memSize >= minSize)
                 {
                     try
                     {
@@ -170,6 +177,56 @@ namespace vinkekfish
             finally
             {
             }
+        }
+
+        /// <summary>Эта функция старается выделить для себя всю доступную память, но только по размеру блока (чтобы не выделить вообще всю память на себя) - это функция пытается очистить память</summary>
+        public unsafe static void AllocFullMemoryInLongBlocks(long blockSize = 0)
+        {
+            // Выделяем большими блоками по 4096*256 = 1 Мб
+            if (blockSize < 1)
+                blockSize = (Environment.SystemPageSize << 8) * 512;   // Блоки по 512 Мб
+
+            List<byte[]> bytes = new List<byte[]>(1024);
+            try
+            {
+                long  memSize = blockSize;
+                while (memSize >= Environment.SystemPageSize)
+                {
+                    try
+                    {
+                        var obj = new byte[memSize];
+                        BytesBuilder.ToNull(obj, 0x3737_3737__3737_3737);
+                        bytes.Add(obj);
+
+                        // Создаём ещё один паразитный объект
+                        // Чтобы сборщику мусора было что собирать: это поможет быстро нарастить номер поколения для проверочного объекта co
+                        // Это может быть плохо, но, в целом, как-то работает
+                        var a = new byte[memSize];
+                        BytesBuilder.ToNull(a, 0x3737_3737__3737_3737);
+                        a = null;
+                    }
+                    catch (OutOfMemoryException)
+                    {
+                        return;
+                    }
+                }
+            }
+            catch (OutOfMemoryException)
+            {
+            }
+            finally
+            {
+            }
+        }
+
+        /// <summary>Несколько раз выделяет память в системе большими блоками (чтобы всё совсем не перевыделить) - это функция пытается очистить память. Эта функция рекомендуется перед остальными</summary>
+        /// <param name="blockSize">Размер блока</param>
+        public unsafe static void AllocFullMemoryInLongBlocksWithSecondAlloc(long blockSize = 0)
+        {
+            AllocPartOfMemory();
+            AllocFullMemory(blockSize);
+            AllocPartOfMemory();
+            AllocFullMemoryInLongBlocks(blockSize);
         }
 
         // Выделяем два массива. Один тут же удаляем. Указатели на оба, включая удалённый, передаём вверх

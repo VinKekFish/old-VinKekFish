@@ -38,6 +38,22 @@ namespace cryptoprime
                 return CloneBytes(this, allocator, start, PostEnd);
             }
 
+            /// <summary>Копирует запись, но без копированя массива и без возможности его освободить. Массив должен быть освобождён в копируемой записи только после того, как будет закончено использование копии</summary>
+            /// <param name="len">Длина массива либо -1, если длина массива такая же, как копируемой записи</param>
+            /// <returns>Новая запись, указывающая на тот же самый массив</returns>
+            public Record NoCopyClone(long len = -1)
+            {
+                if (len < 0)
+                    len = this.len;
+
+                return new Record()
+                {
+                    len       = len,
+                    array     = this.array,
+                    allocator = null
+                };
+            }
+
             /// <summary>Очищает выделенную область памяти. Но не освобождает её. См. Dispose()</summary>
             public void Clear()
             {
@@ -50,13 +66,24 @@ namespace cryptoprime
                 Dispose(true);
                 GC.SuppressFinalize(this);
             }
+
+            /// <summary>Вызывает Dispose()</summary>
+            public void Free()
+            {
+                Dispose();
+            }
+
             /// <summary></summary>
             /// <param name="disposing"></param>
             protected virtual void Dispose(bool disposing)
             {
                 Clear();
                 allocator?.FreeMemory(this);
-                array = null;
+
+                len    = 0;
+                array  = null;
+                ptr    = default;
+                handle = default;
 
                 // TODO: Проверить, что это исключение действительно работает, то есть оно будет залогировано при окончании программы
                 if (!disposing)
@@ -66,6 +93,31 @@ namespace cryptoprime
             ~Record()
             {
                 Dispose(false);
+            }
+
+            public static implicit operator byte * (Record t)
+            {
+                return t.array;
+            }
+
+            public static implicit operator ushort * (Record t)
+            {
+                return (ushort *) t.array;
+            }
+
+            public static implicit operator ulong * (Record t)
+            {
+                return (ulong *) t.array;
+            }
+
+            public static Record operator +(Record a, long len)
+            {
+                return new Record
+                {
+                    allocator = null,
+                    array     = a.array + a.len,
+                    len       = len
+                };
             }
         }
 
@@ -80,6 +132,11 @@ namespace cryptoprime
             /// <summary>Освобождает выделенную область памяти. Не очищает память (не перезабивает её нулями)</summary>
             /// <param name="recordToFree">Память к освобождению</param>
             public void   FreeMemory (Record recordToFree);
+
+            /// <summary>Производит фиксацию в памяти массива (интерфейс должен реализовывать либо AllocMemory(long), либо этот метод)</summary>
+            /// <param name="array">Исходный массив</param>
+            /// <returns>Зафиксированный массив</returns>
+            public Record FixMemory(byte[] array);
         }
 
         public class AllocHGlobal_AllocatorForUnsafeMemory : AllocatorForUnsafeMemoryInterface
@@ -101,6 +158,59 @@ namespace cryptoprime
             public void FreeMemory(Record recordToFree)
             {
                 Marshal.FreeHGlobal(recordToFree.ptr);
+            }
+
+            /// <summary>Не реализовано</summary>
+            public Record FixMemory(byte[] array)
+            {
+                throw new NotImplementedException();
+            }
+        }
+
+        public class Fixed_AllocatorForUnsafeMemory : AllocatorForUnsafeMemoryInterface
+        {
+            /// <summary>Не реализовано</summary>
+            public Record AllocMemory(long len)
+            {
+                throw new NotImplementedException();
+            }
+
+            /// <summary>Освобождает выделенную область памяти. Не очищает память (не перезабивает её нулями)</summary>
+            /// <param name="recordToFree">Память к освобождению</param>
+            public void FreeMemory(Record recordToFree)
+            {
+                recordToFree.handle.Free();
+            }
+
+            /// <summary>Производит фиксацию в памяти массива (интерфейс должен реализовывать либо AllocMemory(long), либо этот метод)</summary>
+            /// <param name="array">Исходный массив</param>
+            /// <returns>Зафиксированный массив</returns>
+            public Record FixMemory(byte[] array)
+            {
+                var h = GCHandle.Alloc(array, GCHandleType.Pinned);
+                var p = h.AddrOfPinnedObject();
+
+                return new Record()
+                {
+                    len     = array.LongLength,
+                    ptr     = p,
+                    array   = (byte *) p.ToPointer(),
+                    handle  = h
+                };
+            }
+
+            public Record FixMemory(ushort[] array)
+            {
+                var h = GCHandle.Alloc(array, GCHandleType.Pinned);
+                var p = h.AddrOfPinnedObject();
+
+                return new Record()
+                {
+                    len     = array.LongLength * sizeof(ushort),
+                    ptr     = p,
+                    array   = (byte *) p.ToPointer(),
+                    handle  = h
+                };
             }
         }
 

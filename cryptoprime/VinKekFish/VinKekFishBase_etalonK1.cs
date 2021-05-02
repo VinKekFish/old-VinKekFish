@@ -18,14 +18,18 @@ namespace cryptoprime.VinKekFish
 
         public const int CryptoTweakLen          = 8*2; // В байтах
 
-        public const int BLOCK_SIZE              = 512;
+        public const int BLOCK_SIZE              = 512;     // 4096 битов
         public const int MAX_SINGLE_KEY          = 2048;
         public const int MAX_OIV                 = 1148;
         public const int MIN_ROUNDS              = 4;
+        public const int NORMAL_ROUNDS           = 64;
+        public const int REDUCED_ROUNDS          = 16;
+        public const int NORMAL_KEY              = 4096;
+        public const int RECOMMENDED_KEY         = 8192;
 
         // b.len = 25*8, c.len = 5*8
         // var prt = System.Runtime.InteropServices.Marshal.AllocHGlobal(len) and FreeHGlobal либо stackalloc
-        public static void InputKey(byte * key, ulong key_length, byte * OIV, ulong OIV_length, byte * state, byte * state2, byte * b, byte *c, ulong * tweak, ulong * tweakTmp, ulong * tweakTmp2, bool Initiated, bool SecondKey, ulong R, ulong RE, ulong RM, ushort * tablesForPermutations, ushort * transpose200_3200)
+        public static void InputKey(byte * key, ulong key_length, byte * OIV, ulong OIV_length, byte * state, byte * state2, byte * b, byte *c, ulong * tweak, ulong * tweakTmp, ulong * tweakTmp2, bool Initiated, bool SecondKey, int R, int RE, int RM, ushort * tablesForPermutations, ushort * transpose200_3200)
         {
             if (SecondKey && OIV != null)
                 throw new ArgumentException("VinKekFishBase_etalonK1.InputKey: SecondKey && OIV != null");
@@ -212,7 +216,19 @@ namespace cryptoprime.VinKekFish
             tweak[1] += reg;
         }
 
-        /// <summary>Шаг алгоритма ПОСЛЕ ввода данных</summary>
+        /// <summary>Если никаких данных не введено в режиме Sponge (xor)</summary>
+        public static void NoInputData_ChangeTweak(ulong * tweak, byte regime)
+        {
+            // Приращение tweak перед вводом данных
+            tweak[0] += 1253539379;
+
+            // tweak[1] += dataLen;
+
+            var reg = ((ulong) regime) << 40; // 8*5 - третий по старшинству байт, нумерация с 1
+            tweak[1] += reg;
+        }
+
+        /// <summary>Шаг алгоритма ПОСЛЕ ввода данных. Перед step необходимо вызывать NoInputData_ChangeTweak или InputData_*</summary>
         /// <param name="countOfRounds">Количество раундов</param>
         /// <param name="tweak">Tweak после ввода данных, 16 байтов (все массивы могут быть в одном, если это удобно). Не изменяется в функции.</param>
         /// <param name="tweakTmp">Дополнительный массив для временного tweak, 16 байтов. Изменяется в функции.</param>
@@ -222,7 +238,7 @@ namespace cryptoprime.VinKekFish
         /// <param name="tablesForPermutations">Массив таблиц перестановок на каждый раунд. Длина должна быть countOfRounds*4 (*CryptoStateLen*ushort на каждую таблицу)</param>
         /// <param name="b">Вспомогательный массив b для keccak.Keccackf</param>
         /// <param name="c">Вспомогательный массив c для keccak.Keccackf</param>
-        public static void step(ulong countOfRounds, ulong * tweak, ulong * tweakTmp, ulong * tweakTmp2, byte * state, byte * state2, ushort * tablesForPermutations, byte* b, byte* c, ushort * transpose200_3200)
+        public static void step(int countOfRounds, ulong * tweak, ulong * tweakTmp, ulong * tweakTmp2, byte * state, byte * state2, ushort * tablesForPermutations, byte* b, byte* c, ushort * transpose200_3200)
         {
             DoPermutation(state, state2, CryptoStateLen, transpose200_3200);
             BytesBuilder.CopyTo(CryptoStateLen, CryptoStateLen, state2, state);
@@ -230,7 +246,7 @@ namespace cryptoprime.VinKekFish
             tweakTmp[0] = tweak[0];
             tweakTmp[1] = tweak[1];
 
-            for (ulong round = 0; round < countOfRounds; round++)
+            for (int round = 0; round < countOfRounds; round++)
             {
                 DoKeccakForAllBlocks(state, CryptoStateLenKeccak, b: (ulong*) b, c: (ulong*) c);
                 DoPermutation(state, state2, CryptoStateLen, tablesForPermutations);

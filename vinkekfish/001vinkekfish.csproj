@@ -47,6 +47,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="LightRandomGenerator\LightRandomGenerator.cs" />
     <Compile Include="VinKekFish\VinKekFish-20210419\VinKekFish_k1_base_20210419.cs" />
     <Compile Include="VinKekFish\VinKekFish-20210419\VinKekFish_k1_base_20210419_keyGeneration.cs" />
     <None Include="CSharp-help\Help1.cs" />

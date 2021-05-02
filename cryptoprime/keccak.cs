@@ -19,6 +19,9 @@ namespace cryptoprime
         public const int   r_512b = r_512 >> 3; // 72
         public const int   r_512s = r_512 >> 6; // 9
 
+        public const int   b_size = 25*8;
+        public const int   c_size =  5*8;
+
         public static readonly int[]   rNumbers = {1152, 1088, 832, 576}; // 224, 256, 384, 512 битов
         public static readonly ulong[] RC =
         {
@@ -171,8 +174,8 @@ namespace cryptoprime
         // Полный keccak
         /// <summary>Все раунды keccak. a == S, c= C, b = B</summary>
         /// <param name="a">Зафиксированное внутреннее состояние S</param>
-        /// <param name="c">Массив C (значения не важны):   5 * ulong</param>
-        /// <param name="b">Матрица B (значения не важны): 25 * ulong</param>
+        /// <param name="c">Массив C (значения не важны):   5 * ulong (константа c_size)</param>
+        /// <param name="b">Матрица B (значения не важны): 25 * ulong (константа b_size)</param>
         public static unsafe void Keccackf(ulong * a, ulong * c, ulong * b)
         {
             roundB(a, c, b);

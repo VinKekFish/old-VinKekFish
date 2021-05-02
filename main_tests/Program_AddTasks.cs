@@ -56,19 +56,24 @@ namespace main_tests
             // Это делаем однопоточно, чтобы точно не помешать другим потомкам, т.к. это, по сути, аварийное выделение памяти
             // Этот тест вызываем в начале, чтобы посмотреть, что он не мешает продолжению работы программы
             // new KeccakClearTest(tasks);
+            
+            // Раскомментировать, если нужно
             // Замер производительности, тоже однопоточный тест
-            new KeccakSingleHashPerformanceTest(tasks);
+            // new KeccakSingleHashPerformanceTest(tasks);
 
-
+            // Тесты криптографии и функции очистки строк
+            /*
             new EmtyString(tasks);
             new KeccakSimpleHashTest(tasks);
             new KeccakSimpleHashTestByBits(tasks);
             new ThreeFishTestByBits   (tasks);
             new ThreeFishGenTestByBits(tasks);
+            */
 
             // --------------------------------------------------------------------------------
             // Завершающие тесты
             // --------------------------------------------------------------------------------
+            // Это проверка на то, что все зафиксированные блоки в KeccakSimpleHashTest* были удалены
             new KeccakStatesArray_CountToCheck_test(tasks);
 
             #endif
