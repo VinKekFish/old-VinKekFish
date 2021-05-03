@@ -8,14 +8,18 @@
 keccak версии 512 битов (максимальный из возможных)
 
 	cryptoprime/keccak.cs
-  
-	https://github.com/VinKekFish/VinKekFish/blob/master/vinkekfish/keccak/keccak-20200918/keccak-base-20200918.cs функция getHash512 - это пример, как рассчитать хеш
+
+	функция getHash512 - это пример, как рассчитать хеш
+	https://github.com/VinKekFish/VinKekFish/blob/master/vinkekfish/keccak/keccak-20200918/keccak-base-20200918.cs
+
+	генератор псевдослучайных чисел (очень медленно работает)
+	https://github.com/VinKekFish/VinKekFish/blob/master/vinkekfish/keccak/keccak-20200918/Keccak_PRNG_20201128.cs
 
 
 Threefish версии 1024 битов (тоже максимальный; только на шифрование)
 
-	cryptoprime/Threefish/Threefish_Static_Generated.cs и  )
-  
+	cryptoprime/Threefish/Threefish_Static_Generated.cs
+
   
 Примеры использования смотрите в тестах в проекте main_tests.
 
