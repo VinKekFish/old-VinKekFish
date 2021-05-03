@@ -30,6 +30,7 @@ VinKekFish пока не реализован
   
 		cryptoprime.VinKekFish.VinKekFishBase_etalonK1
 
+	Генератор ключей
 		VinKekFish/VinKekFish/VinKekFish-20210419/VinKekFish-20210419/VinKekFish_k1_base_20210419_keyGeneration.cs
 
 
