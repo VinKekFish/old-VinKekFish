@@ -51,7 +51,7 @@
     <Compile Include="VinKekFish\VinKekFish-20210419\VinKekFish_k1_base_20210419.cs" />
     <Compile Include="VinKekFish\VinKekFish-20210419\VinKekFish_k1_base_20210419_keyGeneration.cs" />
     <None Include="CSharp-help\Help1.cs" />
-    <Compile Include="HelperClass.cs" />
+    <Compile Include="Helper\HelperClass.cs" />
     <Compile Include="keccak\keccak-20200918\keccak-base-20200918.cs" />
     <Compile Include="keccak\keccak-20200918\keccak-20200918.cs" />
     <Compile Include="keccak\keccak-20200918\Keccak_PRNG_20201128.cs" />
