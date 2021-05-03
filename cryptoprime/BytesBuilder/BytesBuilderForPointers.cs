@@ -266,7 +266,7 @@ namespace cryptoprime
         }
 
         /// <summary>Добавленные блоки байтов</summary>
-        public List<Record> bytes = new List<Record>();
+        public readonly List<Record> bytes = new List<Record>();
 
 
         /// <summary>Количество всех сохранённых байтов в этом объекте</summary>

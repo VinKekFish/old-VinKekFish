@@ -12,7 +12,7 @@ namespace cryptoprime
     public partial class BytesBuilder
     {
         /// <summary>Добавленные блоки байтов</summary>
-        public List<byte[]> bytes = new List<byte[]>();
+        public readonly List<byte[]> bytes = new List<byte[]>();
 
         /// <summary>Количество всех сохранённых байтов в этом объекте</summary>
         public long Count  => count;
