@@ -29,9 +29,7 @@ VinKekFish пока не реализован
 	Сам примитив
   
 		cryptoprime.VinKekFish.VinKekFishBase_etalonK1
-    
-		VinKekFish_k1_base_20210419_keyGeneration
-    
+
 		VinKekFish/VinKekFish/VinKekFish-20210419/VinKekFish-20210419/VinKekFish_k1_base_20210419_keyGeneration.cs
 
 
