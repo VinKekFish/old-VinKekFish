@@ -9,17 +9,24 @@ using static cryptoprime.BytesBuilderForPointers;
 
 namespace vinkekfish
 {
-    /// <summary>Класс, генерирующий некриптостойкие значения на основе ожидания потоков</summary>
+    /// <summary>Класс, генерирующий некриптостойкие значения на основе ожидания потоков.
+    /// Обратите внимание, что на 1 байт сгенерированной информации рекомендуется принимать не более 1 бита случайной информации (а лучше - меньше)
+    /// Пример использования см. в LightRandomGenerator_test01 и VinKekFish_k1_base_20210419_keyGeneration.EnterToBackgroundCycle</summary>
     public unsafe class LightRandomGenerator: IDisposable
     {
         public    volatile bool    ended  = false;
         protected readonly Thread rthread = null;
         protected readonly Thread wthread = null;
 
-        protected volatile byte   curCNT  = 0;
-        protected volatile byte   lastCNT = 0;
+        /// <summary>Если <see langword="true"/>, то вызывает Thread.Sleep(doSleepR) на каждой итерации извлечения байта, в противном случае - только по необходимости. Рекомендуется true</summary>
+        public    volatile bool   doSleepR = true;
+
+        protected volatile ushort curCNT  = 0;
+        protected volatile ushort lastCNT = 0;
         public LightRandomGenerator(int CountToGenerate)
         {
+            this.CountToGenerate = CountToGenerate;
+
             var allocator  = new AllocHGlobal_AllocatorForUnsafeMemory();
             GeneratedBytes = allocator.AllocMemory(CountToGenerate);
 
@@ -60,7 +67,9 @@ namespace vinkekfish
                     {
                         while (!ended)
                         {
-                            Thread.Sleep(0);
+                            if (doSleepR)
+                                Thread.Sleep(0);
+
                             while (lastCNT == curCNT)
                                 Thread.Sleep(0);
 
@@ -70,7 +79,10 @@ namespace vinkekfish
                             {
                                 if (GeneratedCount < CountToGenerate)
                                 {
-                                    GeneratedBytes.array[(GeneratedCount + StartOfGenerated) % CountToGenerate] = curCNT;
+                                    // На всякий случай делаем xor между младшим и старшим байтом, чтобы все биты были учтены
+                                    // Не такая уж хорошая статистика получается по младшим байтам, как могло бы быть
+                                    GeneratedBytes.array[(GeneratedCount + StartOfGenerated) % CountToGenerate] = (byte) (curCNT ^ (curCNT >> 8));
+                                    // GeneratedBytes.array[(GeneratedCount + StartOfGenerated) % CountToGenerate] = (byte) curCNT;
                                     GeneratedCount++;
                                 }
                                 else
@@ -145,8 +157,11 @@ namespace vinkekfish
                 Monitor.PulseAll(this);
         }
 
-        public virtual void WaitForGenerator(long mustGenerated)
+        public virtual void WaitForGenerator(long mustGenerated = 0)
         {
+            if (mustGenerated <= 0)
+                mustGenerated = CountToGenerate;
+
             lock (this)
             {
                 while (GeneratedCount < mustGenerated && !ended)

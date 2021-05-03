@@ -7,6 +7,8 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
+using vinkekfish.keccak.keccak_20200918;
+
 using static cryptoprime.BytesBuilderForPointers;
 using static cryptoprime.VinKekFish.VinKekFishBase_etalonK1;
 
@@ -111,9 +113,9 @@ namespace vinkekfish
         /// <param name="data">Данные для ввода</param>
         /// <param name="data_length">Длина вводимых данных</param>
         /// <param name="CountOfRounds">Количество раундов</param>
-        public void InputRandom(byte * data, ulong data_length, int CountOfRounds = VinKekFishBase_etalonK1.NORMAL_ROUNDS)
+        public void InputRandom(byte * data, long data_length, int CountOfRounds = VinKekFishBase_etalonK1.NORMAL_ROUNDS)
         {
-            ulong len = 0;
+            long len = 0;
             while (data_length > 0)
             {
                 if (data_length > BLOCK_SIZE)
@@ -142,40 +144,96 @@ namespace vinkekfish
 
         protected          Thread               backgroundThread = null;
         protected volatile LightRandomGenerator LightGenerator   = null;
+        protected volatile Keccak_PRNG_20201128 keccak_prng      = null;
+        protected readonly Object               backgroundSync   = new object();
 
-        /// <summary>Войти в цикл дополнительной инициализации псевдослучайными значениями. До вызова ExitFromBackgroundCycle пользователь не должен использовать других методов</summary>
-        public void EnterToBackgroundCycle(LightRandomGenerator generator = null)
+        public ushort BackgroundSleepTimeout = 0;
+        public ushort BackgroundSleepCount   = 0;
+        public ushort BackgroundKeccakCount  = 8;
+
+        /// <summary>Количество сгенерированных блоков энтропии.
+        /// Считается, что на один байт приходится 1 бит энтропии, то есть на BLOCK_SIZE=512 приходится 512 битов
+        /// (рекомендуется ещё уменьшать в пару раз хотя бы).
+        /// Лучше всего, если считать, что на один блок приходится 1/8 бита энтропии, то есть при BackgroundKeccakCount = 8 переменная BackgourndGenerated - это количество сгенерированных битов энтропии.
+        /// В любом случае, это не надёжный источник рандомизации, вместе с ним необходимо использовать и другие источники, если возможно.
+        /// При таком подходе, условно, примерно за 100 секунд на одном ядре с максимальной загрузкой генерируется ключ на 4096 битов длиной, так что производительность всё равно хорошая
+        /// BackgroundKeccakCount устанавливает сколько раз срабатывает keccak, прежде чем данные попадут в VinKekFish. BackgroundKeccakCount = 8 уменьшает количество данных в VinKekFish в 8 раз.</summary>
+        public ulong  BackgourndGenerated = 0;
+
+        /// <summary>Войти в цикл дополнительной инициализации псевдослучайными значениями.
+        /// До вызова ExitFromBackgroundCycle пользователь не должен использовать других методов.
+        /// Если есть желание использовать другие методы, то их нужно оборачивать lock (this).
+        /// </summary>
+        /// <param name="BackgroundSleepTimeout">Thread.Sleep(BackgroundSleepTimeout). Устанавливает значение, на которое поток спит после генерации BackgroundSleepCount блоков keccak (по 64 байта).
+        /// BackgroundSleepCount = 0 - самое быстрое, загрузка почти всего процессорного ядра, если оно не занято чем-то ещё.
+        /// BackgroundSleepCount = 72 - это загрузка на уровне не выше пары процентов от одного ядра.
+        /// Происходит генерация где-то одного блока VinKekFish (BLOCK_SIZE байтов) за секунду или менее (то BackgourndGenerated приращается на единицу за секунду или быстрее) - то есть 1 бит рандомизации в секунду</param>
+        /// <param name="BackgroundSleepCount">После таймаута идёт генерация блоков для keccak. На один таймаут приходится BackgroundSleepCount блоков</param>
+        /// <param name="generator">Генератор нестойких псевдослучайных чисел, должен генерировать по 64 байта в блок. В ExitFromBackgroundCycle автоматически удаляется</param>
+        public void EnterToBackgroundCycle(ushort BackgroundSleepTimeout = 72, ushort BackgroundSleepCount = 8, LightRandomGenerator generator = null)
         {
             if (backgroundThread != null)
-                throw new Exception("VinKekFish_k1_base_20210419_keyGeneration.EnterToBackgroundCycle: backgroundThread != null");
+                throw new Exception("VinKekFish_k1_base_20210419_keyGeneration.EnterToBackgroundCycle: backgroundThread != null. Call ExitFromBackgroundCycle");
 
             if (generator == null)
-                generator = new LightRandomGenerator(BLOCK_SIZE);
+                generator = new LightRandomGenerator(64);
+
+            this.BackgroundSleepTimeout = BackgroundSleepTimeout;
+            this.BackgroundSleepCount   = BackgroundSleepCount;
+            keccak_prng                 = new Keccak_PRNG_20201128();
+            BackgourndGenerated         = 0;
 
             LightGenerator   = generator;
             backgroundThread = new Thread
             (
                 delegate()
                 {
+                    Record data      = null;
+                    int    keccakCnt = 0;
+                    int    cnt       = 0;
                     do
                     {
-                        Thread.Sleep(0);
+                        Thread.Sleep(BackgroundSleepTimeout);
+                        if (BackgroundSleepCount < 1)
+                            BackgroundSleepCount = 1;
 
-                        lock (this)
+                        for (cnt = 0; cnt < BackgroundSleepCount; cnt++)
                         {
-                            if (LightGenerator == null)
-                                break;
+                            Thread.Sleep(0);
+                            lock (backgroundSync)
+                            {
+                                if (LightGenerator == null)
+                                    break;
 
-                            LightGenerator.WaitForGenerator(BLOCK_SIZE);
-                            if (LightGenerator.ended)
-                                break;
+                                LightGenerator.WaitForGenerator(64);
+                                if (LightGenerator.ended)
+                                    break;
 
-                            // System.IO.File.AppendAllText(@"Z:\tmp.txt", LightGenerator.GeneratedBytes.ToString());
+                                // System.IO.File.AppendAllText(@"Z:\tmp.txt", LightGenerator.GeneratedBytes.ToString());
 
-                            InputRandom(LightGenerator.GeneratedBytes, (ulong) LightGenerator.GeneratedBytes.len, MIN_ROUNDS);
-                            LightGenerator.ResetGeneratedBytes();
-                            GC.Collect();       // Иначе бывает так,что программа занимает лишнюю системную память
-                            GC.WaitForPendingFinalizers();
+                                lock (this)
+                                {
+                                    // Каждые BackgroundKeccakCount мы сохраняем результат. Остальные разы просто вводим данные без сохранения
+                                    keccakCnt++;
+                                    keccak_prng.InputBytes(LightGenerator.GeneratedBytes, LightGenerator.GeneratedBytes.len);
+                                    keccak_prng.calcStep(keccakCnt >= BackgroundKeccakCount);
+
+                                    if (keccakCnt >= BackgroundKeccakCount)
+                                        keccakCnt = 0;
+
+                                    if (keccak_prng.outputCount >= BLOCK_SIZE)
+                                    {
+                                        data = keccak_prng.output.getBytesAndRemoveIt(  AllocHGlobal_allocator.AllocMemory(BLOCK_SIZE)  );
+                                        InputRandom(data, data.len, MIN_ROUNDS);
+                                        data.Dispose();
+                                        BackgourndGenerated++;
+                                    }
+                                }
+
+                                LightGenerator.ResetGeneratedBytes();
+                                GC.Collect();       // Иначе бывает так,что программа занимает лишнюю системную память
+                                GC.WaitForPendingFinalizers();
+                            }
                         }
                     }
                     while (LightGenerator != null);
@@ -188,10 +246,13 @@ namespace vinkekfish
 
         public void ExitFromBackgroundCycle()
         {
-            lock (this)
+            lock (backgroundSync)
             {
                 LightGenerator?.Dispose();
+                keccak_prng   ?.Dispose();
+
                 LightGenerator = null;
+                keccak_prng    = null;
             }
 
             InputData_Overwrite(null, _state, 0, t0, 253);

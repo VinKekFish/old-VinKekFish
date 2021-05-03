@@ -10,7 +10,8 @@ namespace vinkekfish.keccak.keccak_20200918
     public unsafe class Keccak_PRNG_20201128 : Keccak_base_20200918
     {
         public readonly AllocatorForUnsafeMemoryInterface allocator             = new BytesBuilderForPointers.AllocHGlobal_AllocatorForUnsafeMemory();
-        public          AllocatorForUnsafeMemoryInterface allocatorForSaveBytes = new BytesBuilderForPointers.Fixed_AllocatorForUnsafeMemory();
+        public          AllocatorForUnsafeMemoryInterface allocatorForSaveBytes = new BytesBuilderForPointers.AllocHGlobal_AllocatorForUnsafeMemory(); // new BytesBuilderForPointers.Fixed_AllocatorForUnsafeMemory();
+        // Fixed работает раза в 3 медленнее почему-то
 
         public Keccak_PRNG_20201128(AllocHGlobal_AllocatorForUnsafeMemory allocator = null)
         {
@@ -125,6 +126,7 @@ namespace vinkekfish.keccak.keccak_20200918
             }
         }
 
+        /// <summary>Выполняет шаг keccak и сохраняет полученный результат в output</summary>
         public void calcStepAndSaveBytes()
         {
             calcStep(SaveBytes: true);
@@ -134,7 +136,7 @@ namespace vinkekfish.keccak.keccak_20200918
         /// <param name="SaveBytes">Если <see langword="null"/>, выход не сохраняется</param>
         /// <param name="Overwrite">Если <see langword="true"/>, то вместо xor применяет перезапись внешней части состояния на вводе данных (конструкция Overwrite)</param>
         // TODO: Разобраться с тем, что состояние не зафиксировано в памяти, а может перемещаться
-        public void calcStep(bool SaveBytes = false, bool Overwrite = true)
+        public void calcStep(bool SaveBytes = false, bool Overwrite = false)
         {
             Keccak_abstract.KeccakStatesArray.getStatesArray(out GCHandle handle, this.State, out byte * S, out byte * B, out byte * C, out byte * Base, out ulong * Slong, out ulong * Blong, out ulong * Clong);
             try
@@ -169,7 +171,7 @@ namespace vinkekfish.keccak.keccak_20200918
             }
         }
 
-        protected readonly BytesBuilderForPointers output = new BytesBuilderForPointers();
+        public readonly BytesBuilderForPointers output = new BytesBuilderForPointers();
 
         /// <summary>Количество элементов, которые доступны для вывода без применения криптографических операций</summary>
         public long outputCount { get => output.Count; }

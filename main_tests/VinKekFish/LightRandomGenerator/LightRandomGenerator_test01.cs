@@ -25,14 +25,15 @@ namespace main_tests
             using var gen = new VinKekFish_k1_base_20210419_keyGeneration();
             gen.Init1(VinKekFishBase_etalonK1.NORMAL_ROUNDS, null, 0);
 
-            var key = new byte[] {1} ;
+            var key = new byte[] {1};
 
             fixed (byte * k = key)
                 gen.Init2(k, 1, null);
 
-            gen.EnterToBackgroundCycle();
+            gen.EnterToBackgroundCycle(72);
             Thread.Sleep(10_000);
             gen.ExitFromBackgroundCycle();
+            task.error.Add(new Error() { Message = $"LightRandomGenerator_test01. Generated bits: {gen.BackgourndGenerated}" });
         }
     }
 }

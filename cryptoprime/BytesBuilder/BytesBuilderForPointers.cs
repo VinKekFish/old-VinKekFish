@@ -222,7 +222,7 @@ namespace cryptoprime
 
         public class Fixed_AllocatorForUnsafeMemory : AllocatorForUnsafeMemoryInterface
         {
-            /// <summary>Выделяет память с помощью сборщика мусора, а потом фиксирует её</summary>
+            /// <summary>Выделяет память с помощью сборщика мусора, а потом фиксирует её. Это работает медленнее раза в 3, чем AllocHGlobal_AllocatorForUnsafeMemory</summary>
             public Record AllocMemory(long len)
             {
                 var b = new byte[len];
@@ -419,7 +419,7 @@ namespace cryptoprime
         }
 
         /// <summary>Создаёт массив байтов, включающий в себя resultCount символов, и удаляет их с очисткой из BytesBuilder</summary>
-        /// <param name="result">Массив, в который будет записан результат. result != <see langword="null"/>. Количество байтов устанавливается длиной массива</param>
+        /// <param name="result">Массив, в который будет записан результат. Уже должен быть выделен. result != <see langword="null"/>. Количество байтов устанавливается длиной массива</param>
         /// <returns>Запрошенный результат (первые resultCount байтов), этот возвращаемый результат равен параметру result</returns>
         // Эта функция может неожиданно обнулить часть массива или массив, сохранённый без копирования (если он где-то используется в другом месте)
         public Record getBytesAndRemoveIt(Record result)
