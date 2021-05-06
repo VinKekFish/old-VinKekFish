@@ -14,7 +14,7 @@ using static cryptoprime.VinKekFish.VinKekFishBase_etalonK1;
 
 namespace vinkekfish
 {
-    // Допустимые состояния см. ./VinKekFish_k1_base_20210419_keyGeneration.md
+    // Допустимые состояния см. ./Documentation/VinKekFish_k1_base_20210419_keyGeneration.md
     // Объект не производит ввода-вывода
 
     /// <summary>

@@ -12,7 +12,7 @@ using static cryptoprime.BytesBuilderForPointers;
 
 namespace vinkekfish
 {
-    // Описание состояний в файле VinKekFish_k1_base_20210419_состояния.md
+    // Описание состояний в файле ./Documentation/VinKekFish_k1_base_20210419_состояния.md
     /// <summary>В этом классе объявлена только инициализация и финализация: остальное в классах-потомках, реализующих конкретные схемы шифрования</summary>
     public unsafe class VinKekFish_k1_base_20210419: IDisposable
     {
