@@ -14,22 +14,32 @@ namespace vinkekfish
 {
     // Описание состояний в файле ./Documentation/VinKekFish_k1_base_20210419_состояния.md
     // Файл не осуществляет ввода-вывода
-    // Не иммеет примитивов синхронизации
+    // Не имеет примитивов синхронизации
     // Не читает/записывает данные во внешние глобальные переменные
 
-    /// <summary>В этом классе объявлена только инициализация и финализация: остальное в классах-потомках, реализующих конкретные схемы шифрования</summary>
+    /// <include file='Documentation/VinKekFish_k1_base_20210419.xml' path='docs/members[@name="VinKekFish_k1_base_20210419"]/VinKekFish_k1_base_20210419/*' />
     public unsafe class VinKekFish_k1_base_20210419: IDisposable
     {
-        public          int    RTables = 0;
+        protected       int    _RTables = 0;                            /// <include file='Documentation/VinKekFish_k1_base_20210419.xml' path='docs/members[@name="VinKekFish_k1_base_20210419"]/RTables/*' />
+        public          int    RTables => _RTables;
 
-        public          Record _state = null, _state2 = null, t0 = null, t1 = null, t2 = null, _transpose200_3200 = null, _b = null, _c = null;
-        public          Record stateHandle   = null;
-        public          Record pTablesHandle = null;
+                                                                        /// <include file='Documentation/VinKekFish_k1_base_20210419.xml' path='docs/members[@name="VinKekFish_k1_base_20210419"]/_state/*' />
+        protected       Record _state = null, _state2 = null, t0 = null, t1 = null, t2 = null, _transpose200_3200 = null, _b = null, _c = null; /// <include file='Documentation/VinKekFish_k1_base_20210419.xml' path='docs/members[@name="VinKekFish_k1_base_20210419"]/stateHandle/*' />
+        protected       Record stateHandle   = null;                    /// <include file='Documentation/VinKekFish_k1_base_20210419.xml' path='docs/members[@name="VinKekFish_k1_base_20210419"]/pTablesHandle/*' />
+        protected       Record pTablesHandle = null;
 
         protected bool isInited1 = false;
         protected bool isInited2 = false;
 
+                                            /// <include file='Documentation/VinKekFish_k1_base_20210419.xml' path='docs/members[@name="VinKekFish_k1_base_20210419"]/IsInited1/*' />
+        public bool IsInited1 => isInited1; /// <include file='Documentation/VinKekFish_k1_base_20210419.xml' path='docs/members[@name="VinKekFish_k1_base_20210419"]/IsInited2/*' />
+        public bool IsInited2 => isInited2;
+                                            /// <include file='Documentation/VinKekFish_k1_base_20210419.xml' path='docs/members[@name="VinKekFish_k1_base_20210419"]/AllocHGlobal_allocator/*' />
         public static readonly AllocatorForUnsafeMemoryInterface AllocHGlobal_allocator = new AllocHGlobal_AllocatorForUnsafeMemory();
+
+
+        protected volatile bool isHaveOutputData = false;
+        public             bool IsHaveOutputData => isHaveOutputData;
 
         public VinKekFish_k1_base_20210419()
         {
@@ -43,7 +53,7 @@ namespace vinkekfish
         /// <param name="RoundsForTables">Количество раундов, под которое генерируются таблицы перестановок</param>
         /// <param name="additionalKeyForTables">Дополнительный ключ: это ключ для таблиц перестановок</param>
         /// <param name="OpenInitVectorForTables">Дополнительный вектор инициализации для перестановок (используется совместно с ключом)</param>
-        /// <param name="PreRoundsForTranspose">Количество раундов со стандартными таблицами transpose< (не менее 1)/param>
+        /// <param name="PreRoundsForTranspose">Количество раундов со стандартными таблицами transpose &lt; (не менее 1)</param>
         public virtual void Init1(int RoundsForTables, byte * additionalKeyForTables, long additionalKeyForTables_length, byte[] OpenInitVectorForTables = null, int PreRoundsForTranspose = 8)
         {
             Clear();
@@ -74,8 +84,8 @@ namespace vinkekfish
                 BytesBuilder.CopyTo(_transpose200_3200.len, _transpose200_3200.len, tt, _transpose200_3200);
             }
 
-            RTables       = RoundsForTables;
-            pTablesHandle = GenStandardPermutationTables(Rounds: RTables, key: additionalKeyForTables, key_length: additionalKeyForTables_length, OpenInitVector: OpenInitVectorForTables, PreRoundsForTranspose: PreRoundsForTranspose);
+            _RTables       = RoundsForTables;
+            pTablesHandle = GenStandardPermutationTables(Rounds: _RTables, key: additionalKeyForTables, key_length: additionalKeyForTables_length, OpenInitVector: OpenInitVectorForTables, PreRoundsForTranspose: PreRoundsForTranspose);
 
 
             GC.Collect();
@@ -137,7 +147,7 @@ namespace vinkekfish
             _b          = null;
             _c          = null;
 
-            RTables            = 0;
+            _RTables            = 0;
             pTablesHandle      = null;
             _transpose200_3200 = null;
 
@@ -147,7 +157,8 @@ namespace vinkekfish
         /// <summary>Обнуляет состояние без перезаписи таблиц перестановок. Использовать после окончания шифрования, если нужно использовать объект повторно с другим ключом</summary>
         public void ClearState()
         {
-            isInited2 = false;
+            isInited2        = false;
+            isHaveOutputData = false;
 
             // Здесь обнуление состояния
             stateHandle?.Clear();
@@ -250,8 +261,29 @@ namespace vinkekfish
         }
 #endif
 
-        public void outputData(byte * output, long start, long outputLen, long countToOutput)
+        /// <summary>Выполняет один шаг криптографического преобразования. Это сокращённый вызов step без подготовки tweak. Не использовать напрямую</summary>
+        /// <param name="CountOfRounds">Количество раундов</param>
+        protected void DoStep(int CountOfRounds)
         {
+            step
+            (
+                countOfRounds: CountOfRounds, tablesForPermutations: pTablesHandle, transpose200_3200: _transpose200_3200,
+                tweak: t0, tweakTmp: t1, tweakTmp2: t2, state: _state, state2: _state, b: _b, c: _c
+            );
+
+            isHaveOutputData = true;
+        }
+
+        /// <summary>Получает из криптографического состояния вывод</summary>
+        /// <param name="output">Массив для получения вывода</param>
+        /// <param name="start">Индекс в массиве output, с которого надо начинать запись</param>
+        /// <param name="outputLen">Длина массива output</param>
+        /// <param name="countToOutput">Количество байтов, которое нужно изъять из массива</param>
+        public virtual void outputData(byte * output, long start, long outputLen, long countToOutput)
+        {
+            if (!isHaveOutputData)
+                throw new ArgumentOutOfRangeException("VinKekFish_k1_base_20210419.outputData: !isHaveOutputData");
+
             if (countToOutput > BLOCK_SIZE)
                 throw new ArgumentOutOfRangeException("VinKekFish_k1_base_20210419.outputData: lenToOutput > BLOCK_SIZE");
 
@@ -259,8 +291,10 @@ namespace vinkekfish
                 throw new ArgumentOutOfRangeException("VinKekFish_k1_base_20210419.outputData: start + lenToOutput > len");
 
             BytesBuilder.CopyTo(countToOutput, outputLen, _state, output, start);
+            isHaveOutputData = false;
         }
 
+        /// <summary>Уничтожает объект: реализация IDisposable</summary>
         public void Dispose()
         {
             Dispose(true);

@@ -60,7 +60,7 @@ namespace vinkekfish
             if (allocator == null)
                 allocator = new AllocHGlobal_AllocatorForUnsafeMemory();
 
-            if (RTables < CountOfRounds)
+            if (_RTables < CountOfRounds)
                 throw new ArgumentOutOfRangeException("VinKekFish_k1_base_20210419_keyGeneration.GetNewKey: RTables < CountOfRounds");
 
             if (blockLen > BLOCK_SIZE)
@@ -89,6 +89,8 @@ namespace vinkekfish
                 start += blockLen;
             }
             while (start >= len);
+
+            isHaveOutputData = false;
 
             return result;
         }
@@ -135,17 +137,6 @@ namespace vinkekfish
 
                 DoStep(CountOfRounds);
             }
-        }
-
-        /// <summary>Выполняет один шаг криптографического преобразования. Это сокращённый вызов step без подготовки tweak. Не использовать напрямую</summary>
-        /// <param name="CountOfRounds">Количество раундов</param>
-        protected void DoStep(int CountOfRounds)
-        {
-            step
-            (
-                countOfRounds: CountOfRounds, tablesForPermutations: pTablesHandle, transpose200_3200: _transpose200_3200,
-                tweak: t0, tweakTmp: t1, tweakTmp2: t2, state: _state, state2: _state, b: _b, c: _c
-            );
         }
 
         protected readonly Object               backgroundSync   = new object();

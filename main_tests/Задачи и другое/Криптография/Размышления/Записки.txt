@@ -1,5 +1,9 @@
 ﻿Составить общее описание того, что я буду делать, как это будет выглядеть
 
+Xml-документация
+	https://docs.microsoft.com/ru-ru/dotnet/csharp/codedoc
+	https://docs.microsoft.com/ru-ru/dotnet/csharp/programming-guide/xmldoc/recommended-tags-for-documentation-comments
+
 Какая у меня модель угроз?
 Программа работает на незаражённом компьютере
 	Но какие меры осложнения выделения ключа надо предпринять?

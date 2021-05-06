@@ -2,3 +2,12 @@
 
 # IDE1006: Стили именования
 dotnet_diagnostic.IDE1006.severity = silent
+
+# CS1591: Отсутствует комментарий XML для открытого видимого типа или члена
+dotnet_diagnostic.CS1591.severity = suggestion
+
+# CS1572: Комментарий XML содержит тег param, но параметр с таким именем не существует
+dotnet_diagnostic.CS1572.severity = suggestion
+
+# CS1573: Параметр не имеет соответствующий тег параметра в комментарии XML (в отличие от остальных параметров)
+dotnet_diagnostic.CS1573.severity = suggestion

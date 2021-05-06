@@ -174,7 +174,7 @@ namespace vinkekfish.keccak.keccak_20200918
         public readonly BytesBuilderForPointers output = new BytesBuilderForPointers();
 
         /// <summary>Количество элементов, которые доступны для вывода без применения криптографических операций</summary>
-        public long outputCount { get => output.Count; }
+        public long outputCount => output.Count;
 
         /// <summary>Выдаёт случайные криптостойкие значения байтов. Выгодно использовать при большом количестве байтов (64 и более). Выполняет криптографические операции, если байтов не хватает</summary>
         /// <param name="output">Массив, в который записывается результат</param>
