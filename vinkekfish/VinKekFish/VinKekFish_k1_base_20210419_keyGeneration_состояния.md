@@ -86,24 +86,31 @@
     Не проинциализирован
         isInited1 = false
         isInited2 = false
+        LightGenerator = null
     Предварительно проинициализирован
         isInited1 = true
         isInited2 = false
+        LightGenerator = null
     Полностью проинициализирован
         isInited1 = true
         isInited2 = true
+        LightGenerator = null
     Вход в рандомизацию по внутреннему алгоритму
         isInited1 = true
         isInited2 = true
+        LightGenerator = ?
     Рандомизации по внутреннему алгоритму
         isInited1 = true
         isInited2 = true
+        LightGenerator = ссылка на объект
     Выход из рандомизации
         isInited1 = true
         isInited2 = true
+        LightGenerator = ?
     Очищен
         isInited1 = false
         isInited2 = false
+        LightGenerator = null
 
 ### isInited1
 
@@ -113,17 +120,20 @@
     isInited1 = true
         Предварительно проинициализирован
 
-## isInited2
+### isInited2
     isInited2 = false
         Не проинциализирован
         Очищен
     isInited2 = true
         Полностью проинициализирован
 
+## Группа 3
+## LightGenerator
 
-### Группа 3
-     TODO:
-
+    LightGenerator = null
+        Не требуется синхронизации при криптографической операции
+    LightGenerator = ссылка на объект класса LightRandomGenerator
+        Требуется синхронизации при криптографической операции        
 
 # Переходы из состояний
 (движение от листьев к корню; вызов в состоянии любого листа, выход из функции - состояние корня, передвижение по узлам происходит внутри функции)
