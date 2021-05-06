@@ -14,6 +14,9 @@ using static cryptoprime.VinKekFish.VinKekFishBase_etalonK1;
 
 namespace vinkekfish
 {
+    // Допустимые состояния см. ./VinKekFish_k1_base_20210419_keyGeneration.md
+    // Объект не производит ввода-вывода
+
     /// <summary>
     /// При использовании класса обязательно вызвать Init1, затем Init2.
     /// После использования вызвать Dispose, или использовать конструкцию using
@@ -30,6 +33,9 @@ namespace vinkekfish
 
         public override void Init1(int RoundsForTables, byte * additionalKeyForTables, long additionalKeyForTables_length, byte[] OpenInitVectorForTables = null, int PreRoundsForTranspose = 8)
         {
+            if (backgroundThread != null)
+                ExitFromBackgroundCycle();
+
             base.Init1(RoundsForTables: RoundsForTables, additionalKeyForTables: additionalKeyForTables, additionalKeyForTables_length: additionalKeyForTables_length, OpenInitVectorForTables: OpenInitVectorForTables, PreRoundsForTranspose: PreRoundsForTranspose);
         }
 
@@ -142,10 +148,11 @@ namespace vinkekfish
             );
         }
 
-        protected          Thread               backgroundThread = null;
+        protected readonly Object               backgroundSync   = new object();
+        protected volatile Thread               backgroundThread = null;
         protected volatile LightRandomGenerator LightGenerator   = null;
         protected volatile Keccak_PRNG_20201128 keccak_prng      = null;
-        protected readonly Object               backgroundSync   = new object();
+
 
         public ushort BackgroundSleepTimeout = 0;
         public ushort BackgroundSleepCount   = 0;
@@ -227,6 +234,7 @@ namespace vinkekfish
                                         InputRandom(data, data.len, MIN_ROUNDS);
                                         data.Dispose();
                                         BackgourndGenerated++;
+                                        Monitor.PulseAll(backgroundSync);
                                     }
                                 }
 
