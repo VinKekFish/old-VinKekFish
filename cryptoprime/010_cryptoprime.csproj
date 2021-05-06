@@ -49,6 +49,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="BytesBuilder\BitToBytes.cs" />
+    <Compile Include="BytesBuilder\BytesBuilderForPointers_record.cs" />
     <Compile Include="BytesBuilder\BytesBuilderForPointers.cs" />
     <Compile Include="BytesBuilder\BytesBuilder.cs" />
     <Compile Include="Threefish\threefish.cs" />

@@ -57,6 +57,8 @@
     <Compile Include="keccak\keccak-20200918\Keccak_PRNG_20201128.cs" />
     <Compile Include="keccak\keccak-abstract.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <None Include="VinKekFish\VinKekFish_k1_base_20210419_keyGeneration_проверки.md" />
+    <None Include="VinKekFish\VinKekFish_k1_base_20210419_состояния.md" />
     <None Include="VinKekFish\VinKekFish_k1_base_20210419_keyGeneration_состояния.md" />
   </ItemGroup>
   <ItemGroup>

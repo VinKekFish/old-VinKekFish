@@ -153,9 +153,9 @@ namespace vinkekfish
         protected volatile LightRandomGenerator LightGenerator   = null;
         protected volatile Keccak_PRNG_20201128 keccak_prng      = null;
 
-
-        public ushort BackgroundSleepTimeout = 0;
-        public ushort BackgroundSleepCount   = 0;
+        /// <summary>См. описание параметра EnterToBackgroundCycle</summary>
+        public ushort BackgroundSleepTimeout = 0;       /// <summary>См. описание параметра EnterToBackgroundCycle</summary>
+        public ushort BackgroundSleepCount   = 0;       /// <summary>См. описание поля BackgourndGenerated</summary>
         public ushort BackgroundKeccakCount  = 8;
 
         /// <summary>Количество сгенерированных блоков энтропии.
@@ -164,8 +164,9 @@ namespace vinkekfish
         /// Лучше всего, если считать, что на один блок приходится 1/8 бита энтропии, то есть при BackgroundKeccakCount = 8 переменная BackgourndGenerated - это количество сгенерированных битов энтропии.
         /// В любом случае, это не надёжный источник рандомизации, вместе с ним необходимо использовать и другие источники, если возможно.
         /// При таком подходе, условно, примерно за 100 секунд на одном ядре с максимальной загрузкой генерируется ключ на 4096 битов длиной, так что производительность всё равно хорошая
-        /// BackgroundKeccakCount устанавливает сколько раз срабатывает keccak, прежде чем данные попадут в VinKekFish. BackgroundKeccakCount = 8 уменьшает количество данных в VinKekFish в 8 раз.</summary>
-        public ulong  BackgourndGenerated = 0;
+        /// BackgroundKeccakCount устанавливает сколько раз срабатывает keccak, прежде чем данные попадут в VinKekFish. BackgroundKeccakCount = 8 уменьшает количество данных в VinKekFish в 8 раз.
+        /// Запись в данную переменную производить с помощью lock (this) - допускается обнуление данной переменной</summary>
+        public long  BackgourndGenerated = 0;
 
         /// <summary>Войти в цикл дополнительной инициализации псевдослучайными значениями.
         /// До вызова ExitFromBackgroundCycle пользователь не должен использовать других методов.
@@ -179,7 +180,7 @@ namespace vinkekfish
         /// <param name="generator">Генератор нестойких псевдослучайных чисел, должен генерировать по 64 байта в блок. В ExitFromBackgroundCycle автоматически удаляется</param>
         public void EnterToBackgroundCycle(ushort BackgroundSleepTimeout = 72, ushort BackgroundSleepCount = 8, LightRandomGenerator generator = null)
         {
-            if (backgroundThread != null)
+            if (backgroundThread != null || LightGenerator != null)
                 throw new Exception("VinKekFish_k1_base_20210419_keyGeneration.EnterToBackgroundCycle: backgroundThread != null. Call ExitFromBackgroundCycle");
 
             if (generator == null)
@@ -233,14 +234,15 @@ namespace vinkekfish
                                         data = keccak_prng.output.getBytesAndRemoveIt(  AllocHGlobal_allocator.AllocMemory(BLOCK_SIZE)  );
                                         InputRandom(data, data.len, MIN_ROUNDS);
                                         data.Dispose();
-                                        BackgourndGenerated++;
+                                        Interlocked.Increment(ref BackgourndGenerated);
                                         Monitor.PulseAll(backgroundSync);
                                     }
                                 }
 
                                 LightGenerator.ResetGeneratedBytes();
-                                GC.Collect();       // Иначе бывает так,что программа занимает лишнюю системную память
-                                GC.WaitForPendingFinalizers();
+                                // Убрано, т.к. может негативно повлиять на производительность кода, исполняющегося одновременно в других местах програмы
+                                // GC.Collect();       // Иначе бывает так, что программа занимает лишнюю системную память (хотя, обычно, нет)
+                                // GC.WaitForPendingFinalizers();
                             }
                         }
                     }
@@ -259,8 +261,9 @@ namespace vinkekfish
                 LightGenerator?.Dispose();
                 keccak_prng   ?.Dispose();
 
-                LightGenerator = null;
-                keccak_prng    = null;
+                LightGenerator   = null;
+                keccak_prng      = null;
+                backgroundThread = null;
             }
 
             InputData_Overwrite(null, _state, 0, t0, 253);
