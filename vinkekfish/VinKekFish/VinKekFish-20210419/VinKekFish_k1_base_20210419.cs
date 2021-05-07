@@ -13,6 +13,7 @@ using static cryptoprime.BytesBuilderForPointers;
 namespace vinkekfish
 {
     // Описание состояний в файле ./Documentation/VinKekFish_k1_base_20210419_состояния.md
+    // Там же см. "Рекомендуемый порядок вызовов"
     // Файл не осуществляет ввода-вывода
     // Не имеет примитивов синхронизации
     // Не читает/записывает данные во внешние глобальные переменные
@@ -123,7 +124,8 @@ namespace vinkekfish
 
             GC.Collect();
             GC.WaitForPendingFinalizers();  // Это чтобы сразу получить все проблемные вызовы, связанные с утечками памяти
-            isInited2 = true;
+            isInited2        = true;
+            isHaveOutputData = true;
         }
 
         /// <summary>Очистка всех данных, включая таблицы перестановок. Использовать после окончания использования объекта (либо использовать Dispose)</summary>
@@ -141,8 +143,6 @@ namespace vinkekfish
             _state2     = null;
             t0          = null;
             t1          = null;
-            t2          = null;
-            t2          = null;
             t2          = null;
             _b          = null;
             _c          = null;

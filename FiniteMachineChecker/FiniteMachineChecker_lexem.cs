@@ -223,6 +223,7 @@ namespace FiniteMachineChecker
                     Parse(lineNumber: ref lineNumber, Line: Line, currentIndent: currentIndent, lines, fromStatesDeclaration: true, null);
                 }
                 else
+                if (Declaration == "TRANS")
                 {
                     Parse(lineNumber: ref lineNumber, Line: Line, currentIndent: currentIndent, lines, fromStatesDeclaration: false, fmc.StatesLexems[NameOfDeclaration].childs);
 
