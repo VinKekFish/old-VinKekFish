@@ -86,13 +86,22 @@ namespace FiniteMachineChecker
                 indent = "\t" + indent;
                 foreach (var a in reachable)
                 {
+                    if (a.Key == "_")
+                        continue;
+
                     if (a.Value.PathLen == 0)
-                        sb.AppendLine($"{indent}{a.Key}: 0, _");
+                        sb.AppendLine($"{indent}{a.Key}: 0");
                     else
                     if (a.Value.PathLen == 1)
-                        sb.AppendLine($"{indent}{a.Key}: 1, _");
+                        sb.AppendLine($"{indent}{a.Key}: 1");
                     else
-                        sb.AppendLine($"{indent}{a.Key}: {a.Value.PathLen}, {a.Value.StartPathToReachableLexem}");
+                    if (a.Value.PathLen >= 2)
+                    {
+                        var a1 = this.childs[a.Value.StartPathToReachableLexem];
+                        var a2 = a1  .childs[a1.reachable[Name].StartPathToReachableLexem];
+
+                        sb.AppendLine($"{indent}{a.Key}: {a.Value.PathLen}, {a.Value.StartPathToReachableLexem}, {a2}");
+                    }
                 }
             }
         }
@@ -129,8 +138,7 @@ namespace FiniteMachineChecker
             {
                 if (states != null && !(this is DeclarationLexem))
                 {
-                    // _ - это служебное слово
-                    if (!states.ContainsKey(Line) && Line != "_")
+                    if (!states.ContainsKey(Line))
                         throw new Exception($"Unknown state at line {lineNumber+1}");
                 }
 
@@ -157,7 +165,12 @@ namespace FiniteMachineChecker
                     if (fromStatesDeclaration && lnTrimmed == "_")
                         throw new Exception($"'_' symbol occured at line {i+1}, but '_' is a keyword");
 
-                    var LineLexem = new StateLexem(this, lineNumber: ref i, Line: lnTrimmed, currentIndent: childIndent, lines);
+                    StateLexem LineLexem = null;
+                    if (fromStatesDeclaration)
+                        LineLexem = new StateLexem(this, lineNumber: ref i, Line: lnTrimmed, currentIndent: childIndent, lines);
+                    else
+                        LineLexem = states[lnTrimmed] as StateLexem;
+
                     LineLexem.Parse(lineNumber: ref i, Line: lnTrimmed, currentIndent: childIndent, lines, fromStatesDeclaration: fromStatesDeclaration, states: states);
 
                     if (childs.ContainsKey(LineLexem.Line))
@@ -167,6 +180,21 @@ namespace FiniteMachineChecker
                 }
 
                 lineNumber = lines.Length;
+            }
+        }
+
+        public class EmptyLexem: StateLexem
+        {
+            public EmptyLexem(Lexem Parent, int lineNumber): base(Parent, ref lineNumber, "_", 0, null)
+            {
+            }
+
+            public override bool doReachableStep()
+            {
+                if (this.childs.Count > 0)
+                    throw new Exception($"Empty state '_' can not have childs {childs.Keys[0]}");
+
+                return false;
             }
         }
 
@@ -188,9 +216,25 @@ namespace FiniteMachineChecker
                 NameOfDeclaration = a[1].Trim();
 
                 if (Declaration == "STATES")
+                {
+                    // Добавляем служебную лексему "_"
+                    this.childs.Add("_", new EmptyLexem(this, 0));
+
                     Parse(lineNumber: ref lineNumber, Line: Line, currentIndent: currentIndent, lines, fromStatesDeclaration: true, null);
+                }
                 else
+                {
                     Parse(lineNumber: ref lineNumber, Line: Line, currentIndent: currentIndent, lines, fromStatesDeclaration: false, fmc.StatesLexems[NameOfDeclaration].childs);
+
+                    foreach (var node in fmc.StatesLexems[NameOfDeclaration].childs)
+                    {
+                        if (node.Value is EmptyLexem)
+                            continue;
+
+                        if (!this.childs.ContainsKey(node.Key))
+                            throw new Exception($"Not enought declaration in transitions: {node.Value}");
+                    }
+                }
             }
 
             public override void ReachabilityToString(StringBuilder sb, string indent)
@@ -199,6 +243,9 @@ namespace FiniteMachineChecker
                 indent = "\t" + indent;
                 foreach (var a in childs)
                 {
+                    if (a.Value is EmptyLexem)
+                        continue;
+
                     a.Value.ReachabilityToString(sb, indent);
                 }
             }
