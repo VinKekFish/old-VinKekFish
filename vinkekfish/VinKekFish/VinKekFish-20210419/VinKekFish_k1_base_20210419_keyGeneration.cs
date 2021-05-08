@@ -29,6 +29,8 @@ namespace vinkekfish
     {
         public VinKekFish_k1_base_20210419_keyGeneration()
         {
+            // Подумать насчёт 
+            // new System.Security.Cryptography.RNGCryptoServiceProvider();
         }
 
         public override void Init1(int RoundsForTables, byte * additionalKeyForTables, long additionalKeyForTables_length, byte[] OpenInitVectorForTables = null, int PreRoundsForTranspose = 8)
@@ -74,6 +76,7 @@ namespace vinkekfish
 
 
             var  result = allocator.AllocMemory(len);
+            result.Clear();
             byte regime = 0;
             long start  = 0;
             do
@@ -88,7 +91,7 @@ namespace vinkekfish
                 outputData(result, start, outputLen: len, countToOutput: len - start > blockLen ? blockLen : len - start);
                 start += blockLen;
             }
-            while (start >= len);
+            while (start < len);
 
             isHaveOutputData = false;
 
@@ -169,13 +172,19 @@ namespace vinkekfish
         /// Происходит генерация где-то одного блока VinKekFish (BLOCK_SIZE байтов) за секунду или менее (то BackgourndGenerated приращается на единицу за секунду или быстрее) - то есть 1 бит рандомизации в секунду</param>
         /// <param name="BackgroundSleepCount">После таймаута идёт генерация блоков для keccak. На один таймаут приходится BackgroundSleepCount блоков</param>
         /// <param name="generator">Генератор нестойких псевдослучайных чисел, должен генерировать по 64 байта в блок. В ExitFromBackgroundCycle автоматически удаляется</param>
-        public void EnterToBackgroundCycle(ushort BackgroundSleepTimeout = 72, ushort BackgroundSleepCount = 8, LightRandomGenerator generator = null)
+        /// <param name="doWaitR">Параметр инициализирует одноимённое поле generator.doWaitR, но только если generator = null</param>
+        /// <param name="doWaitW">Параметр инициализирует одноимённое поле generator.doWaitW, но только если generator = null</param>
+        public void EnterToBackgroundCycle(ushort BackgroundSleepTimeout = 72, ushort BackgroundSleepCount = 8, bool doWaitR = true, bool doWaitW = true, LightRandomGenerator generator = null)
         {
             if (backgroundThread != null || LightGenerator != null)
                 throw new Exception("VinKekFish_k1_base_20210419_keyGeneration.EnterToBackgroundCycle: backgroundThread != null. Call ExitFromBackgroundCycle");
 
             if (generator == null)
+            {
                 generator = new LightRandomGenerator(64);
+                generator.doWaitR = doWaitR;
+                generator.doWaitW = doWaitW;
+            }
 
             this.BackgroundSleepTimeout = BackgroundSleepTimeout;
             this.BackgroundSleepCount   = BackgroundSleepCount;

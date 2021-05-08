@@ -53,6 +53,28 @@ namespace cryptoprime
                 return sb.ToString();
             }
 
+            public string ToString(int maxLen = int.MaxValue)
+            {
+                var sb = new StringBuilder();
+
+                sb.AppendLine($"length = {len}");
+                if (array != null)
+                {
+                    for (int i = 0; i < len && i < maxLen; i++)
+                        sb.Append(array[i].ToString("D3") + "  ");
+                }
+                else
+                {
+                    sb.Append("array == null");
+                }
+
+                var str = sb.ToString();
+                if (str.Length > maxLen)
+                    str = str.Substring(0, maxLen);
+
+                return str;
+            }
+
             public object Clone()
             {
                 return CloneBytes(this);

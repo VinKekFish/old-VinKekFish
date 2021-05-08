@@ -17,6 +17,8 @@ namespace main_tests
     // Подсчитывает количество ошибок
     public partial class Program
     {
+        public static int SecondToRefreshMessagesAtDisplay = 2;
+
         public static readonly string LogFileNameTempl = "tests-$.log";
         public static          string LogFileName      = null;
         public static int Main(string[] args)
@@ -101,7 +103,7 @@ namespace main_tests
 
             void WaitMessages(bool showWaitTasks = false, bool endedAllTasks = false)
             {
-                if (!endedAllTasks && (DateTime.Now - waitForTasks_lastDateTime).TotalSeconds < 5)
+                if (!endedAllTasks && (DateTime.Now - waitForTasks_lastDateTime).TotalMilliseconds < 2*1000)
                     return;
 
                 waitForTasks_lastDateTime = DateTime.Now;

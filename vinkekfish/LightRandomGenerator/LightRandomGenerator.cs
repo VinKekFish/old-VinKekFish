@@ -14,12 +14,17 @@ namespace vinkekfish
     /// Пример использования см. в LightRandomGenerator_test01 и VinKekFish_k1_base_20210419_keyGeneration.EnterToBackgroundCycle</summary>
     public unsafe class LightRandomGenerator: IDisposable
     {
+        /// <summary>Использование объекта закончено. Объект после этого непригоден к использованию, в том числе, и на чтение байтов</summary>
         public    volatile bool    ended  = false;
         protected readonly Thread rthread = null;
         protected readonly Thread wthread = null;
 
         /// <summary>Если <see langword="true"/>, то вызывает Thread.Sleep(doSleepR) на каждой итерации извлечения байта, в противном случае - только по необходимости. Рекомендуется true</summary>
         public    volatile bool   doSleepR = true;
+        /// <summary>Если <see langword="true"/>, то останавливает пишущий (суммирующий) поток, когда данные сгенерированны в нужном количестве (иначе поток так и будет крутиться)</summary>
+        public    volatile bool   doWaitW = true;
+        /// <summary>Если <see langword="true"/>, то читающий (выводящий байты в массив) потом будет ждать, когда данные сгенерируются в нужном количестве. Если <see langword="false"/>, то читающий поток будет записывать данные дальше</summary>
+        public    volatile bool   doWaitR = true;
 
         protected volatile ushort curCNT  = 0;
         protected volatile ushort lastCNT = 0;
@@ -32,87 +37,118 @@ namespace vinkekfish
 
             wthread = new Thread
             (
-                delegate()
+                delegate ()
                 {
-                    try
-                    {
-                        while (!ended)
-                        {
-                            curCNT++;
-
-                            // Временный останов
-                            if (GeneratedCount >= CountToGenerate)
-                            lock (this)
-                            {
-                                Monitor.Wait(this);
-                            }
-                        }
-                    }
-                    finally
-                    {
-                        Interlocked.Decrement(ref isEnded);
-                        lock (this)
-                        {
-                            Monitor.PulseAll(this);
-                        }
-                    }
+                    WriteThreadFunction(CountToGenerate);
                 }
             );
 
             rthread = new Thread
             (
-                delegate()
+                delegate ()
                 {
-                    try
-                    {
-                        while (!ended)
-                        {
-                            if (doSleepR)
-                                Thread.Sleep(0);
-
-                            while (lastCNT == curCNT)
-                                Thread.Sleep(0);
-
-                            lastCNT = curCNT;
-
-                            lock (this)
-                            {
-                                if (GeneratedCount < CountToGenerate)
-                                {
-                                    // На всякий случай делаем xor между младшим и старшим байтом, чтобы все биты были учтены
-                                    // Не такая уж хорошая статистика получается по младшим байтам, как могло бы быть
-                                    GeneratedBytes.array[(GeneratedCount + StartOfGenerated) % CountToGenerate] = (byte) (curCNT ^ (curCNT >> 8));
-                                    // GeneratedBytes.array[(GeneratedCount + StartOfGenerated) % CountToGenerate] = (byte) curCNT;
-                                    GeneratedCount++;
-                                }
-                                else
-                                {
-                                    wthread.Priority = ThreadPriority.Lowest;
-                                    Monitor.PulseAll(this);
-                                    Monitor.Wait(this, 1000);
-                                }
-                            }
-                        }
-                    }
-                    finally
-                    {
-                        Interlocked.Decrement(ref isEnded);
-                        lock (this)
-                        {
-                            Monitor.PulseAll(this);
-                        }
-                    }
+                    ReadThreadFunction(CountToGenerate);
                 }
             );
 
-            wthread.Priority = ThreadPriority.Lowest;
-            rthread.Priority = ThreadPriority.Lowest;
+            SetThreadsPriority(ThreadPriority.Lowest);
 
             wthread.Start();
             rthread.Start();
         }
 
-        /// <summary>Брать байты можно и прямо из массива после WaitForGenerator. После взятия вызвать ResetGeneratedBytes</summary>
+        public virtual void ReadThreadFunction(int CountToGenerate)
+        {
+            try
+            {
+                while (!ended)
+                {
+                    if (doSleepR)
+                        Thread.Sleep(0);
+
+                    while (lastCNT == curCNT)
+                        Thread.Sleep(0);
+
+                    lastCNT = curCNT;
+
+                    lock (this)
+                    {
+                        var out0 = curCNT;
+                        var out8 = out0 >> 8;
+                        if (GeneratedCount < CountToGenerate)
+                        {
+                            // При изменении, ниже также изменять
+                            // На всякий случай делаем xor между младшим и старшим байтом, чтобы все биты были учтены
+                            // Не такая уж хорошая статистика получается по младшим байтам, как могло бы быть
+                            GeneratedBytes.array[(GeneratedCount + StartOfGenerated) % CountToGenerate] = (byte)(out0 ^ out8);
+                            // GeneratedBytes.array[(GeneratedCount + StartOfGenerated) % CountToGenerate] = (byte) curCNT;
+                            GeneratedCount++;
+                        }
+                        else
+                        {
+                            SetThreadsPriority(ThreadPriority.Lowest);
+                            if (doWaitR || doWaitW)
+                            {
+                                Monitor.PulseAll(this);
+                                Monitor.Wait(this);
+                            }
+                            else
+                            {
+                                StartOfGenerated++;
+                                if (StartOfGenerated >= CountToGenerate)
+                                    StartOfGenerated = 0;
+
+                                GeneratedBytes.array[(GeneratedCount + StartOfGenerated) % CountToGenerate] += (byte)(out0 ^ out8);
+                            }
+                        }
+                    }
+                }
+            }
+            finally
+            {
+                Interlocked.Decrement(ref isEnded);
+                lock (this)
+                {
+                    Monitor.PulseAll(this);
+                }
+            }
+        }
+
+        protected virtual void WriteThreadFunction(int CountToGenerate)
+        {
+            try
+            {
+                while (!ended)
+                {
+                    curCNT++;
+
+                    // Временный останов
+                    if (doWaitW && GeneratedCount >= CountToGenerate)
+                    {
+                        lock (this)
+                        {
+                            Monitor.Wait(this);
+                        }
+                    }
+                }
+            }
+            finally
+            {
+                Interlocked.Decrement(ref isEnded);
+                lock (this)
+                {
+                    Monitor.PulseAll(this);
+                }
+            }
+        }
+
+        public virtual void SetThreadsPriority(ThreadPriority priority)
+        {
+            wthread.Priority = priority;
+            rthread.Priority = priority;
+        }
+
+        /// <summary>Брать байты можно и прямо из массива после WaitForGenerator. После взятия вызвать ResetGeneratedBytes. Брать с lock(this)</summary>
         public    readonly   Record GeneratedBytes   = null;
         protected readonly   int    CountToGenerate  = 0;
         protected volatile   int    GeneratedCount   = 0;
@@ -122,10 +158,13 @@ namespace vinkekfish
         /// <summary>Сбрасывает все сгенерированные байты без полезного использования. Это стоит вызвать, если GeneratedBytes использованы напрямую</summary>
         public virtual void ResetGeneratedBytes()
         {
-            StartOfGenerated = 0;
-            GeneratedCount   = 0;
+            lock (this)
+            {
+                StartOfGenerated = 0;
+                GeneratedCount   = 0;
+            }
 
-            wthread.Priority = ThreadPriority.Normal;
+            SetThreadsPriority(ThreadPriority.Normal);
             lock (this)
                 Monitor.PulseAll(this);
         }
@@ -152,7 +191,7 @@ namespace vinkekfish
                     StartOfGenerated = 0;
             }
 
-            wthread.Priority = ThreadPriority.Normal;
+            SetThreadsPriority(ThreadPriority.Normal);
             lock (this)
                 Monitor.PulseAll(this);
         }
