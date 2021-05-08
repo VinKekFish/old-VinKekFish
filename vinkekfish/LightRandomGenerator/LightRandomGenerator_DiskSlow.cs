@@ -10,9 +10,7 @@ using static cryptoprime.BytesBuilderForPointers;
 
 namespace vinkekfish
 {
-    /// <summary>Класс, генерирующий некриптостойкие значения на основе ожидания потоков.
-    /// Обратите внимание, что на 1 байт сгенерированной информации рекомендуется принимать не более 1 бита случайной информации (а лучше - меньше)
-    /// Пример использования см. в LightRandomGenerator_test01 и VinKekFish_k1_base_20210419_keyGeneration.EnterToBackgroundCycle</summary>
+    /// <summary>Класс, генерирующий некриптостойкие значения на основе времени дисковых операций. Это ОЧЕНЬ медленный генератор. Одно срабатывание зависит от того, что и как записывается внутри файловой системы. Может одно срабатывание давать за 1-5 секунд.</summary>
     public unsafe class LightRandomGenerator_DiskSlow: LightRandomGenerator
     {
         public LightRandomGenerator_DiskSlow(int CountToGenerate): base(CountToGenerate)
@@ -107,7 +105,10 @@ namespace vinkekfish
                 if (!disks[i].IsReady)
                     continue;
 
+                // Не создаём Watcher для съёмных устройств, т.к. он мешает их извлекать
+                // if (disks[i].DriveType != DriveType.Removable)
                 CreateSystemWatcher(disks[i].RootDirectory.FullName);
+
                 lastDrivesCount++;
             }
 
@@ -148,12 +149,26 @@ namespace vinkekfish
             curCNT++;
         }
 
+        public string lastChangedFileName = "";
         public virtual void A_Changed(object sender, FileSystemEventArgs e)
         {
             lock (this)
             {
                 curCNT++;
-                Monitor.PulseAll(this);
+
+                if (e.ChangeType != WatcherChangeTypes.Changed)
+                {
+                    Monitor.PulseAll(this);
+                }
+                else
+                {
+                    // Защита от сработок на один и тот же файл (если он раз за разом быстро меняется)
+                    if (e.FullPath != lastChangedFileName)
+                    {
+                        lastChangedFileName = e.FullPath;
+                        Monitor.PulseAll(this);
+                    }
+                }
             }
         }
 
