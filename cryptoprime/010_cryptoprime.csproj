@@ -60,6 +60,8 @@
     <Compile Include="VinKekFish\VinKekFishBase_etalonK1.cs" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="BytesBuilder\Documentation\BytesBuilderForPointers.Record.md" />
+    <None Include="BytesBuilder\Documentation\BytesBuilderForPointers.md" />
     <None Include="VinKekFish\descr.md" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

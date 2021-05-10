@@ -126,6 +126,9 @@ namespace cryptoprime
             if (allocator == null)
                 allocator = rec.allocator;
 
+            if (allocator == null)
+                throw new Exception("BytesBuilderForPointers.CloneBytes: allocator == null");
+
             return CloneBytes(rec.array, start, PostEnd, allocator);
         }
 
@@ -199,7 +202,7 @@ namespace cryptoprime
                     count += left + right;
                 }
 
-                // bytes[i] != current
+                // Осторожно, может быть, что bytes[i] != current
                 BytesBuilder.CopyTo(bytes[i].len, result.len, bytes[i].array, result.array, cursor);
                 cursor += bytes[i].len;
 
@@ -226,6 +229,15 @@ namespace cryptoprime
             {
                 data <<= 8;
                 data += *(target + i);
+            }
+        }
+
+        ~BytesBuilderForPointers()
+        {
+            if (bytes.Count > 0)
+            {
+                clear();
+                throw new Exception("~BytesBuilderForPointers: bytes.Count > 0");
             }
         }
     }

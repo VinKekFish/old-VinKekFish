@@ -187,7 +187,7 @@ namespace cryptoprime
             /// <returns>Описатель выделенного участка памяти, включая способ удаления памяти</returns>
             public Record AllocMemory(long len);
 
-            /// <summary>Освобождает выделенную область памяти. Не очищает память (не перезабивает её нулями)</summary>
+            /// <summary>Освобождает выделенную область памяти. Не очищает память (не перезабивает её нулями). Должен вызываться автоматически в Record</summary>
             /// <param name="recordToFree">Память к освобождению</param>
             public void   FreeMemory (Record recordToFree);
 
