@@ -216,6 +216,7 @@ namespace cryptoprime
                 if (len > int.MaxValue)
                     throw new ArgumentOutOfRangeException("BytesBuilderForPointers.AllocatorForUnsafeMemory.AllocatorForUnsafeMemory: len > int.MaxValue");
 
+                // ptr никогда не null, если не хватает памяти, то будет OutOfMemoryException
                 var ptr = Marshal.AllocHGlobal(  (int) len  );
                 return new Record() { len = len, array = (byte *) ptr.ToPointer(), ptr = ptr, allocator = this };
             }

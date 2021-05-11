@@ -17,7 +17,10 @@ namespace vinkekfish.keccak.keccak_20200918
         public          AllocatorForUnsafeMemoryInterface allocatorForSaveBytes = new BytesBuilderForPointers.AllocHGlobal_AllocatorForUnsafeMemory(); // new BytesBuilderForPointers.Fixed_AllocatorForUnsafeMemory();
         // Fixed работает раза в 3 медленнее почему-то
 
-        public Keccak_PRNG_20201128(AllocHGlobal_AllocatorForUnsafeMemory allocator = null)
+        /// <summary>Создаёт пустой объект</summary>
+        /// <param name="allocator">Способ выделения памяти внутри объекта, кроме выделения памяти для вывода. Может быть null.</param>
+        /// <exception cref="OutOfMemoryException"></exception>
+        public Keccak_PRNG_20201128(AllocatorForUnsafeMemoryInterface allocator = null)
         {
             if (allocator != null)
                 this.allocator = allocator;
@@ -25,15 +28,29 @@ namespace vinkekfish.keccak.keccak_20200918
             inputTo = AllocMemory(InputSize);
         }
 
+        public override void init()
+        {
+            base.init();
+            inputTo.Clear();
+        }
+
         public Record AllocMemory(long len)
         {
             return allocator.AllocMemory(len);
         }
 
+        public Record AllocMemoryForSaveBytes(long len)
+        {
+            return allocator.AllocMemory(len);
+        }
+
         // TODO: сделать тесты на Clone
+        /// <summary>Клонирует внутреннее состояние объекта и аллокаторы. Вход и выход не копируются</summary><returns></returns>
         public override Keccak_abstract Clone()
         {
-            var result = new Keccak_PRNG_20201128();
+            var result = new Keccak_PRNG_20201128(allocator: allocator);
+
+            result.allocatorForSaveBytes = this.allocatorForSaveBytes;
 
             // Очищаем C и B, чтобы не копировать какие-то значения, которые не стоит копировать, да и хранить тоже
             clearOnly_C_and_B();
@@ -51,7 +68,7 @@ namespace vinkekfish.keccak.keccak_20200918
         public    const    int InputSize = 64;
 
         /// <summary>Это массив для немедленного введения в Sponge на следующем шаге</summary>
-        protected          Record inputTo;
+        protected          Record inputTo      = null;
         /// <summary>Если <see langword="true"/>, то в массиве inputTo ожидают данные. Можно вызывать calStep</summary>
         protected          bool   inputReady   = false;
         /// <summary>Если <see langword="true"/>, то в массиве inputTo ожидают данные. Можно вызывать calStep</summary>
@@ -212,7 +229,7 @@ namespace vinkekfish.keccak.keccak_20200918
 
                 if (SaveBytes)
                 {
-                    var result = allocatorForSaveBytes.AllocMemory(InputSize);
+                    var result = AllocMemoryForSaveBytes(InputSize);
                     Keccak_Output_512(output: result.array, len: InputSize, S: S);
 
                     output.add(result);
@@ -240,7 +257,7 @@ namespace vinkekfish.keccak.keccak_20200918
                     readyLen = len;
                 }
 
-                using var b = this.output.getBytesAndRemoveIt(  AllocMemory(readyLen)  );
+                using var b = this.output.getBytesAndRemoveIt(  AllocMemoryForSaveBytes(readyLen)  );
 
                 BytesBuilder.CopyTo(b.len, readyLen, b.array, output);
 
@@ -277,7 +294,7 @@ namespace vinkekfish.keccak.keccak_20200918
                 calcStepAndSaveBytes();
             }
 
-            using var b = output.getBytesAndRemoveIt(  AllocMemory(1)  );
+            using var b = output.getBytesAndRemoveIt(  AllocMemoryForSaveBytes(1)  );
 
             var result = b.array[0];
 
@@ -289,7 +306,7 @@ namespace vinkekfish.keccak.keccak_20200918
         /// <returns>Случайное число в диапазоне [0; cutoff]</returns>
         public ulong getUnsignedInteger(ulong cutoff = ulong.MaxValue, Record arrayAt8Length = null)
         {
-            var b = arrayAt8Length ?? AllocMemory(8);
+            var b = arrayAt8Length ?? AllocMemoryForSaveBytes(8);
             try
             {
                 while (true)
@@ -375,7 +392,7 @@ namespace vinkekfish.keccak.keccak_20200918
 
             // Алгоритм тасования Дурштенфельда
             // https://ru.wikipedia.org/wiki/Тасование_Фишера_—_Йетса
-            using var b8 = allocator.AllocMemory(8);
+            using var b8 = AllocMemoryForSaveBytes(8);
             for (ulong i = 0; i < len - 1; i++)
             {
                 getCutoffForUnsignedInteger(0, (ulong) len - i - 1, out ulong cutoff, out ulong range);
