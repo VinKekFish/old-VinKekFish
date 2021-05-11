@@ -109,9 +109,11 @@ namespace cryptoprime
                     BytesBuilder.ToNull(len, array);
             }
 
+            /// <summary>Если true, то объект уже уничтожен</summary>
+            public bool isDisposed = false;     // Оставлено public, чтобы обеспечить возможность повторного использования того же объекта
+
             /// <summary>Очищает и освобождает выделенную область памяти</summary>
             // TODO: протестировать на двойной вызов (должно всё работать)
-            protected bool isDisposed = false;
             public void Dispose()
             {
                 Dispose(true);

@@ -59,6 +59,7 @@
     <Compile Include="keccak\keccak-20200918\Keccak_PRNG_20201128.cs" />
     <Compile Include="keccak\keccak-abstract.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <None Include="keccak\keccak-20200918\Documentation\Keccak_PRNG_20201128.md" />
     <None Include="VinKekFish\VinKekFish-20210419\Documentation\VinKekFish_k1_base_20210419_keyGeneration-ввод-вывод.md" />
     <None Include="VinKekFish\VinKekFish-20210419\Documentation\VinKekFish_k1_base_20210419_keyGeneration_конфи.md" />
     <None Include="VinKekFish\VinKekFish-20210419\Documentation\VinKekFish_k1_base_20210419_состояния.md" />

@@ -179,13 +179,18 @@ namespace vinkekfish
             using var prng = new Keccak_PRNG_20201128();
 
             if (key != null && key_length > 0)
-                prng.InputKeyAndStep(key, key_length);
-
-            if (OpenInitVector != null && OpenInitVector.Length > 0)
             {
-                prng.InputBytes(OpenInitVector);
-                prng.calcStep();
+                if (OpenInitVector == null)
+                    prng.InputKeyAndStep(key, key_length, null, 0);
+                else
+                {
+                    fixed (byte * oiv = OpenInitVector)
+                        prng.InputKeyAndStep(key, key_length, oiv, OpenInitVector.Length);
+                }
             }
+            else
+            if (OpenInitVector != null)
+                throw new ArgumentException("key == null && OpenInitVector != null. Set OpenInitVector as key");
 
             long len1  = VinKekFishBase_etalonK1.CryptoStateLen;
             long len2  = VinKekFishBase_etalonK1.CryptoStateLen << 1;

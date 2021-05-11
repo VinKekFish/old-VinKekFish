@@ -48,7 +48,16 @@ namespace vinkekfish.keccak.keccak_20200918
 
         /// <summary>Это массив для немедленного введения в Sponge на следующем шаге</summary>
         protected readonly Record inputTo;
-        protected          bool   inputReady  = false;
+        /// <summary>Если <see langword="true"/>, то в массиве inputTo ожидают данные. Можно вызывать calStep</summary>
+        protected          bool   inputReady   = false;
+        /// <summary>Если <see langword="true"/>, то в массиве inputTo ожидают данные. Можно вызывать calStep</summary>
+        public             bool   isInputReady => inputReady;
+
+
+        public readonly BytesBuilderForPointers output = new BytesBuilderForPointers();
+
+        /// <summary>Количество элементов, которые доступны для вывода без применения криптографических операций</summary>
+        public long outputCount => output.Count;
 
         /// <summary>Ввести рандомизирующие байты (в том числе, открытый вектор инициализации). Не выполняет криптографических операций</summary>
         /// <param name="bytesToInput">Рандомизирующие байты. Копируются. bytesToInput должны быть очищены вручную</param>
@@ -67,26 +76,49 @@ namespace vinkekfish.keccak.keccak_20200918
             InputBytesImmediately();
         }
 
-        /// <summary>Ввести секретный ключ (вместе с криптографическим преобразованием и отбоем в режиме OVERWITE)</summary>
-        /// <param name="key">Ключ, кратный 64-ём байтам</param>
-        public void InputKeyAndStep(byte * key, long key_length)
+        /// <summary>Ввести рандомищирующие байты. Не выполняет криптографических операций.</summary>
+        /// 
+        /// 
+        /// <param name="data"></param>
+        public void InputBytesWithoutClone(Record data)
+        {
+            INPUT.add(data);
+            InputBytesImmediately();
+        }
+
+        /// <summary>Ввести секретный ключ и ОВИ (вместе с криптографическим преобразованием)</summary>
+        /// <param name="key">Ключ</param>
+        /// <param name="OIV">Открытый вектор инициализации, не более InputSize (не более 64 байтов). Может быть null</param>
+        public void InputKeyAndStep(byte * key, long key_length, byte * OIV, long OIV_length)
         {
             if (INPUT.countOfBlocks > 0)
                 throw new ArgumentException("key must be input before the generation or input an initialization vector (or see InputKeyAndStep code)", "key");
+
+            if (OIV_length > InputSize)
+                throw new ArgumentException("Keccak_PRNG_20201128.InputKeyAndStep: OIV_length > InputSize", "OIV");
 
             INPUT.add(key, key_length);
             InputBytesImmediately();
             do
             {
                 calcStep(Overwrite: false);
-                InputBytesImmediately();
+                InputBytesImmediately(true);
             }
             while (inputReady);
 
             // Завершаем ввод ключа конструкцией Overwrite, которая даёт некую необратимость состояния в отношении ключа
-            inputTo.Clear();
-            inputReady = true;
-            calcStep(Overwrite: true);
+            if (OIV != null)
+            {
+                INPUT.add(OIV, OIV_length);
+                InputBytesImmediately(true);
+                calcStep(Overwrite: true);          // xor, к тому же, даёт больше ПЭМИН, так что просто Overwrite, хотя особо смысла в этом нет, т.к. xor в других операциях тоже идёт (но не с ключевой информацией)
+            }
+            else
+            {
+                inputTo.Clear();
+                inputReady = true;
+                calcStep(Overwrite: true);
+            }
 
             if (INPUT.countOfBlocks > 0)
             {
@@ -111,18 +143,27 @@ namespace vinkekfish.keccak.keccak_20200918
         public override void Dispose(bool disposing)
         {
             inputTo?.Dispose();
-            base.Dispose(disposing);
+            base.Dispose(disposing);        // Clear вызывается здесь
         }
 
         /// <summary>Переносит байты из очереди ожидания в массив байтов для непосредственного ввода в криптографическое состояние. Не выполняет криптографических операций</summary>
-        protected void InputBytesImmediately()
+        protected void InputBytesImmediately(bool ForOverwrite = false)
         {
             if (!inputReady)
-            if (INPUT.Count >= InputSize)
             {
-                // TODO: сделать тесты на верность getBytesAndRemoveIt и, по возможности, на его использование
-                INPUT.getBytesAndRemoveIt(inputTo);
-                inputReady = true;
+                if (INPUT.Count >= InputSize)
+                {
+                    // TODO: сделать тесты на верность getBytesAndRemoveIt и, по возможности, на его использование
+                    INPUT.getBytesAndRemoveIt(inputTo);
+                    inputReady = true;
+                }
+                else
+                if (ForOverwrite)
+                {
+                    inputTo.Clear();
+                    INPUT.getBytesAndRemoveIt(inputTo);
+                    inputReady = true;
+                }
             }
         }
 
@@ -170,11 +211,6 @@ namespace vinkekfish.keccak.keccak_20200918
                 Keccak_abstract.KeccakStatesArray.handleFree(handle);
             }
         }
-
-        public readonly BytesBuilderForPointers output = new BytesBuilderForPointers();
-
-        /// <summary>Количество элементов, которые доступны для вывода без применения криптографических операций</summary>
-        public long outputCount => output.Count;
 
         /// <summary>Выдаёт случайные криптостойкие значения байтов. Выгодно использовать при большом количестве байтов (64 и более). Выполняет криптографические операции, если байтов не хватает</summary>
         /// <param name="output">Массив, в который записывается результат</param>
