@@ -7,6 +7,7 @@ namespace cryptoprime
 {
     public unsafe partial class BytesBuilderForPointers
     {
+        // Документация по состояниям ./Documentation/BytesBuilderForPointers.Record.md
         public unsafe class Record: IDisposable, ICloneable
         {
             public          byte *   array = null;
@@ -130,7 +131,7 @@ namespace cryptoprime
             /// <param name="disposing"></param>
             protected virtual void Dispose(bool disposing)
             {
-                bool allocatorExists = allocator != null;
+                bool allocatorExists = allocator != null || array != null;
 
                 Clear();
                 allocator?.FreeMemory(this);

@@ -7,6 +7,10 @@ using static cryptoprime.BytesBuilderForPointers;
 
 namespace vinkekfish.keccak.keccak_20200918
 {
+    // Ссылка на документацию по состояниям .\Documentation\Keccak_PRNG_20201128.md
+    // Там же см. рекомендуемый порядок использования функций ("Рекомендуемый порядок вызовов
+    // Пример использования в \VinKekFish\vinkekfish\VinKekFish\VinKekFish-20210419\VinKekFish_k1_base_20210419.cs
+    // в функции GenStandardPermutationTables (вызовы doRandomPermutationForUShorts)
     public unsafe class Keccak_PRNG_20201128 : Keccak_base_20200918
     {
         public readonly AllocatorForUnsafeMemoryInterface allocator             = new BytesBuilderForPointers.AllocHGlobal_AllocatorForUnsafeMemory();
@@ -47,7 +51,7 @@ namespace vinkekfish.keccak.keccak_20200918
         public    const    int InputSize = 64;
 
         /// <summary>Это массив для немедленного введения в Sponge на следующем шаге</summary>
-        protected readonly Record inputTo;
+        protected          Record inputTo;
         /// <summary>Если <see langword="true"/>, то в массиве inputTo ожидают данные. Можно вызывать calStep</summary>
         protected          bool   inputReady   = false;
         /// <summary>Если <see langword="true"/>, то в массиве inputTo ожидают данные. Можно вызывать calStep</summary>
@@ -130,10 +134,10 @@ namespace vinkekfish.keccak.keccak_20200918
 
         public override void Clear(bool GcCollect = false)
         {
-            inputTo.Clear();
+            inputTo?.Clear();
 
-            INPUT  .clear();
-            output .clear();
+            INPUT  ?.clear();
+            output ?.clear();
 
             inputReady = false;
 
@@ -143,7 +147,15 @@ namespace vinkekfish.keccak.keccak_20200918
         public override void Dispose(bool disposing)
         {
             inputTo?.Dispose();
+            inputTo = null;
+
             base.Dispose(disposing);        // Clear вызывается здесь
+        }
+
+        ~Keccak_PRNG_20201128()
+        {
+            if (inputTo != null)
+                throw new Exception("Keccak_PRNG_20201128: Object must be manually disposed");
         }
 
         /// <summary>Переносит байты из очереди ожидания в массив байтов для непосредственного ввода в криптографическое состояние. Не выполняет криптографических операций</summary>
@@ -323,7 +335,7 @@ namespace vinkekfish.keccak.keccak_20200918
         /// <param name="max">Максимальное значнеие для генерации (включительно)</param>
         /// <param name="cutoff">Параметр cutoff для передачи getUnsignedInteger</param>
         // TODO: хорошо протестировать
-        public void getCutoffForUnsignedInteger(ulong min, ulong max, out ulong cutoff, out ulong range)
+        public static void getCutoffForUnsignedInteger(ulong min, ulong max, out ulong cutoff, out ulong range)
         {
             range = max - min + 1;
 

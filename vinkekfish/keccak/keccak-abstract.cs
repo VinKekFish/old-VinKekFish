@@ -20,12 +20,16 @@ namespace vinkekfish
      * */
     public unsafe abstract class Keccak_abstract: IDisposable
     {
+        public Keccak_abstract()
+        {
+            init();
+        }
+
         // Это внутреннее состояние keccak, а также вспомогательные переменные, не являющиеся состоянием
         // Здесь сначала идёт B, потом C, потом S.
         // При перезаписи после конца с высокой вероятностью пострадает S, что даст возможность тестам сделать своё дело
         /// <summary>Внутреннее состояние keccak. Используйте KeccakStatesArray для того, чтобы разбить его на указатели</summary>
         public readonly byte[] State = new byte[(S_len2 + S_len + S_len2) << 3];
-        protected          ulong    d;
 
         /// <summary>Фиксирует объект State и создаёт на него ссылки
         /// using (var state = new KeccakStatesArray(State))
@@ -141,16 +145,12 @@ namespace vinkekfish
         /// <summary>Очищает состояние объекта, но не State</summary>
         public virtual void ClearStateWithoutStateField()
         {
-            this.d = 0;
         }
 
         /// <summary>Инициализирует состояние нулями</summary>
         public virtual void init()
         {
-            using (var state = new KeccakStatesArray(State))
-                Clear5x5(state.Slong);
-            using (var state = new KeccakStatesArray(State))
-                Clear5x5(state.Slong);
+            BytesBuilder.ToNull(State);
         }
 
         /// <summary>Эту функцию можно вызывать после keccak, если нужно состояние S, но хочется очистить B и C</summary>
