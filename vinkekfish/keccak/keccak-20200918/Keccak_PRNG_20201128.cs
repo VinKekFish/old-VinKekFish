@@ -84,6 +84,9 @@ namespace vinkekfish.keccak.keccak_20200918
         /// <param name="bytesToInput">Рандомизирующие байты. Копируются. bytesToInput должны быть очищены вручную</param>
         public void InputBytes(byte[] bytesToInput)
         {
+            if (bytesToInput == null)
+                throw new ArgumentNullException("Keccak_PRNG_20201128.InputBytes: bytesToInput == null");
+
             INPUT.add(BytesBuilderForPointers.CloneBytes(bytesToInput, allocator));
             InputBytesImmediately();
         }
@@ -93,6 +96,9 @@ namespace vinkekfish.keccak.keccak_20200918
         /// <param name="len">Длина рандомизирующей последовательности</param>
         public void InputBytes(byte * bytesToInput, long len)
         {
+            if (bytesToInput == null)
+                throw new ArgumentNullException("Keccak_PRNG_20201128.InputBytes: bytesToInput == null");
+
             INPUT.add(BytesBuilderForPointers.CloneBytes(bytesToInput, 0, len, allocator));
             InputBytesImmediately();
         }
@@ -103,6 +109,9 @@ namespace vinkekfish.keccak.keccak_20200918
         /// <param name="data"></param>
         public void InputBytesWithoutClone(Record data)
         {
+            if (data.array == null)
+                throw new ArgumentNullException("Keccak_PRNG_20201128.InputBytes: data.array == null");
+
             INPUT.add(data);
             InputBytesImmediately();
         }
@@ -113,10 +122,13 @@ namespace vinkekfish.keccak.keccak_20200918
         public void InputKeyAndStep(byte * key, long key_length, byte * OIV, long OIV_length)
         {
             if (INPUT.countOfBlocks > 0)
-                throw new ArgumentException("key must be input before the generation or input an initialization vector (or see InputKeyAndStep code)", "key");
+                throw new ArgumentException("key must be input before the generation or input an initialization vector (or see InputKeyAndStep code)");
 
             if (OIV_length > InputSize)
                 throw new ArgumentException("Keccak_PRNG_20201128.InputKeyAndStep: OIV_length > InputSize", "OIV");
+
+            if (key == null || key_length <= 0)
+                throw new ArgumentNullException("Keccak_PRNG_20201128.InputKeyAndStep: key == null || key_length <= 0");
 
             INPUT.add(key, key_length);
             InputBytesImmediately();

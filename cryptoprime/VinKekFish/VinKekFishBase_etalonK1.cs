@@ -265,6 +265,7 @@ namespace cryptoprime.VinKekFish
             DoPermutation(state, state2, CryptoStateLen, transpose128_3200);
             DoThreefishForAllBlocks(state2, state, tweakTmp, tweakTmp2);
             DoPermutation(state, state2, CryptoStateLen, transpose128_3200);
+            BytesBuilder.CopyTo(CryptoStateLen, CryptoStateLen, state2, state);
 
 
             // Основной шаг алгоритма: раунды
