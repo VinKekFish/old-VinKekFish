@@ -66,6 +66,7 @@ namespace main_tests
                     h1 = k.getHash512(Sb, s.LongLength);
                     h2 = new SHA3(1024).getHash512(s);
                 }
+                k.Dispose();
 
                 if (!BytesBuilder.UnsecureCompare(s, ts.Value))
                 {

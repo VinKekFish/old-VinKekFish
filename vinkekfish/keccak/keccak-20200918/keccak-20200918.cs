@@ -1,11 +1,13 @@
-﻿using System;
+﻿using cryptoprime;
+
+using System;
 using System.Net.Http;
 using System.Security.Cryptography;
 using System.Threading;
 
 namespace vinkekfish
 {
-    public class Keccak_20200918: Keccak_base_20200918
+    public unsafe class Keccak_20200918: Keccak_base_20200918
     {
         // TODO: сделать тесты на Clone
         public override Keccak_abstract Clone()
@@ -16,8 +18,7 @@ namespace vinkekfish
             clearOnly_C_and_B();
 
             // Копировать всё состояние не обязательно. Но здесь, для надёжности, копируется всё
-            for (int i = 0; i < State.LongLength; i++)
-                    result.State[i] = State[i];
+            BytesBuilder.CopyTo(StateLen, StateLen, result.State, State);
 
             return result;
         }

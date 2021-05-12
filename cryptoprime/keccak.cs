@@ -10,6 +10,7 @@ using System.Threading.Tasks;
  * */
 namespace cryptoprime
 {
+    /// <summary>Статический класс, предоставляющий базовые функции и константы keccak. Пример использования см. в vinkekfish.Keccak_PRNG_20201128</summary>
     public static class keccak
     {
         public const int S_len  = 5;

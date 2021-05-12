@@ -22,109 +22,33 @@ namespace vinkekfish
     {
         public Keccak_abstract()
         {
+            StatePtr = Marshal.AllocHGlobal(StateLen);
+            State    = (byte *) StatePtr.ToPointer();
+            getStatesArray();
+
             init();
+        }
+
+        protected byte  * S, B, C;
+        protected ulong * Slong, Blong, Clong;
+        protected void getStatesArray()
+        {
+            B     = State;
+            C     = B + (S_len2 << 3);
+            S     = C + (S_len  << 3);
+
+            Slong = (ulong *) S;
+            Blong = (ulong *) B;
+            Clong = (ulong *) C;
         }
 
         // Это внутреннее состояние keccak, а также вспомогательные переменные, не являющиеся состоянием
         // Здесь сначала идёт B, потом C, потом S.
         // При перезаписи после конца с высокой вероятностью пострадает S, что даст возможность тестам сделать своё дело
         /// <summary>Внутреннее состояние keccak. Используйте KeccakStatesArray для того, чтобы разбить его на указатели. Не нужно конечному пользователю</summary>
-        public readonly byte[] State = new byte[(S_len2 + S_len + S_len2) << 3];
-
-        /// <summary>Фиксирует объект State и создаёт на него ссылки
-        /// using (var state = new KeccakStatesArray(State))
-        /// state.S и другие</summary>
-        public class KeccakStatesArray : IDisposable
-        {
-            // Желательно вызывать ClearAfterUser явно поименованно, чтобы показать, что очистка идёт
-            public KeccakStatesArray(byte[] State, bool ClearAfterUse = true)
-            {
-                this.ClearAfterUse = ClearAfterUse;
-                /*
-                handle = GCHandle.Alloc(State, GCHandleType.Pinned);
-                Interlocked.Increment(ref CountToCheck);
-
-                Base  = (byte *) handle.AddrOfPinnedObject().ToPointer();
-                B     = Base;
-                C     = B + (S_len2 << 3);
-                S     = C + (S_len  << 3);
-
-                Slong = (ulong *) S;
-                Blong = (ulong *) B;
-                Clong = (ulong *) C;*/
-                Size  = State.LongLength;
-                getStatesArray(out handle, State, out S, out B, out C, out Base, out Slong, out Blong, out Clong);
-            }
-
-            public static void getStatesArray(out GCHandle handle, byte[] State, out byte * S, out byte * B, out byte * C, out byte * Base, out ulong * Slong, out ulong * Blong, out ulong * Clong)
-            {
-                handle = GCHandle.Alloc(State, GCHandleType.Pinned);
-                Interlocked.Increment(ref CountToCheck);
-
-                Base  = (byte *) handle.AddrOfPinnedObject().ToPointer();
-                B     = Base;
-                C     = B + (S_len2 << 3);
-                S     = C + (S_len  << 3);
-
-                Slong = (ulong *) S;
-                Blong = (ulong *) B;
-                Clong = (ulong *) C;
-            }
-
-            public static void handleFree(GCHandle handle, byte * Base = null, long Size = 0)
-            {
-                if (Base != null)
-                    BytesBuilder.ToNull(targetLength: Size, t: Base);
-
-                handle.Free();
-                Interlocked.Decrement(ref CountToCheck);
-            }
-
-            public readonly GCHandle handle;
-            public readonly byte * S, B, C, Base;
-            public readonly ulong * Slong, Blong, Clong;
-            public readonly long Size;
-
-            public  readonly bool ClearAfterUse;
-            public           bool Disposed
-            {
-                get;
-                protected set;
-            }
-
-            protected static   int  CountToCheck = 0;
-            /// <summary>В конце программы, после GC.Collect() этот счётчик должен быть 0 (это счётчик того, что все объекты были удалены через Dispose)</summary>
-            public    static   int getCountToCheck => CountToCheck;
-
-            protected virtual void Dispose(bool disposing)
-            {
-                var errorFlag = false;
-                if (!disposing && !Disposed)
-                {
-                    errorFlag = true;
-                }
-
-                if (!Disposed)
-                {
-                    handleFree(handle, ClearAfterUse ? Base : null, Size);
-                    Disposed = true;
-                }
-
-                if (errorFlag)
-                    throw new Exception("Keccak_abstract.KeccakStatesArray: not all KeccakStatesArray is disoposed");
-            }
-
-            public void Dispose()
-            {
-                Dispose(true);
-                GC.SuppressFinalize(this);
-            }
-
-            ~KeccakStatesArray()
-            {
-                Dispose(false);
-            }
-        }
+        protected byte*  State    = null;
+        protected IntPtr StatePtr = default;
+        protected int    StateLen = (S_len2 + S_len + S_len2) << 3;
 
         public abstract Keccak_abstract Clone();
         /// <summary>Дополнительно очищает состояние объекта после вычислений.
@@ -138,7 +62,9 @@ namespace vinkekfish
         /// <summary>Очищает состояние объекта</summary>
         public virtual void ClearState()
         {
-            BytesBuilder.ToNull(State);
+            if (State != null)
+                BytesBuilder.ToNull(StateLen, State);
+
             ClearStateWithoutStateField();
         }
 
@@ -150,16 +76,14 @@ namespace vinkekfish
         /// <summary>Инициализирует состояние нулями</summary>
         public virtual void init()
         {
-            BytesBuilder.ToNull(State);
+            BytesBuilder.ToNull(StateLen, State);
         }
 
         /// <summary>Эту функцию можно вызывать после keccak, если нужно состояние S, но хочется очистить B и C</summary>
         public void clearOnly_C_and_B()
         {
-            using var state = new KeccakStatesArray(State);
-
-            Clear5x5(state.Blong);
-            Clear5  (state.Clong);
+            Clear5x5(Blong);
+            Clear5  (Clong);
         }
 
         /// <summary>Этот метод может использоваться для очистки матриц S и B после вычисления последнего шага хеша</summary>
@@ -184,11 +108,23 @@ namespace vinkekfish
         public virtual void Dispose(bool disposing)
         {
             Clear(false);
+
+            Marshal.FreeHGlobal(StatePtr);
+            State = null;
         }
 
         public void Dispose()
         {
             Dispose(true);
+        }
+
+        ~Keccak_abstract()
+        {
+            if (State != null)
+            {
+                Dispose(false);
+                throw new Exception("~Keccak_abstract: State != null");
+            }
         }
     }
 }

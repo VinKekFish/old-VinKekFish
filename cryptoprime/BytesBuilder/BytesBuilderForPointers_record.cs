@@ -103,7 +103,7 @@ namespace cryptoprime
                 };
             }
 
-            /// <summary>Очищает выделенную область памяти. Но не освобождает её. См. Dispose()</summary>
+            /// <summary>Очищает выделенную область памяти (пригодно для последующего использования). Для освобождения памяти используйте Dispose()</summary>
             public void Clear()
             {
                 if (array != null)

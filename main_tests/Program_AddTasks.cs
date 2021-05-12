@@ -69,13 +69,14 @@ namespace main_tests
             new ThreeFishTestByBits   (tasks);
             new ThreeFishGenTestByBits(tasks);
             */
-            new LightRandomGenerator_test01(tasks);
+            
+            // new LightRandomGenerator_test01(tasks);
 
             // --------------------------------------------------------------------------------
             // Завершающие тесты
             // --------------------------------------------------------------------------------
             // Это проверка на то, что все зафиксированные блоки в KeccakSimpleHashTest* были удалены
-            new KeccakStatesArray_CountToCheck_test(tasks);
+            // new KeccakStatesArray_CountToCheck_test(tasks);
 
             #endif
         }

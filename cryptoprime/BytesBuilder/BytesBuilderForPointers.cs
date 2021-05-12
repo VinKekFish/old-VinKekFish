@@ -33,7 +33,7 @@ namespace cryptoprime
 
         /// <summary>Добавляет блок в объект</summary><param name="bytesToAdded">Добавляемый блок данных</param>
         /// <param name="index">Куда добавляется блок. По-умолчанию, в конец (index = -1)</param>
-        /// <param name="MakeCopy">MakeCopy = true говорит о том, что данные блока будут скопированы (создан новый блок и он будет добавлен). По-умолчанию false - блок будет добавлен без копирования. Это значит, что при изменении исходного блока, изменится и выход, даваемый объектом. Если исходный блок будет обнулён, то будет обнулены и выходные байты из этого объекта, соответствующие этому блоку</param>
+        /// <param name="MakeCopy">MakeCopy = true говорит о том, что данные блока будут скопированы (создан новый блок и он будет добавлен). По-умолчанию false - блок будет добавлен без копирования. Это значит, что при изменении исходного блока, изменится и выход, даваемый объектом. Если исходный блок где-то из-вне будет обнулён, то будет обнулены и выходные байты из этого объекта, соответствующие этому блоку</param>
         // При добавлении блока важно проверить, верно выставлен параметр MakeCopy и если MakeCopy = false, то блок не должен изменяться
         public void add(byte * bytesToAdded, long len, int index = -1, bool MakeCopy = false, AllocatorForUnsafeMemoryInterface allocator = null)
         {
@@ -49,7 +49,7 @@ namespace cryptoprime
         }
 
         /// <summary>Добавляет массив в сохранённые значения без копирования. Массив будет автоматически очищен и освобождён после окончания использования</summary>
-        /// <param name="rec">Добавляемый массив</param>
+        /// <param name="rec">Добавляемый массив (не копируется, будет уничтожен автоматически при уничтожении BytesBuilder)</param>
         /// <param name="index">Индекс позиции, на которую добавляется массив</param>
         public void add(Record rec, int index = -1)
         {
@@ -63,7 +63,7 @@ namespace cryptoprime
 
         /// <summary>Обнуляет объект</summary>
         /// <param name="fast">fast = <see langword="false"/> - обнуляет все байты сохранённые в массиве</param>
-        public void clear(bool fast = false)
+        public void Clear(bool fast = false)
         {
             if (!fast)
             {
@@ -236,7 +236,7 @@ namespace cryptoprime
         {
             if (bytes.Count > 0)
             {
-                clear();
+                Clear();
                 throw new Exception("~BytesBuilderForPointers: bytes.Count > 0");
             }
         }

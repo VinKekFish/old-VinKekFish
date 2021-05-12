@@ -287,72 +287,72 @@ namespace vinkekfish
 
             var Msg = message;
 
-            using (var state = new KeccakStatesArray(State, ClearAfterUse: doClear))
-            fixed (byte * R = result)
+            try
             {
-                ulong * sl = state.Slong;
-                ulong * bl = state.Blong;
-                ulong * cl = state.Clong;
-
-                byte * s   = state.S;
-                byte * b   = state.B;
-                byte * c   = state.C;
-                byte * r   = R;
-                byte * msg = Msg + startIndex;
-
-                if (forResult != null)
+                fixed (byte * R = result)
                 {
-                    r += index;
-                }
+                    ulong * sl = Slong;
+                    ulong * bl = Blong;
+                    ulong * cl = Clong;
 
+                    byte * r   = R;
+                    byte * msg = Msg + startIndex;
 
-                long len = mLen;
-                while (len >= 0)    // len == 0, это если последний блок был 72 байта и теперь идут padding или хешируется пустой массив
-                {
-                    if (len >= r_512b)
+                    if (forResult != null)
                     {
-                        Keccak_Input_512(msg, r_512b, s, false);
-                        msg += r_512b;
-                        len -= r_512b;
-
-                        Keccackf(a: sl, c: cl, b: bl);
+                        r += index;
                     }
-                    else
+
+
+                    long len = mLen;
+                    while (len >= 0)    // len == 0, это если последний блок был 72 байта и теперь идут padding или хешируется пустой массив
                     {
-                        Keccak_Input_512(msg, (byte) len, s, true);
-                        msg += len;
-                        len = 0;
+                        if (len >= r_512b)
+                        {
+                            Keccak_Input_512(msg, r_512b, S, false);
+                            msg += r_512b;
+                            len -= r_512b;
 
-                        Keccackf(a: sl, c: cl, b: bl);
-                        break;
+                            Keccackf(a: sl, c: cl, b: bl);
+                        }
+                        else
+                        {
+                            Keccak_Input_512(msg, (byte) len, S, true);
+                            msg += len;
+                            len = 0;
+
+                            Keccackf(a: sl, c: cl, b: bl);
+                            break;
+                        }
+                    }
+
+                    switch (doubleHash)
+                    {
+                        case DoubleHash.one:
+                            Keccak_Output_512(r, 64, S);
+                            break;
+
+                        case DoubleHash.two:
+                            Keccak_Output_512(r, 64, S);
+                            r += 64;
+                            Keccackf(sl, cl, bl);
+                            Keccak_Output_512(r, 64, S);
+                            break;
+
+                        case DoubleHash.full72:
+                            Keccak_Output_512(r, 72, S);
+                            break;
+
+                        default:
+                            throw new ArgumentOutOfRangeException("unknown doubleHash value");
                     }
                 }
-
-                switch (doubleHash)
-                {
-                    case DoubleHash.one:
-                        Keccak_Output_512(r, 64, s);
-                        break;
-
-                    case DoubleHash.two:
-                        Keccak_Output_512(r, 64, s);
-                        r += 64;
-                        Keccackf(sl, cl, bl);
-                        Keccak_Output_512(r, 64, s);
-                        break;
-
-                    case DoubleHash.full72:
-                        Keccak_Output_512(r, 72, s);
-                        break;
-
-                    default:
-                        throw new ArgumentOutOfRangeException("unknown doubleHash value");
-                }
-
+            }
+            finally
+            {
                 if (doClear)
                 {
-                    // State очищается выше само
-                    ClearStateWithoutStateField();
+                    Clear();
                 }
             }
 
