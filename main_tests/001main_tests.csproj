@@ -92,6 +92,9 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="Задачи и другое\Задачи.txt" />
+    <Content Include="Задачи и другое\Криптография\Размышления\tables\transpose-128.txt" />
+    <Content Include="Задачи и другое\Криптография\Размышления\tables\transpose-200.txt" />
+    <Content Include="Задачи и другое\Криптография\Размышления\tables\transpose-200_8.txt" />
     <Content Include="Задачи и другое\Криптография\Размышления\Записки.txt" />
     <Content Include="Задачи и другое\Криптография\Размышления\Какие должны быть шифры.txt" />
     <Content Include="Задачи и другое\Криптография\Размышления\Каскадирование ключей.txt" />

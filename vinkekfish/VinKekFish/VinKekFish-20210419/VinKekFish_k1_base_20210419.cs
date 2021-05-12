@@ -25,7 +25,7 @@ namespace vinkekfish
         public          int    RTables => _RTables;
 
                                                                         /// <include file='Documentation/VinKekFish_k1_base_20210419.xml' path='docs/members[@name="VinKekFish_k1_base_20210419"]/_state/*' />
-        protected       Record _state = null, _state2 = null, t0 = null, t1 = null, t2 = null, _transpose200_3200 = null, _b = null, _c = null; /// <include file='Documentation/VinKekFish_k1_base_20210419.xml' path='docs/members[@name="VinKekFish_k1_base_20210419"]/stateHandle/*' />
+        protected       Record _state = null, _state2 = null, t0 = null, t1 = null, t2 = null, _transpose200_3200 = null, _transpose200_3200_8 = null, _b = null, _c = null; /// <include file='Documentation/VinKekFish_k1_base_20210419.xml' path='docs/members[@name="VinKekFish_k1_base_20210419"]/stateHandle/*' />
         protected       Record stateHandle   = null;                    /// <include file='Documentation/VinKekFish_k1_base_20210419.xml' path='docs/members[@name="VinKekFish_k1_base_20210419"]/pTablesHandle/*' />
         protected       Record pTablesHandle = null;
 
@@ -78,13 +78,6 @@ namespace vinkekfish
             _b      = t2      + cryptoprime.keccak.b_size;
             _c      = _b      + cryptoprime.keccak.c_size;
 
-            _transpose200_3200 = AllocHGlobal_allocator.AllocMemory(transpose200_3200.Length * sizeof(ushort));
-            fixed (ushort * t = transpose200_3200)
-            {
-                byte * tt = (byte *) t;
-                BytesBuilder.CopyTo(_transpose200_3200.len, _transpose200_3200.len, tt, _transpose200_3200);
-            }
-
             _RTables       = RoundsForTables;
             pTablesHandle = GenStandardPermutationTables(Rounds: _RTables, key: additionalKeyForTables, key_length: additionalKeyForTables_length, OpenInitVector: OpenInitVectorForTables, PreRoundsForTranspose: PreRoundsForTranspose);
 
@@ -118,7 +111,7 @@ namespace vinkekfish
                     state: _state, state2: _state2, b: _b, c: _c,
                     tweak: t0, tweakTmp: t1, tweakTmp2: t2,
                     Initiated: false, SecondKey: false,
-                    R: Rounds, RE: RoundsForEnd, RM: RoundsForExtendedKey, tablesForPermutations: pTablesHandle, transpose200_3200: _transpose200_3200
+                    R: Rounds, RE: RoundsForEnd, RM: RoundsForExtendedKey, tablesForPermutations: pTablesHandle, transpose200_3200: _transpose200_3200, transpose200_3200_8: _transpose200_3200_8
                 );
             }
 
@@ -134,8 +127,9 @@ namespace vinkekfish
             isInited1 = false;
             ClearState();
 
-            pTablesHandle?.Dispose();
-            _transpose200_3200?.Dispose();
+            pTablesHandle        ?.Dispose();
+            _transpose200_3200   ?.Dispose();
+            _transpose200_3200_8 ?.Dispose();
 
             stateHandle?.Dispose();
             stateHandle = null;
@@ -147,9 +141,10 @@ namespace vinkekfish
             _b          = null;
             _c          = null;
 
-            _RTables            = 0;
-            pTablesHandle      = null;
-            _transpose200_3200 = null;
+            _RTables             = 0;
+            pTablesHandle        = null;
+            _transpose200_3200   = null;
+            _transpose200_3200_8 = null;
 
             GC.Collect();
         }
@@ -205,20 +200,17 @@ namespace vinkekfish
                 table2[i] = (ushort) (table1.Length - i - 1);
             }
 
-            fixed (ushort * transpose200_3200_u = VinKekFishBase_etalonK1.transpose200_3200, transpose128_3200_u = VinKekFishBase_etalonK1.transpose128_3200)
             fixed (ushort * Table1 = table1, Table2 = table2)
             {
                 ushort * R = result;
                 ushort * r = R;
-                byte * transpose200_3200 = (byte *) transpose200_3200_u;
-                byte * transpose128_3200 = (byte *) transpose128_3200_u;
 
                 for (; PreRoundsForTranspose > 0 && Rounds > 0; Rounds--, PreRoundsForTranspose--)
                 {
-                    BytesBuilder.CopyTo(len2, len2, transpose200_3200, (byte *) r); r += len1;
-                    BytesBuilder.CopyTo(len2, len2, transpose128_3200, (byte *) r); r += len1;
-                    BytesBuilder.CopyTo(len2, len2, transpose200_3200, (byte *) r); r += len1;
-                    BytesBuilder.CopyTo(len2, len2, transpose128_3200, (byte *) r); r += len1;
+                    BytesBuilder.CopyTo(len2, len2, (byte *) transpose200_3200_8, (byte *) r); r += len1;
+                    BytesBuilder.CopyTo(len2, len2, (byte *) transpose128_3200  , (byte *) r); r += len1;
+                    BytesBuilder.CopyTo(len2, len2, (byte *) transpose200_3200  , (byte *) r); r += len1;
+                    BytesBuilder.CopyTo(len2, len2, (byte *) transpose128_3200  , (byte *) r); r += len1;
                 }
 
                 for (; Rounds > 0; Rounds--)
@@ -231,10 +223,10 @@ namespace vinkekfish
                     CheckPermutationTable(table2);
 #endif
 */
-                    BytesBuilder.CopyTo(len2, len2, (byte*)Table1, (byte*)r); r += len1;
-                    BytesBuilder.CopyTo(len2, len2, (byte*)Table2, (byte*)r); r += len1;
-                    BytesBuilder.CopyTo(len2, len2, transpose200_3200, (byte*)r); r += len1;
-                    BytesBuilder.CopyTo(len2, len2, transpose128_3200, (byte*)r); r += len1;
+                    BytesBuilder.CopyTo(len2, len2, (byte*)Table1,              (byte*)r); r += len1;
+                    BytesBuilder.CopyTo(len2, len2, (byte*)Table2,              (byte*)r); r += len1;
+                    BytesBuilder.CopyTo(len2, len2, (byte*)transpose200_3200  , (byte*)r); r += len1;
+                    BytesBuilder.CopyTo(len2, len2, (byte*)transpose128_3200  , (byte*)r); r += len1;
                 }
 
                 BytesBuilder.ToNull(table1.Length * sizeof(ushort), (byte *) Table1);
@@ -272,7 +264,7 @@ namespace vinkekfish
         {
             step
             (
-                countOfRounds: CountOfRounds, tablesForPermutations: pTablesHandle, transpose200_3200: _transpose200_3200,
+                countOfRounds: CountOfRounds, tablesForPermutations: pTablesHandle,
                 tweak: t0, tweakTmp: t1, tweakTmp2: t2, state: _state, state2: _state, b: _b, c: _c
             );
 

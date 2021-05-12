@@ -2,6 +2,7 @@
 using System.CodeDom;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
 using CodeGenerated.Cryptoprimes;
@@ -46,7 +47,7 @@ namespace cryptoprime.VinKekFish
         /// <param name="RM">Количество раундов для поглощения дополнительных участков ключа (можно сделать низким, например, REDUCED_ROUNDS)</param>
         /// <param name="tablesForPermutations">Таблицы перестановок для всех раундов</param>
         /// <param name="transpose200_3200">Таблица перестановок transpose200_3200, см. GenTables()</param>
-        public static void InputKey(byte * key, ulong key_length, byte * OIV, ulong OIV_length, byte * state, byte * state2, byte * b, byte *c, ulong * tweak, ulong * tweakTmp, ulong * tweakTmp2, bool Initiated, bool SecondKey, int R, int RE, int RM, ushort * tablesForPermutations, ushort * transpose200_3200)
+        public static void InputKey(byte * key, ulong key_length, byte * OIV, ulong OIV_length, byte * state, byte * state2, byte * b, byte *c, ulong * tweak, ulong * tweakTmp, ulong * tweakTmp2, bool Initiated, bool SecondKey, int R, int RE, int RM, ushort * tablesForPermutations, ushort * transpose200_3200, ushort * transpose200_3200_8)
         {
             if (SecondKey && OIV != null)
                 throw new ArgumentException("VinKekFishBase_etalonK1.InputKey: SecondKey && OIV != null");
@@ -127,7 +128,7 @@ namespace cryptoprime.VinKekFish
             // TODO: указатели на таблицы перестановок
             step
             (
-                countOfRounds: R, tablesForPermutations: tablesForPermutations, transpose200_3200: transpose200_3200,
+                countOfRounds: R, tablesForPermutations: tablesForPermutations,
                 tweak: tweak, tweakTmp: tweakTmp, tweakTmp2: tweakTmp2, state: state, state2: state, b: b, c: c
             );
 
@@ -148,7 +149,7 @@ namespace cryptoprime.VinKekFish
                     RM:         RM,
                     RE:         0,
 
-                    state: state, state2: state2, tweak: tweak, tweakTmp: tweakTmp, tweakTmp2: tweakTmp2, b: b, c: c, tablesForPermutations: tablesForPermutations, transpose200_3200: transpose200_3200
+                    state: state, state2: state2, tweak: tweak, tweakTmp: tweakTmp, tweakTmp2: tweakTmp2, b: b, c: c, tablesForPermutations: tablesForPermutations, transpose200_3200: transpose200_3200, transpose200_3200_8: transpose200_3200_8
                 );
             }
 
@@ -158,7 +159,7 @@ namespace cryptoprime.VinKekFish
                 InputData_Overwrite(data: null, state: state, dataLen: 0, tweak: tweak, regime: 255);
                 step
                 (
-                    countOfRounds: RE, tablesForPermutations: tablesForPermutations, transpose200_3200: transpose200_3200,
+                    countOfRounds: RE, tablesForPermutations: tablesForPermutations,
                     tweak: tweak, tweakTmp: tweakTmp, tweakTmp2: tweakTmp2, state: state, state2: state, b: b, c: c
                 );
             }
@@ -255,10 +256,15 @@ namespace cryptoprime.VinKekFish
         /// <param name="tablesForPermutations">Массив таблиц перестановок на каждый раунд. Длина должна быть countOfRounds*4 (*CryptoStateLen*ushort на каждую таблицу)</param>
         /// <param name="b">Вспомогательный массив b для keccak.Keccackf</param>
         /// <param name="c">Вспомогательный массив c для keccak.Keccackf</param>
-        public static void step(int countOfRounds, ulong * tweak, ulong * tweakTmp, ulong * tweakTmp2, byte * state, byte * state2, ushort * tablesForPermutations, byte* b, byte* c, ushort * transpose200_3200)
+        public static void step(int countOfRounds, ulong * tweak, ulong * tweakTmp, ulong * tweakTmp2, byte * state, byte * state2, ushort * tablesForPermutations, byte* b, byte* c)
         {
-            DoPermutation(state, state2, CryptoStateLen, transpose200_3200);
-            BytesBuilder.CopyTo(CryptoStateLen, CryptoStateLen, state2, state);
+            // transpose400_3200_16 - это инвертированная transpose200_3200_8
+            //DoPermutation(state, state2, CryptoStateLen, transpose400_3200_16);
+            DoPermutation(state, state2, CryptoStateLen, transpose128_3200);
+            // DoPermutation(state, state2, CryptoStateLen, transpose200_3200);
+            // BytesBuilder.CopyTo(CryptoStateLen, CryptoStateLen, state2, state);
+            DoThreefishForAllBlocks(state2, state, tweakTmp, tweakTmp2);
+            DoPermutation(state, state2, CryptoStateLen, transpose128_3200);
 
             tweakTmp[0] = tweak[0];
             tweakTmp[1] = tweak[1];
@@ -295,7 +301,7 @@ namespace cryptoprime.VinKekFish
                 DoKeccakForAllBlocks(state, CryptoStateLenKeccak, b: (ulong*) b, c: (ulong*) c);
                 DoPermutation(state, state2, CryptoStateLen, transpose200_3200);
                 DoKeccakForAllBlocks(state2, CryptoStateLenKeccak, b: (ulong*) b, c: (ulong*) c);
-                DoPermutation(state2, state, CryptoStateLen, transpose200_3200);
+                DoPermutation(state2, state, CryptoStateLen, transpose200_3200_8);
             }
         }
 
@@ -391,8 +397,10 @@ namespace cryptoprime.VinKekFish
              }
         }
 
-        public static ushort[] transpose128_3200 = null;
-        public static ushort[] transpose200_3200 = null;
+        public static ushort* transpose128_3200    = null;
+        public static ushort* transpose200_3200    = null;
+        public static ushort* transpose200_3200_8  = null;
+        public static ushort* transpose400_3200_16 = null;
 
         public static readonly object sync = new object();
 
@@ -404,8 +412,10 @@ namespace cryptoprime.VinKekFish
                 if (transpose128_3200 != null)
                     return;
 
-                transpose128_3200 = GenTransposeTable(3200, 128);
-                transpose200_3200 = GenTransposeTable(3200, 200);
+                transpose128_3200    = GenTransposeTable(3200, 128);
+                transpose200_3200    = GenTransposeTable(3200, 200);
+                transpose200_3200_8  = GenTransposeTable(3200, 200,  stepInEndOfBlocks: 8);
+                transpose400_3200_16 = GenTransposeTable(3200, 400,  stepInEndOfBlocks: 16);
             }
 
             if (transpose128_3200[1] != 128)
@@ -418,9 +428,11 @@ namespace cryptoprime.VinKekFish
                 throw new Exception("VinKekFish: fatal algotirhmic error: GenTables - transpose200_3200[8] != 1600");
             if (transpose200_3200[400] != 25)
                 throw new Exception("VinKekFish: fatal algotirhmic error: GenTables - transpose200_3200[400] != 25");
+            if (transpose200_3200_8[2800] != 07)
+                throw new Exception("VinKekFish: fatal algotirhmic error: GenTables - transpose200_3200_8[2800] != 07");
         }
 
-        public static ushort[] GenTransposeTable(ushort blockSize, ushort step, int numberOfRetries = 1)
+        public static ushort* GenTransposeTable(ushort blockSize, ushort step, int numberOfRetries = 1, ushort stepInEndOfBlocks = 1, ushort stepInEndOfStep = 1)
         {
             var newTable = new ushort[blockSize];
             var buffer   = new ushort[blockSize];
@@ -432,7 +444,7 @@ namespace cryptoprime.VinKekFish
 
             for (int z = 0; z < numberOfRetries; z++)
             {
-                ushort j = 0, k = 0;
+                int j = 0, k = 0;
                 for (ushort i = 0; i < blockSize; i++)
                 {
                     buffer[j++] = newTable[k];
@@ -441,7 +453,12 @@ namespace cryptoprime.VinKekFish
                     if (k >= blockSize)
                     {
                         k -= blockSize;
-                        k++;
+                        k += stepInEndOfBlocks;
+                        if (k >= step)
+                        {
+                            k -= step;
+                            k += stepInEndOfStep;
+                        }
                     }
                 }
 
@@ -484,7 +501,17 @@ namespace cryptoprime.VinKekFish
             buffer1 = null;
             buffer2 = null;
             */
-            return newTable;
+
+            long rLen   = newTable.Length * sizeof(ushort);
+            var result = (ushort *) Marshal.AllocHGlobal((int) rLen).ToPointer();
+
+            fixed (ushort * newTablePointer = newTable)
+            {
+                byte * b = (byte *) newTablePointer;
+                BytesBuilder.CopyTo(rLen, rLen, b, (byte *) result);
+            }
+
+            return result;
         }
     }
 }
