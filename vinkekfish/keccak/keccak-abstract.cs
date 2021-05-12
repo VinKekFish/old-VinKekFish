@@ -29,8 +29,8 @@ namespace vinkekfish
             init();
         }
 
-        protected byte  * S, B, C;
-        protected ulong * Slong, Blong, Clong;
+        public byte  * S, B, C;
+        public ulong * Slong, Blong, Clong;
         protected void getStatesArray()
         {
             B     = State;
