@@ -258,17 +258,16 @@ namespace cryptoprime.VinKekFish
         /// <param name="c">Вспомогательный массив c для keccak.Keccackf</param>
         public static void step(int countOfRounds, ulong * tweak, ulong * tweakTmp, ulong * tweakTmp2, byte * state, byte * state2, ushort * tablesForPermutations, byte* b, byte* c)
         {
-            // transpose400_3200_16 - это инвертированная transpose200_3200_8
-            //DoPermutation(state, state2, CryptoStateLen, transpose400_3200_16);
-            DoPermutation(state, state2, CryptoStateLen, transpose128_3200);
-            // DoPermutation(state, state2, CryptoStateLen, transpose200_3200);
-            // BytesBuilder.CopyTo(CryptoStateLen, CryptoStateLen, state2, state);
-            DoThreefishForAllBlocks(state2, state, tweakTmp, tweakTmp2);
-            DoPermutation(state, state2, CryptoStateLen, transpose128_3200);
-
             tweakTmp[0] = tweak[0];
             tweakTmp[1] = tweak[1];
 
+            // Распределение впитывания
+            DoPermutation(state, state2, CryptoStateLen, transpose128_3200);
+            DoThreefishForAllBlocks(state2, state, tweakTmp, tweakTmp2);
+            DoPermutation(state, state2, CryptoStateLen, transpose128_3200);
+
+
+            // Основной шаг алгоритма: раунды
             for (int round = 0; round < countOfRounds; round++)
             {
                 DoKeccakForAllBlocks(state, CryptoStateLenKeccak, b: (ulong*) b, c: (ulong*) c);
@@ -295,7 +294,7 @@ namespace cryptoprime.VinKekFish
                 tweakTmp[0] += 0x1_0000_0000U;
             }
 
-            // После последнего раунда производится рандомизация поблочной функцией keccak-f
+            // После последнего раунда производится заключительная рандомизация поблочной функцией keccak-f
             for (int i = 0; i < 2; i++)
             {
                 DoKeccakForAllBlocks(state, CryptoStateLenKeccak, b: (ulong*) b, c: (ulong*) c);
