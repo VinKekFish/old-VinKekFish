@@ -88,8 +88,8 @@ namespace vinkekfish
 
                     lock (this)
                     {
-                        var out0 = curCNT + curCNT_PM;
-                        var out8 = out0 >> 8;
+                        var out0 = curCNT;
+                        var out8 = (out0 >> 8) + curCNT_PM;
                         if (GeneratedCount < CountToGenerate)
                         {
                             // При изменении, ниже также изменять
