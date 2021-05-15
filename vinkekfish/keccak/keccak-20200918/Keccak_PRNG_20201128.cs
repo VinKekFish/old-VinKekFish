@@ -20,6 +20,7 @@ namespace vinkekfish.keccak.keccak_20200918
         /// <summary>Создаёт пустой объект</summary>
         /// <param name="allocator">Способ выделения памяти внутри объекта, кроме выделения памяти для вывода. Может быть null.</param>
         /// <exception cref="OutOfMemoryException"></exception>
+        /// <remarks>Рекомендуется вызвать init() после вызова конструктора.</remarks>
         public Keccak_PRNG_20201128(AllocatorForUnsafeMemoryInterface allocator = null)
         {
             if (allocator != null)

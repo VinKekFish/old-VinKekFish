@@ -15,15 +15,29 @@ namespace vinkekfish
     {
         public LightRandomGenerator_DiskSlow(int CountToGenerate): base(CountToGenerate)
         {
+            isEnded = 2;
+        }
+
+        protected override void StartThreads()
+        {
+            SetThreadsPriority(ThreadPriority.Lowest);
+
+            w1thread.Start();
+            // w2thread.Start();    Этого нет, т.к. мы получаем информацию уже немного другим способом
+            rthread.Start();
         }
 
         /// <summary>На сколько будет засыпать пишущий поток (который делает приращения к счётчику)</summary>
         public int RSleepTimeout = 57;
 
+        protected long lastLen = 0;
+
         protected SortedList<string, FileSystemWatcher> watchers = new SortedList<string, FileSystemWatcher>(16);
-        protected override void WriteThreadFunction(int CountToGenerate)
+        protected override void Write1ThreadFunction(int CountToGenerate)
         {
-            long lastLen = 0, curLen = 0, lastDrivesCount = 0, curDrivesCount = 0;
+            long curLen = 0, lastDrivesCount = 0, curDrivesCount = 0;
+            lastLen = 0;
+
             DriveInfo[] disks;
             lastDrivesCount = CreateFileSystemWatchers();
 
@@ -166,7 +180,7 @@ namespace vinkekfish
                     if (e.FullPath != lastChangedFileName)
                     {
                         lastChangedFileName = e.FullPath;
-                        Monitor.PulseAll(this);
+                        // Monitor.PulseAll(this);          // Т.к. всё равно берём curCNT, то здесь не нужно срабатывание потока: данные будут запомнены просто в curCNT при следующем срабатывании
                     }
                 }
             }
@@ -191,13 +205,12 @@ namespace vinkekfish
 
                     lock (this)
                     {
-                        // В массив длиной, не кратной 3, перезапись будет происходить со смещением
-                        // curCNT даже не записываем, т.к. он, скорее всего, приращается на единицу
-                        var bt  = new byte[3];
+                        var bt  = new byte[4];
                         var now = DateTime.Now.Ticks;
                         bt[0] = (byte) now; now >>= 8;
                         bt[1] = (byte) now; now >>= 8;
                         bt[2] = (byte) now;
+                        bt[3] = (byte) (lastLen + curCNT);
 
                         if (GeneratedCount < CountToGenerate)
                         {

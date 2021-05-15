@@ -25,8 +25,6 @@ namespace vinkekfish
             StatePtr = Marshal.AllocHGlobal(StateLen);
             State    = (byte *) StatePtr.ToPointer();
             getStatesArray();
-
-            init();
         }
 
         public byte  * S, B, C;

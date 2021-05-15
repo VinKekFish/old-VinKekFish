@@ -48,6 +48,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="LightRandomGenerator\LightRandomGenerator_forTests.cs" />
     <Compile Include="LightRandomGenerator\LightRandomGenerator_DiskSlow.cs" />
     <Compile Include="LightRandomGenerator\LightRandomGenerator.cs" />
     <Compile Include="VinKekFish\VinKekFish-20210419\VinKekFish_k1_base_20210419.cs" />

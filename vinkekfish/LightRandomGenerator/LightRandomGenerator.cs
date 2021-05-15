@@ -12,12 +12,13 @@ namespace vinkekfish
     /// <summary>Класс, генерирующий некриптостойкие значения на основе ожидания потоков.
     /// Обратите внимание, что на 1 байт сгенерированной информации рекомендуется принимать не более 1 бита случайной информации (а лучше - меньше)
     /// Пример использования см. в LightRandomGenerator_test01 и VinKekFish_k1_base_20210419_keyGeneration.EnterToBackgroundCycle</summary>
+    /// <remarks>При наследовании обратить внимание на параметр isEnded</remarks>
     public unsafe class LightRandomGenerator: IDisposable
     {
         /// <summary>Использование объекта закончено. Объект после этого непригоден к использованию, в том числе, и на чтение байтов</summary>
         public    volatile bool    ended  = false;
         protected readonly Thread rthread = null;
-        protected readonly Thread wthread = null;
+        protected readonly Thread w1thread = null, w2thread = null;
 
         /// <summary>Если <see langword="true"/>, то вызывает Thread.Sleep(doSleepR) на каждой итерации извлечения байта, в противном случае - только по необходимости. Рекомендуется true</summary>
         public    volatile bool   doSleepR = true;
@@ -26,20 +27,28 @@ namespace vinkekfish
         /// <summary>Если <see langword="true"/>, то читающий (выводящий байты в массив) потом будет ждать, когда данные сгенерируются в нужном количестве. Если <see langword="false"/>, то читающий поток будет записывать данные дальше</summary>
         public    volatile bool   doWaitR = true;
 
-        protected volatile ushort curCNT  = 0;
+        protected volatile ushort curCNT  = 0, curCNT_PM = 0;
         protected volatile ushort lastCNT = 0;
         public LightRandomGenerator(int CountToGenerate)
         {
             this.CountToGenerate = CountToGenerate;
 
-            var allocator  = new AllocHGlobal_AllocatorForUnsafeMemory();
+            var allocator = new AllocHGlobal_AllocatorForUnsafeMemory();
             GeneratedBytes = allocator.AllocMemory(CountToGenerate);
 
-            wthread = new Thread
+            w1thread = new Thread
             (
                 delegate ()
                 {
-                    WriteThreadFunction(CountToGenerate);
+                    Write1ThreadFunction(CountToGenerate);
+                }
+            );
+
+            w2thread = new Thread
+            (
+                delegate ()
+                {
+                    Write2ThreadFunction(CountToGenerate);
                 }
             );
 
@@ -51,9 +60,15 @@ namespace vinkekfish
                 }
             );
 
+            StartThreads();
+        }
+
+        protected virtual void StartThreads()
+        {
             SetThreadsPriority(ThreadPriority.Lowest);
 
-            wthread.Start();
+            w1thread.Start();
+            w2thread.Start();
             rthread.Start();
         }
 
@@ -73,7 +88,7 @@ namespace vinkekfish
 
                     lock (this)
                     {
-                        var out0 = curCNT;
+                        var out0 = curCNT + curCNT_PM;
                         var out8 = out0 >> 8;
                         if (GeneratedCount < CountToGenerate)
                         {
@@ -114,13 +129,42 @@ namespace vinkekfish
             }
         }
 
-        protected virtual void WriteThreadFunction(int CountToGenerate)
+        protected virtual void Write1ThreadFunction(int CountToGenerate)
         {
             try
             {
                 while (!ended)
                 {
                     curCNT++;
+                    curCNT_PM++;        // ВНИМАНИЕ! Здесь специально сделан небезопасный инкремент!
+
+                    // Временный останов
+                    if (doWaitW && GeneratedCount >= CountToGenerate)
+                    {
+                        lock (this)
+                        {
+                            Monitor.Wait(this);
+                        }
+                    }
+                }
+            }
+            finally
+            {
+                Interlocked.Decrement(ref isEnded);
+                lock (this)
+                {
+                    Monitor.PulseAll(this);
+                }
+            }
+        }
+
+        protected virtual void Write2ThreadFunction(int CountToGenerate)
+        {
+            try
+            {
+                while (!ended)
+                {
+                    curCNT_PM--;            // ВНИМАНИЕ! Здесь специально сделан небезопасный декремент!
 
                     // Временный останов
                     if (doWaitW && GeneratedCount >= CountToGenerate)
@@ -144,7 +188,7 @@ namespace vinkekfish
 
         public virtual void SetThreadsPriority(ThreadPriority priority)
         {
-            wthread.Priority = priority;
+            w1thread.Priority = priority;
             rthread.Priority = priority;
         }
 
@@ -153,7 +197,7 @@ namespace vinkekfish
         protected readonly   int    CountToGenerate  = 0;
         protected volatile   int    GeneratedCount   = 0;
         protected volatile   int    StartOfGenerated = 0;
-        protected volatile   int    isEnded          = 2;
+        protected volatile   int    isEnded          = 3;
 
         /// <summary>Сбрасывает все сгенерированные байты без полезного использования. Это стоит вызвать, если GeneratedBytes использованы напрямую</summary>
         public virtual void ResetGeneratedBytes()
