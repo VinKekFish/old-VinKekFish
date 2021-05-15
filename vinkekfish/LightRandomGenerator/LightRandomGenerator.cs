@@ -88,16 +88,19 @@ namespace vinkekfish
 
                     lock (this)
                     {
-                        var out0 = curCNT;
-                        var out8 = (out0 >> 8) + curCNT_PM;
+                        var bt  = new byte[2];
+                        var now = DateTime.Now.Ticks;
+                        bt[0] = (byte) curCNT;
+                        bt[1] = (byte) ((curCNT >> 8) + curCNT_PM);
+
                         if (GeneratedCount < CountToGenerate)
                         {
-                            // При изменении, ниже также изменять
-                            // На всякий случай делаем xor между младшим и старшим байтом, чтобы все биты были учтены
-                            // Не такая уж хорошая статистика получается по младшим байтам, как могло бы быть
-                            GeneratedBytes.array[(GeneratedCount + StartOfGenerated) % CountToGenerate] = (byte)(out0 ^ out8);
-                            // GeneratedBytes.array[(GeneratedCount + StartOfGenerated) % CountToGenerate] = (byte) curCNT;
-                            GeneratedCount++;
+                            for (int i = 0; i < bt.Length; i++)
+                            {
+                                // При изменении, ниже также изменять
+                                GeneratedBytes.array[(GeneratedCount + StartOfGenerated) % CountToGenerate] = bt[i];
+                                GeneratedCount++;
+                            }
                         }
                         else
                         {
@@ -109,11 +112,14 @@ namespace vinkekfish
                             }
                             else
                             {
-                                StartOfGenerated++;
-                                if (StartOfGenerated >= CountToGenerate)
-                                    StartOfGenerated = 0;
+                                for (int i = 0; i < bt.Length; i++)
+                                {
+                                    StartOfGenerated++;
+                                    if (StartOfGenerated >= CountToGenerate)
+                                        StartOfGenerated = 0;
 
-                                GeneratedBytes.array[(GeneratedCount + StartOfGenerated) % CountToGenerate] += (byte)(out0 ^ out8);
+                                    GeneratedBytes.array[(GeneratedCount + StartOfGenerated) % CountToGenerate] += bt[i];
+                                }
                             }
                         }
                     }
