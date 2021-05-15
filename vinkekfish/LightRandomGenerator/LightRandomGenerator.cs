@@ -16,8 +16,8 @@ namespace vinkekfish
     public unsafe class LightRandomGenerator: IDisposable
     {
         /// <summary>Использование объекта закончено. Объект после этого непригоден к использованию, в том числе, и на чтение байтов</summary>
-        public    volatile bool    ended  = false;
-        protected readonly Thread rthread = null;
+        public    volatile bool    ended   = false;
+        protected readonly Thread rthread  = null;
         protected readonly Thread w1thread = null, w2thread = null;
 
         /// <summary>Если <see langword="true"/>, то вызывает Thread.Sleep(doSleepR) на каждой итерации извлечения байта, в противном случае - только по необходимости. Рекомендуется true</summary>
@@ -67,9 +67,9 @@ namespace vinkekfish
         {
             SetThreadsPriority(ThreadPriority.Lowest);
 
-            w1thread.Start();
-            w2thread.Start();
-            rthread.Start();
+            w1thread?.Start();
+            w2thread?.Start();
+            rthread ?.Start();
         }
 
         public virtual void ReadThreadFunction(int CountToGenerate)
@@ -88,16 +88,19 @@ namespace vinkekfish
 
                     lock (this)
                     {
-                        var out0 = curCNT;
-                        var out8 = (out0 >> 8) + curCNT_PM;
+                        var bt  = new byte[2];
+                        var now = DateTime.Now.Ticks;
+                        bt[0] = (byte) curCNT;
+                        bt[1] = (byte) ((curCNT >> 8) + curCNT_PM);
+
                         if (GeneratedCount < CountToGenerate)
                         {
-                            // При изменении, ниже также изменять
-                            // На всякий случай делаем xor между младшим и старшим байтом, чтобы все биты были учтены
-                            // Не такая уж хорошая статистика получается по младшим байтам, как могло бы быть
-                            GeneratedBytes.array[(GeneratedCount + StartOfGenerated) % CountToGenerate] = (byte)(out0 ^ out8);
-                            // GeneratedBytes.array[(GeneratedCount + StartOfGenerated) % CountToGenerate] = (byte) curCNT;
-                            GeneratedCount++;
+                            for (int i = 0; i < bt.Length; i++)
+                            {
+                                // При изменении, ниже также изменять
+                                GeneratedBytes.array[(GeneratedCount + StartOfGenerated) % CountToGenerate] = bt[i];
+                                GeneratedCount++;
+                            }
                         }
                         else
                         {
@@ -109,11 +112,14 @@ namespace vinkekfish
                             }
                             else
                             {
-                                StartOfGenerated++;
-                                if (StartOfGenerated >= CountToGenerate)
-                                    StartOfGenerated = 0;
+                                for (int i = 0; i < bt.Length; i++)
+                                {
+                                    StartOfGenerated++;
+                                    if (StartOfGenerated >= CountToGenerate)
+                                        StartOfGenerated = 0;
 
-                                GeneratedBytes.array[(GeneratedCount + StartOfGenerated) % CountToGenerate] += (byte)(out0 ^ out8);
+                                    GeneratedBytes.array[(GeneratedCount + StartOfGenerated) % CountToGenerate] += bt[i];
+                                }
                             }
                         }
                     }
@@ -188,8 +194,14 @@ namespace vinkekfish
 
         public virtual void SetThreadsPriority(ThreadPriority priority)
         {
+            if (w1thread != null)
             w1thread.Priority = priority;
-            rthread.Priority = priority;
+
+            if (w2thread != null)
+            w2thread.Priority = priority;
+
+            if (rthread != null)
+            rthread .Priority = priority;
         }
 
         /// <summary>Брать байты можно и прямо из массива после WaitForGenerator. После взятия вызвать ResetGeneratedBytes. Брать с lock(this)</summary>
