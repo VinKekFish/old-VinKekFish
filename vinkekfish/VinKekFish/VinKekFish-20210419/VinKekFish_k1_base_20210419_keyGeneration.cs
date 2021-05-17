@@ -167,28 +167,20 @@ namespace vinkekfish
         /// До вызова ExitFromBackgroundCycle пользователь не должен использовать других методов.
         /// Если есть желание использовать другие методы, то их нужно оборачивать lock (this).
         /// </summary>
-        /// <param name="BackgroundSleepTimeout">Thread.Sleep(BackgroundSleepTimeout). Устанавливает значение, на которое поток спит после генерации BackgroundSleepCount блоков keccak (по 64 байта).
+        /// <param name="BackgroundSleepTimeout">Thread.Sleep(BackgroundSleepTimeout). Устанавливает значение, на которое поток спит после генерации BackgroundSleepCount блоков.
         /// BackgroundSleepCount = 0 - самое быстрое, загрузка почти всего процессорного ядра, если оно не занято чем-то ещё.
         /// BackgroundSleepCount = 72 - это загрузка на уровне не выше пары процентов от одного ядра.
-        /// Происходит генерация где-то одного блока VinKekFish (BLOCK_SIZE байтов) за секунду или менее (то BackgourndGenerated приращается на единицу за секунду или быстрее) - то есть 1 бит рандомизации в секунду</param>
+        /// При BackgroundSleepCount = 0 происходит генерация где-то > 256 блоков VinKekFish (BLOCK_SIZE байтов) за секунду на ядре 2,8 ГГц (то BackgourndGenerated приращается на единицу за секунду или быстрее)</param>
         /// <param name="BackgroundSleepCount">После таймаута идёт генерация блоков для keccak. На один таймаут приходится BackgroundSleepCount блоков.</param>
-        /// <param name="generator">Генератор нестойких псевдослучайных чисел, должен генерировать по 64 байта в блок. В ExitFromBackgroundCycle автоматически удаляется</param>
+        /// <param name="generator">Генератор нестойких псевдослучайных чисел, должен генерировать по BLOCK_SIZE (512) байта в блок. В ExitFromBackgroundCycle автоматически удаляется</param>
         /// <param name="doWaitR">Параметр инициализирует одноимённое поле generator.doWaitR, но только если generator = null</param>
         /// <param name="doWaitW">Параметр инициализирует одноимённое поле generator.doWaitW, но только если generator = null</param>
         public void EnterToBackgroundCycle(ushort BackgroundSleepTimeout = 72, ushort BackgroundSleepCount = 8, bool doWaitR = true, bool doWaitW = true, LightRandomGenerator generator = null)
         {
             if (backgroundThread != null || LightGenerator != null)
                 throw new Exception("VinKekFish_k1_base_20210419_keyGeneration.EnterToBackgroundCycle: backgroundThread != null. Call ExitFromBackgroundCycle");
-
-            if (!isInited1)
-            {
-                Init1(NORMAL_ROUNDS, null, 0);
-            }
-
-            if (!isInited2)
-            {
-                Init2(null, 0, null, IsEmptyKey: true);
-            }
+            
+            SimpleInit();
 
             if (generator == null)
             {
@@ -198,19 +190,19 @@ namespace vinkekfish
             }
 
             this.BackgroundSleepTimeout = BackgroundSleepTimeout;
-            this.BackgroundSleepCount   = BackgroundSleepCount;
-            keccak_prng                 = new Keccak_PRNG_20201128(outputSize: BLOCK_SIZE * 2);
-            BackgourndGenerated         = 0;
+            this.BackgroundSleepCount = BackgroundSleepCount;
+            keccak_prng = new Keccak_PRNG_20201128(outputSize: BLOCK_SIZE * 2);
+            BackgourndGenerated = 0;
 
-            LightGenerator   = generator;
+            LightGenerator = generator;
             backgroundThread = new Thread
             (
-                delegate()
+                delegate ()
                 {
                     // using Record data = AllocHGlobal_allocator.AllocMemory(BLOCK_SIZE);
 
                     // int keccakCnt = 0;
-                    int    cnt       = 0;
+                    int cnt = 0;
                     do
                     {
                         Thread.Sleep(BackgroundSleepTimeout);
@@ -265,6 +257,20 @@ namespace vinkekfish
 
             backgroundThread.Priority = ThreadPriority.Lowest;
             backgroundThread.Start();
+        }
+
+        /// <summary>Простая инициализация без ключей и открытых векторов инициализации (если инициализация будет от внешней энтропии)</summary>
+        public void SimpleInit()
+        {
+            if (!isInited1)
+            {
+                Init1(NORMAL_ROUNDS, null, 0);
+            }
+
+            if (!isInited2)
+            {
+                Init2(null, 0, null, IsEmptyKey: true);
+            }
         }
 
         public void ExitFromBackgroundCycle()
