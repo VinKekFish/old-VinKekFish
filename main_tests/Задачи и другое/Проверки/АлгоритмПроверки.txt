@@ -58,3 +58,5 @@
 
 
 при многопоточности нужно, чтобы если при lock (this) Monitor.Wait  есть проверка, то она была бы перед входом в Wait, внутри this. Иначе один поток может изменить проверяемое условие в момент ожидания lock(this), вызвать pulseAll, который не поймает Monitor.Wait, и вход в Monitor.Wait будет навсегда
+(эта ошибка была в LightRandomGenerator)
+if (GeneratedCount >= CountToGenerate) Monitor.Wait(this);

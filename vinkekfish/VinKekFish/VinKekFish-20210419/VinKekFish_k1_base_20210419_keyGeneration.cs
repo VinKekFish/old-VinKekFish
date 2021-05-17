@@ -150,17 +150,17 @@ namespace vinkekfish
 
         /// <summary>См. описание параметра EnterToBackgroundCycle</summary>
         public ushort BackgroundSleepTimeout = 0;       /// <summary>См. описание параметра EnterToBackgroundCycle</summary>
-        public ushort BackgroundSleepCount   = 0;       /// <summary>См. описание поля BackgourndGenerated</summary>
-        public ushort BackgroundKeccakCount  = 8;
+        public ushort BackgroundSleepCount   = 0;
+        // /// <summary>См. описание поля BackgourndGenerated</summary>
+        // public ushort BackgroundKeccakCount  = 8;
 
         /// <summary>Количество сгенерированных блоков энтропии.
         /// Считается, что на один байт приходится 1 бит энтропии, то есть на BLOCK_SIZE=512 приходится 512 битов
         /// (рекомендуется ещё уменьшать в пару раз хотя бы).
-        /// Лучше всего, если считать, что на один блок приходится 1/8 бита энтропии, то есть при BackgroundKeccakCount = 8 переменная BackgourndGenerated - это количество сгенерированных битов энтропии.
+        /// Если считать, что на один блок 4096 байтов приходится 1 бит энтропии, то BackgourndGenerated - это количество сгенерированных битов энтропии.
         /// В любом случае, это не надёжный источник рандомизации, вместе с ним необходимо использовать и другие источники, если возможно.
         /// При таком подходе, условно, примерно за 100 секунд на одном ядре с максимальной загрузкой генерируется ключ на 4096 битов длиной, так что производительность всё равно хорошая
-        /// BackgroundKeccakCount устанавливает сколько раз срабатывает keccak, прежде чем данные попадут в VinKekFish. BackgroundKeccakCount = 8 уменьшает количество данных в VinKekFish в 8 раз.
-        /// Запись в данную переменную производить с помощью lock (this) - допускается обнуление данной переменной</summary>
+        /// Запись в данную переменную производить с помощью lock (this) - допускается только обнуление данной переменной</summary>
         public long  BackgourndGenerated = 0;
 
         /// <summary>Войти в цикл дополнительной инициализации псевдослучайными значениями.
@@ -171,7 +171,7 @@ namespace vinkekfish
         /// BackgroundSleepCount = 0 - самое быстрое, загрузка почти всего процессорного ядра, если оно не занято чем-то ещё.
         /// BackgroundSleepCount = 72 - это загрузка на уровне не выше пары процентов от одного ядра.
         /// Происходит генерация где-то одного блока VinKekFish (BLOCK_SIZE байтов) за секунду или менее (то BackgourndGenerated приращается на единицу за секунду или быстрее) - то есть 1 бит рандомизации в секунду</param>
-        /// <param name="BackgroundSleepCount">После таймаута идёт генерация блоков для keccak. На один таймаут приходится BackgroundSleepCount блоков. См. также BackgroundKeccakCount</param>
+        /// <param name="BackgroundSleepCount">После таймаута идёт генерация блоков для keccak. На один таймаут приходится BackgroundSleepCount блоков.</param>
         /// <param name="generator">Генератор нестойких псевдослучайных чисел, должен генерировать по 64 байта в блок. В ExitFromBackgroundCycle автоматически удаляется</param>
         /// <param name="doWaitR">Параметр инициализирует одноимённое поле generator.doWaitR, но только если generator = null</param>
         /// <param name="doWaitW">Параметр инициализирует одноимённое поле generator.doWaitW, но только если generator = null</param>
@@ -192,7 +192,7 @@ namespace vinkekfish
 
             if (generator == null)
             {
-                generator = new LightRandomGenerator(Keccak_PRNG_20201128.InputSize);
+                generator = new LightRandomGenerator(/*Keccak_PRNG_20201128.InputSize*/ BLOCK_SIZE);
                 generator.doWaitR = doWaitR;
                 generator.doWaitW = doWaitW;
             }
@@ -207,9 +207,9 @@ namespace vinkekfish
             (
                 delegate()
                 {
-                    using Record data = AllocHGlobal_allocator.AllocMemory(BLOCK_SIZE);
+                    // using Record data = AllocHGlobal_allocator.AllocMemory(BLOCK_SIZE);
 
-                    int    keccakCnt = 0;
+                    // int keccakCnt = 0;
                     int    cnt       = 0;
                     do
                     {
@@ -225,30 +225,30 @@ namespace vinkekfish
                                 if (LightGenerator == null)
                                     break;
 
-                                LightGenerator.WaitForGenerator(Keccak_PRNG_20201128.InputSize);
+                                LightGenerator.WaitForGenerator();
                                 if (LightGenerator.ended)
                                     break;
 
                                 lock (this)
                                 {
                                     // Каждые BackgroundKeccakCount мы сохраняем результат. Остальные разы просто вводим данные без сохранения
-                                    keccakCnt++;
+                                    /*keccakCnt++;
                                     keccak_prng.InputBytes(LightGenerator.GeneratedBytes, LightGenerator.GeneratedBytes.len);
                                     keccak_prng.calcStep(SaveBytes: keccakCnt >= BackgroundKeccakCount, inputReadyCheck: true);
 
                                     if (keccakCnt >= BackgroundKeccakCount)
                                         keccakCnt = 0;
-
                                     if (keccak_prng.outputCount >= BLOCK_SIZE)
                                     {
                                         keccak_prng.output.getBytesAndRemoveIt(data);
-                                        // TODO: !!!
-                                        //InputRandom(data, data.len, MIN_ROUNDS);
+                                        InputRandom(data, data.len, MIN_ROUNDS);
                                         data.Clear();
+                                        */
 
-                                        Interlocked.Increment(ref BackgourndGenerated);
-                                        Monitor.PulseAll(backgroundSync);
-                                    }
+                                    InputRandom(LightGenerator.GeneratedBytes, LightGenerator.GeneratedBytes.len, MIN_ROUNDS);
+
+                                    Interlocked.Increment(ref BackgourndGenerated);
+                                    Monitor.PulseAll(backgroundSync);
                                 }
 
                                 LightGenerator.ResetGeneratedBytes();
