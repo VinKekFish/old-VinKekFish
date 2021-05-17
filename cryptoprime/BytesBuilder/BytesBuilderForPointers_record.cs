@@ -40,7 +40,7 @@ namespace cryptoprime
             {
                 var sb = new StringBuilder();
 
-                sb.AppendLine($"length = {len}");
+                sb.AppendLine($"length = {len}; ");
                 if (array != null)
                 {
                     for (int i = 0; i < len; i++)

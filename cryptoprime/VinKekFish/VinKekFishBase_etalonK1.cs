@@ -166,7 +166,7 @@ namespace cryptoprime.VinKekFish
         }
 
         /// <summary>Сырой ввод данных. Вводит данные в состояние путём перезатирания (режим OVERWRITE), изменяет tweak. Не вызывает криптографические функции</summary>
-        /// <param name="data">Указатель на вводимые данные</param>
+        /// <param name="data">Указатель на вводимые данные, может быть null, если dataLen == 0</param>
         /// <param name="state">Указатель на криптографическое состояние</param>
         /// <param name="dataLen">Длина вводимых данных, не более BLOCK_SIZE</param>
         /// <param name="tweak">Указатель на tweak (для соответствующего изменения tweak)</param>

@@ -88,12 +88,13 @@ namespace vinkekfish
         }
 
         /// <summary>Вторая инициализация: ввод ключа и ОВИ, обнуление состояния и т.п.</summary>
-        /// <param name="key">Основной ключ</param>
+        /// <param name="key">Основной ключ. Если null, то должен быть установлен флаг IsEmptyKey</param>
         /// <param name="OpenInitVector">Основной вектор инициализации, может быть null</param>
         /// <param name="Rounds">Количество раундов при шифровании первого блока ключа (рекомендуется 16-64)</param>
         /// <param name="RoundsForEnd">Количество раундов при широфвании последующих блоков ключа (допустимо 4)</param>
         /// <param name="RoundsForExtendedKey">Количество раундов отбоя ключа (рекомендуется NORMAL_ROUNDS = 64)</param>
-        public virtual void Init2(byte * key, ulong key_length, byte[] OpenInitVector, int Rounds = NORMAL_ROUNDS, int RoundsForEnd = NORMAL_ROUNDS, int RoundsForExtendedKey = REDUCED_ROUNDS)
+        /// <param name="IsEmptyKey">Если key == null, то флаг должен быть установлен. Криптографического преобразования выполняться не будет</param>
+        public virtual void Init2(byte * key, ulong key_length, byte[] OpenInitVector, int Rounds = NORMAL_ROUNDS, int RoundsForEnd = NORMAL_ROUNDS, int RoundsForExtendedKey = REDUCED_ROUNDS, bool IsEmptyKey = false)
         {
             if (!isInited1)
                 throw new ArgumentOutOfRangeException("VinKekFish_k1_base_20210419: Init1 must be executed before Init2");
@@ -103,16 +104,19 @@ namespace vinkekfish
             if (pTablesHandle == null)
                 throw new ArgumentOutOfRangeException("VinKekFish_k1_base_20210419: Init1 must be executed before Init2 (pTables == null)");
 
-            fixed (byte * oiv = OpenInitVector)
+            if (!IsEmptyKey || key != null)
             {
-                InputKey
-                (
-                    key: key, key_length: key_length, OIV: oiv, OpenInitVector == null ? 0 : (ulong) OpenInitVector.LongLength,
-                    state: _state, state2: _state2, b: _b, c: _c,
-                    tweak: t0, tweakTmp: t1, tweakTmp2: t2,
-                    Initiated: false, SecondKey: false,
-                    R: Rounds, RE: RoundsForEnd, RM: RoundsForExtendedKey, tablesForPermutations: pTablesHandle, transpose200_3200: _transpose200_3200, transpose200_3200_8: _transpose200_3200_8
-                );
+                fixed (byte * oiv = OpenInitVector)
+                {
+                    InputKey
+                    (
+                        key: key, key_length: key_length, OIV: oiv, OpenInitVector == null ? 0 : (ulong) OpenInitVector.LongLength,
+                        state: _state, state2: _state2, b: _b, c: _c,
+                        tweak: t0, tweakTmp: t1, tweakTmp2: t2,
+                        Initiated: false, SecondKey: false,
+                        R: Rounds, RE: RoundsForEnd, RM: RoundsForExtendedKey, tablesForPermutations: pTablesHandle, transpose200_3200: _transpose200_3200, transpose200_3200_8: _transpose200_3200_8
+                    );
+                }
             }
 
             GC.Collect();
@@ -262,6 +266,9 @@ namespace vinkekfish
         /// <param name="CountOfRounds">Количество раундов</param>
         protected void DoStep(int CountOfRounds)
         {
+            if (!isInited1 || !isInited2)
+                throw new Exception("VinKekFish_k1_base_20210419.DoStep: !isInited1 || !isInited2");
+
             step
             (
                 countOfRounds: CountOfRounds, tablesForPermutations: pTablesHandle,

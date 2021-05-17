@@ -24,7 +24,7 @@ namespace vinkekfish
         public    volatile bool   doSleepR = true;
         /// <summary>Если <see langword="true"/>, то останавливает пишущий (суммирующий) поток, когда данные сгенерированны в нужном количестве (иначе поток так и будет крутиться)</summary>
         public    volatile bool   doWaitW = true;
-        /// <summary>Если <see langword="true"/>, то читающий (выводящий байты в массив) потом будет ждать, когда данные сгенерируются в нужном количестве. Если <see langword="false"/>, то читающий поток будет записывать данные дальше</summary>
+        /// <summary>Если <see langword="true"/>, то читающий (выводящий байты в массив) поток будет ждать, когда данные сгенерируются в нужном количестве. Если <see langword="false"/>, то читающий поток будет записывать данные дальше</summary>
         public    volatile bool   doWaitR = true;
 
         protected volatile ushort curCNT  = 0, curCNT_PM = 0;
@@ -72,6 +72,8 @@ namespace vinkekfish
             rthread ?.Start();
         }
 
+        /// <summary>Переменная устанавливается, когда поток сгенерировал все байты и установил приоритет потоков в низший</summary>
+        public volatile bool WaitState = false;
         public virtual void ReadThreadFunction(int CountToGenerate)
         {
             try
@@ -95,6 +97,7 @@ namespace vinkekfish
 
                         if (GeneratedCount < CountToGenerate)
                         {
+                            WaitState = false;
                             for (int i = 0; i < bt.Length; i++)
                             {
                                 // При изменении, ниже также изменять
@@ -104,7 +107,13 @@ namespace vinkekfish
                         }
                         else
                         {
-                            SetThreadsPriority(ThreadPriority.Lowest);
+                            if (!WaitState)
+                            {
+                                SetThreadsPriority(ThreadPriority.Lowest);
+                                Monitor.PulseAll(this);
+                                WaitState = true;
+                            }
+
                             if (doWaitR || doWaitW)
                             {
                                 Monitor.PulseAll(this);
@@ -149,7 +158,10 @@ namespace vinkekfish
                     {
                         lock (this)
                         {
-                            Monitor.Wait(this);
+                            // Иначе вход в ожидание может быть уже после того, как поток снова начинает что-либо генерировать
+                            // Т.к. w1 и w2 блокируют друг друга и один ждёт другого
+                            if (GeneratedCount >= CountToGenerate)
+                                Monitor.Wait(this);
                         }
                     }
                 }
@@ -177,7 +189,8 @@ namespace vinkekfish
                     {
                         lock (this)
                         {
-                            Monitor.Wait(this);
+                            if (GeneratedCount >= CountToGenerate)
+                                Monitor.Wait(this);
                         }
                     }
                 }
@@ -254,6 +267,7 @@ namespace vinkekfish
 
         public virtual void WaitForGenerator(long mustGenerated = 0)
         {
+            WaitState = false;
             if (mustGenerated <= 0)
                 mustGenerated = CountToGenerate;
 

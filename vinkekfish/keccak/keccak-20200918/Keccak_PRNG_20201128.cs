@@ -11,6 +11,7 @@ namespace vinkekfish.keccak.keccak_20200918
     // Там же см. рекомендуемый порядок использования функций ("Рекомендуемый порядок вызовов
     // Пример использования в \VinKekFish\vinkekfish\VinKekFish\VinKekFish-20210419\VinKekFish_k1_base_20210419.cs
     // в функции GenStandardPermutationTables (вызовы doRandomPermutationForUShorts)
+    /// <summary>Криптостойкий ГПСЧ</summary>
     public unsafe class Keccak_PRNG_20201128 : Keccak_base_20200918
     {
         public readonly AllocatorForUnsafeMemoryInterface allocator             = new BytesBuilderForPointers.AllocHGlobal_AllocatorForUnsafeMemory();
@@ -21,12 +22,14 @@ namespace vinkekfish.keccak.keccak_20200918
         /// <param name="allocator">Способ выделения памяти внутри объекта, кроме выделения памяти для вывода. Может быть null.</param>
         /// <exception cref="OutOfMemoryException"></exception>
         /// <remarks>Рекомендуется вызвать init() после вызова конструктора.</remarks>
-        public Keccak_PRNG_20201128(AllocatorForUnsafeMemoryInterface allocator = null)
+        public Keccak_PRNG_20201128(AllocatorForUnsafeMemoryInterface allocator = null, int outputSize = 4096)
         {
             if (allocator != null)
                 this.allocator = allocator;
 
-            inputTo = AllocMemory(InputSize);
+            inputTo      = AllocMemory(InputSize);
+            outputBuffer = AllocMemory(InputSize);
+            output       = new BytesBuilderStatic(outputSize);
         }
 
         public override void init()
@@ -65,6 +68,7 @@ namespace vinkekfish.keccak.keccak_20200918
 
         /// <summary>Сюда можно добавлять байты для ввода</summary>
         protected          BytesBuilderForPointers INPUT = new BytesBuilderForPointers(); // Не забыт ли вызов InputBytesImmediately при добавлении сюда?
+        /// <summary>Размер блока вводимой (и выводимой) информации</summary>
         public    const    int InputSize = 64;
 
         /// <summary>Это массив для немедленного введения в Sponge на следующем шаге</summary>
@@ -74,8 +78,10 @@ namespace vinkekfish.keccak.keccak_20200918
         /// <summary>Если <see langword="true"/>, то в массиве inputTo ожидают данные. Можно вызывать calStep</summary>
         public             bool   isInputReady => inputReady;
 
-
-        public readonly BytesBuilderForPointers output = new BytesBuilderForPointers();
+        /// <summary>Массив, представляющий результаты вывода</summary>
+        public    readonly BytesBuilderStatic output       = null;
+        /// <summary>Буффер используется для вывода данных и в других целях. Осторожно, его могут использовать совершенно разные функции</summary>
+        protected          Record             outputBuffer = null;
 
         /// <summary>Количество элементов, которые доступны для вывода без применения криптографических операций</summary>
         public long outputCount => output.Count;
@@ -116,7 +122,9 @@ namespace vinkekfish.keccak.keccak_20200918
 
         /// <summary>Ввести секретный ключ и ОВИ (вместе с криптографическим преобразованием)</summary>
         /// <param name="key">Ключ. Должен быть очищен вручную (можно сразу после вызова функции)</param>
+        /// <param name="key_length">Длина ключа</param>
         /// <param name="OIV">Открытый вектор инициализации, не более InputSize (не более 64 байтов). Может быть null. Должен быть очищен вручную (можно сразу после вызова функции)</param>
+        /// <param name="OIV_length">Длина ОВИ</param>
         public void InputKeyAndStep(byte * key, long key_length, byte * OIV, long OIV_length)
         {
             if (INPUT.countOfBlocks > 0)
@@ -165,24 +173,38 @@ namespace vinkekfish.keccak.keccak_20200918
             }
         }
 
+        /// <summary>Очистка объекта (перезабивает данные нулями)</summary>
+        /// <param name="GcCollect"></param>
         public override void Clear(bool GcCollect = false)
         {
-            inputTo?.Clear();
-            INPUT  ?.Clear();
-            output ?.Clear();
+            inputTo     ?.Clear();
+            INPUT       ?.Clear();
+            output      ?.Clear();
+            outputBuffer?.Clear();
 
             inputReady = false;
 
             base.Clear(GcCollect);
         }
 
+        /// <summary>Уничтожение объекта: очищает объект и освобождает все связанные с ним ресурсы</summary>
+        /// <param name="disposing">True из любого места программы, кроме деструктора</param>
         public override void Dispose(bool disposing)
         {
             base.Dispose(disposing);        // Clear вызывается здесь
 
-            inputTo?.Dispose();
-            inputTo = null;
-            INPUT   = null;
+            try
+            {
+                inputTo     ?.Dispose();
+                output      ?.Dispose();
+                outputBuffer?.Dispose();
+            }
+            finally
+            {
+                inputTo      = null;
+                INPUT        = null;
+                outputBuffer = null;
+            }
         }
 
         ~Keccak_PRNG_20201128()
@@ -195,7 +217,7 @@ namespace vinkekfish.keccak.keccak_20200918
         /// <param name="ForOverwrite">Если <see langword="true"/>, то записывает данные, даже если их меньше, чем блок, выравнивая вход нулями до InputSize. Эта реализация нигде не имеет paddings, поэтому осторожнее с этим, это может вызвать неоднозначность при вводе (введены нули в конце или короткое значение?)</param>
         /// <remarks>Если inputReady установлен, то функция выдаст исключение. Установить notException, если исключение не нужно</remarks>
         // При INPUT.Count == 0 не должен изменять inputReady
-        protected void InputBytesImmediately(bool ForOverwrite = false, bool notException = false)
+        public void InputBytesImmediately(bool ForOverwrite = false, bool notException = false)
         {
             if (inputTo == null)
 				throw new Exception("Keccak_PRNG_20201128.InputBytesImmediately: object is destroyed and can not work");
@@ -260,10 +282,10 @@ namespace vinkekfish.keccak.keccak_20200918
 
             if (SaveBytes)
             {
-                var result = AllocMemoryForSaveBytes(InputSize);
-                Keccak_Output_512(output: result.array, len: InputSize, S: S);
+                Keccak_Output_512(output: outputBuffer.array, len: InputSize, S: S);
 
-                output.add(result);
+                output      .add(outputBuffer.array, InputSize);
+                outputBuffer.Clear();
             }
         }
 
@@ -348,8 +370,8 @@ namespace vinkekfish.keccak.keccak_20200918
                         InputBytesImmediately(notException: true);
                         calcStepAndSaveBytes(inputReadyCheck: inputReady);
                     }
-                    
-                    output.getBytesAndRemoveIt(result: b);
+
+                    output.getBytesAndRemoveIt(result: b, 8);
 
                     BytesBuilderForPointers.BytesToULong(out ulong result, b.array, start: 0, length: b.len);
 
@@ -367,7 +389,6 @@ namespace vinkekfish.keccak.keccak_20200918
                 else
                     b.Clear();
             }
-            
         }
 
         /// <summary>Получает случайное значение в диапазоне, указанном в функции getCutoffForUnsignedInteger</summary>
@@ -401,13 +422,13 @@ namespace vinkekfish.keccak.keccak_20200918
 
             if (mod == 0)
             {
-                cutoff = 0x8000_0000__0000_0000U;
+                cutoff = 0x8000_0000__0000_0000U - 1;
                 return;
             }
 
-            var result = 0x8000_0000__0000_0000U - mod;
+            var result = 0x8000_0000__0000_0000U - mod - 1;
 
-            if (result % range != 0)
+            if ((result + 1) % range != 0)
                 throw new Exception("Fatal error: Keccak_PRNG_20201128.getCutoffForUnsignedInteger");
 
             cutoff = result;
@@ -423,24 +444,23 @@ namespace vinkekfish.keccak.keccak_20200918
             if (table.Length <= 3)
                 throw new ArgumentException("doRandomCubicPermutationForUShorts: table is very short");
 
-            var len = (ulong) table.LongLength;
-
-            // Алгоритм тасования Дурштенфельда
-            // https://ru.wikipedia.org/wiki/Тасование_Фишера_—_Йетса
-            using var b8 = AllocMemoryForSaveBytes(8);
-            for (ulong i = 0; i < len - 1; i++)
+            ushort a;
+            ulong  index;
+            fixed (ushort * T = table)
             {
-                getCutoffForUnsignedInteger(0, (ulong) len - i - 1, out ulong cutoff, out ulong range);
-                var index = getUnsignedInteger(0, cutoff, range, b8) + i;
+                var len = (ulong) table.LongLength;
 
-                do2Permutation(i, index);
-            }
+                // Алгоритм тасования Дурштенфельда
+                // https://ru.wikipedia.org/wiki/Тасование_Фишера_—_Йетса
+                for (ulong i = 0; i < len - 1; i++)
+                {
+                    getCutoffForUnsignedInteger(0, (ulong) len - i - 1, out ulong cutoff, out ulong range);
+                    index = getUnsignedInteger (0, cutoff, range, outputBuffer) + i;
 
-            void do2Permutation(ulong i1, ulong i2)
-            {
-                var a     = table[i1];
-                table[i1] = table[i2];
-                table[i2] = a;
+                    a        = T[i];
+                    T[i]     = T[index];
+                    T[index] = a;
+                }
             }
         }
     }
