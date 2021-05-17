@@ -13,15 +13,15 @@ namespace cryptoprime
     /// <summary>Статический класс, предоставляющий базовые функции и константы keccak. Пример использования см. в vinkekfish.Keccak_PRNG_20201128</summary>
     public static class keccak
     {
-        public const int S_len  = 5;
-        public const int S_len2 = S_len*S_len;
+        public const int S_len  = 5;                // Длина строки матрицы в ulong
+        public const int S_len2 = S_len*S_len;      // Размер матрицы в ulong (25*ulong)
 
         public const int   r_512  = 576;
         public const int   r_512b = r_512 >> 3; // 72
         public const int   r_512s = r_512 >> 6; // 9
 
-        public const int   b_size = 25*8;
-        public const int   c_size =  5*8;
+        public const int   b_size = 25*8;           // Размер вспомогательной матрицы b в байтах - равен размеру криптографического состояния
+        public const int   c_size =  5*8;           // Размер вспомогательной матрицы c в байтах - равен размеру строки криптографического состояния
 
         public static readonly int[]   rNumbers = {1152, 1088, 832, 576}; // 224, 256, 384, 512 битов
         public static readonly ulong[] RC =
@@ -174,7 +174,7 @@ namespace cryptoprime
 
         // Полный keccak
         /// <summary>Все раунды keccak. a == S, c= C, b = B</summary>
-        /// <param name="a">Зафиксированное внутреннее состояние S</param>
+        /// <param name="a">Зафиксированное внутреннее состояние S: 25 * ulong (константа b_size или S_len2*8)</param>
         /// <param name="c">Массив C (значения не важны):   5 * ulong (константа c_size)</param>
         /// <param name="b">Матрица B (значения не важны): 25 * ulong (константа b_size)</param>
         public static unsafe void Keccackf(ulong * a, ulong * c, ulong * b)
@@ -234,8 +234,6 @@ namespace cryptoprime
         /// <param name="len">Количество байтов для записи (не более 72-х; константа r_512b)</param>
         /// <param name="S">Внутреннее состояние S</param>
         /// <param name="setPaddings">Если <see langword="true"/> - ввести padding в массив (при вычислении хеша делать на последнем блоке <= 71 байта)</param>
-        // Сообщение P представляет собой массив элементов Pi,
-        // каждый из которых в свою очередь является массивом 64-битных элементов
         // НИЖЕ КОПИЯ Keccak_InputOverwrite_512 (небольшая разница, но методы, в целом, идентичны)
         public static unsafe void Keccak_Input_512(byte * message, byte len, byte * S, bool setPaddings = false)
         {
@@ -245,8 +243,10 @@ namespace cryptoprime
             }
 
             // В конце 72-хбайтового блока нужно поставить оконечный padding
-            // Матрица S размера 5x5
-            // Мы пропустили 8 ulong (64-ре байта), то есть 8-5=3 сейчас индекс у нас 3, но т.к. матрица транспонирована, то нам нужен не индекс [1, 3], а индекс [3, 1]
+            // Матрица S размера 5x5*ulong
+            // Вычисление адреса конца 72-хбайтового блока (последнего байта блока):
+            // Мы пропустили 8 ulong (64-ре байта), пишем в последний, 9-ый, ulong
+            // то есть 8-5=3 сейчас индекс у нас 3, но т.к. матрица транспонирована, то нам нужен не индекс [1, 3], а индекс [3, 1]
             // В индекс [3, 1] мы должны в старший байт записать 0x80. Значит, 3*5*8 + 1*8 + 7 = 135
             byte * es    = S + 135;
             byte * lastS = S;           // Если len = 0, то записываем в первый байт
