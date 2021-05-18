@@ -12,25 +12,29 @@ namespace cryptoprime.VinKekFish
     /// <summary>Базовая однопоточная реализация VinKekFish для K = 1. Использование для тестирования. См. также descr.md</summary>
     public static unsafe class VinKekFishBase_etalonK1
     {                                                                                   /// <summary>Размер криптографического состояния в байтах (3200)</summary>
-        public const int CryptoStateLen          = 3200;                                /// <summary>Размер криптографического состояния в блоках keccak (16)</summary>
-        public const int CryptoStateLenKeccak    = CryptoStateLen / KeccakBlockLen;     /// <summary>Размер криптографического состояния в блоках ThreeFish (25)</summary>
-        public const int CryptoStateLenThreeFish = CryptoStateLen / ThreeFishBlockLen;
+        public const int  CryptoStateLen          = 3200;                               /// <summary>Размер криптографического состояния в блоках keccak (16)</summary>
+        public const int  CryptoStateLenKeccak    = CryptoStateLen / KeccakBlockLen;    /// <summary>Размер криптографического состояния в блоках ThreeFish (25)</summary>
+        public const int  CryptoStateLenThreeFish = CryptoStateLen / ThreeFishBlockLen;
+                                                                                        /// <summary>Размер блока ThreeFish</summary>
+        public const int  ThreeFishBlockLen       = 128;                                /// <summary>Размер блока Keccak</summary>
+        public const int     KeccakBlockLen       = 200;
                                                                                         /// <summary>Размер tweak (16 байтов, 2*ulong)</summary>
-        public const int CryptoTweakLen          = 8*2;
+        public const int  CryptoTweakLen          = 8*2;
                                                                                         /// <summary>Размер блока ввода-вывода (512 байтов = 4096 битов)</summary>
-        public const int BLOCK_SIZE              = 512;                                 /// <summary>Размер максимального блока для ввода начала ключа: 2048 байтов (16384 бита)</summary>
-        public const int MAX_SINGLE_KEY          = 2048;                                /// <summary>Максимально допустимая длина ОВИ (открытого вектора инициализации): 1148 байтов = 9184 битов</summary>
-        public const int MAX_OIV                 = 1148;
+        public const int  BLOCK_SIZE              = 512;                                /// <summary>Размер максимального блока для ввода начала ключа: 2048 байтов (16384 бита)</summary>
+        public const int  MAX_SINGLE_KEY          = 2048;                               /// <summary>Максимально допустимая длина ОВИ (открытого вектора инициализации): 1148 байтов = 9184 битов</summary>
+        public const int  MAX_OIV                 = 1148;
                                                                                         /// <summary>Минимально допустимое количество раундов на поглощение</summary>
-        public const int MIN_ABSORPTION_ROUNDS   = 1;                                   /// <summary>Минимально допустимое количество раундов (для любых операций)</summary>
-        public const int MIN_ROUNDS              = 4;                                   /// <summary>Нормальное количество раундов</summary>
-        public const int NORMAL_ROUNDS           = 64;                                  /// <summary>Уменьшенное количество раундов</summary>
-        public const int REDUCED_ROUNDS          = 16;
+        public const int  MIN_ABSORPTION_ROUNDS   = 1;                                  /// <summary>Минимально допустимое количество раундов (для любых операций)</summary>
+        public const int  MIN_ROUNDS              = 4;                                  /// <summary>Нормальное количество раундов</summary>
+        public const int  NORMAL_ROUNDS           = 64;                                 /// <summary>Уменьшенное количество раундов</summary>
+        public const int  REDUCED_ROUNDS          = 16;
                                                                                         /// <summary>Нормальная длина ключа в байтах (1024 байта = 8192 бита)</summary>
-        public const int NORMAL_KEY              = 1024;                                /// <summary>Рекомендованная длина ключа в байтах (2048 байтов = 16384 бита)</summary>
-        public const int RECOMMENDED_KEY         = 2048;                                /// <summary>Уменьшенная длина ключа в байтах (512 байтов = 4096 битов) - соответствует номинальной стойкости шифра</summary>
-        public const int REDUCED_KEY             = 512;
-
+        public const int  NORMAL_KEY              = 1024;                               /// <summary>Рекомендованная длина ключа в байтах (2048 байтов = 16384 бита)</summary>
+        public const int  RECOMMENDED_KEY         = 2048;                               /// <summary>Уменьшенная длина ключа в байтах (512 байтов = 4096 битов) - соответствует номинальной стойкости шифра</summary>
+        public const int  REDUCED_KEY             = 512;
+                                                                                        /// <summary>Это внутренняя константа алгоритма. Не нужна пользователю</summary>
+        public const long TWEAK_STEP_NUMBER       = 1253539379;
 
         /// <summary>Поглощение ключа губкой. Полное поглощение, включая криптографию. Пользователю не нужно, т.к. нужно использовать более специфические классы, например, VinKekFish_k1_base_20210419_keyGeneration</summary>
         /// <param name="key">Ключ</param>
@@ -108,7 +112,7 @@ namespace cryptoprime.VinKekFish
             state[0] ^= len1;
             state[1] ^= len2;
 
-            tweak[0] += 1253539379;
+            tweak[0] += TWEAK_STEP_NUMBER;
 
             if (!SecondKey)
             {
@@ -237,7 +241,7 @@ namespace cryptoprime.VinKekFish
         public static void InputData_ChangeTweak(ulong * tweak, long dataLen, bool Overwrite, byte regime)
         {
             // Приращение tweak перед вводом данных
-            tweak[0] += 1253539379;
+            tweak[0] += TWEAK_STEP_NUMBER;
 
             tweak[1] += (ulong) dataLen;
             if (Overwrite)
@@ -251,7 +255,7 @@ namespace cryptoprime.VinKekFish
         public static void NoInputData_ChangeTweak(byte * state, ulong * tweak, byte regime)
         {
             // Приращение tweak перед вводом данных
-            tweak[0] += 1253539379;
+            tweak[0] += TWEAK_STEP_NUMBER;
 
             // tweak[1] += dataLen;
             state[2] ^= regime;
@@ -267,7 +271,7 @@ namespace cryptoprime.VinKekFish
         /// <param name="tweakTmp2">Дополнительный массив для временного tweak, 16 байтов. Изменяется в функции.</param>
         /// <param name="state">Криптографическое состояние</param>
         /// <param name="state2">Вспомогательный массив для криптографического состояния</param>
-        /// <param name="tablesForPermutations">Массив таблиц перестановок на каждый раунд. Длина должна быть countOfRounds*4 (*CryptoStateLen*ushort на каждую таблицу)</param>
+        /// <param name="tablesForPermutations">Массив таблиц перестановок на каждый раунд. Длина должна быть countOfRounds*4 таблиц (CryptoStateLen*ushort на каждую таблицу)</param>
         /// <param name="b">Вспомогательный массив b для keccak.Keccackf</param>
         /// <param name="c">Вспомогательный массив c для keccak.Keccackf</param>
         public static void step(int countOfRounds, ulong * tweak, ulong * tweakTmp, ulong * tweakTmp2, byte * state, byte * state2, ushort * tablesForPermutations, byte* b, byte* c)
@@ -318,7 +322,7 @@ namespace cryptoprime.VinKekFish
                 DoPermutation(state2, state, CryptoStateLen, transpose200_3200_8);
             }
         }
-
+        /*
         /// <summary>Выравнивает целое число i на интервал [0; ringModulo)</summary>
         /// <param name="i">Выравниваемое число</param>
         /// <param name="ringModulo">[0; ringModulo)</param>
@@ -333,18 +337,16 @@ namespace cryptoprime.VinKekFish
 
             return i;
         }
-
-        const int ThreeFishBlockLen = 128;
-        const int    KeccakBlockLen = 200;
+        */
 
         /// <summary>Применяет ThreeFish поблочно ко всему состоянию алгоритма</summary>
-        /// <param name="beginCryptoState"></param>
-        /// <param name="finalCryptoState"></param>
+        /// <param name="beginCryptoState">Начальное криптографическое состояние (инициализированное)</param>
+        /// <param name="finalCryptoState">Финальное криптографическое состояние (для результата, будет перезатёрто)</param>
         /// <param name="tweak">Базовый tweak для раунда. Не изменяется</param>
-        /// <param name="len">Длина криптографического состояния в блоках ThreeFish1024 (по 128-мь байтов; ThreeFishBlockLen). len - нечётное</param>
+        /// <param name="tweakTmp">Дополнительный массив для временного tweak</param>
         public static unsafe void DoThreefishForAllBlocks(byte* beginCryptoState, byte * finalCryptoState, ulong * tweak, ulong * tweakTmp)
         {
-            int len = CryptoStateLenThreeFish;
+            int len = CryptoStateLenThreeFish;  // len здесь точно рассчитана на K = 1, никак иначе
             /*
             if ((len & 1) == 0)
                 throw new ArgumentException("'len' must be odd", "len");
@@ -414,7 +416,7 @@ namespace cryptoprime.VinKekFish
         public static ushort* transpose128_3200    = null;
         public static ushort* transpose200_3200    = null;
         public static ushort* transpose200_3200_8  = null;
-        public static ushort* transpose400_3200_16 = null;
+        // public static ushort* transpose400_3200_16 = null;
 
         public static readonly object sync = new object();
 
@@ -429,7 +431,7 @@ namespace cryptoprime.VinKekFish
                 transpose128_3200    = GenTransposeTable(3200, 128);
                 transpose200_3200    = GenTransposeTable(3200, 200);
                 transpose200_3200_8  = GenTransposeTable(3200, 200,  stepInEndOfBlocks: 8);
-                transpose400_3200_16 = GenTransposeTable(3200, 400,  stepInEndOfBlocks: 16);
+                // transpose400_3200_16 = GenTransposeTable(3200, 400,  stepInEndOfBlocks: 16);
             }
 
             if (transpose128_3200[1] != 128)
@@ -491,38 +493,13 @@ namespace cryptoprime.VinKekFish
                     throw new Exception("VinKekFish: fatal algotirhmic error 1: GenTransposeTable");
                 }
             }
-            /*
-            var buffer1  = new byte[blockSize];
-            var buffer2  = new byte[blockSize];
-            // Двойное транспонирование: эта штука не работает. Здесь транспонирование не является операцией, которая обратна самой себе
-            for (ushort i = 0; i < blockSize; i++)
-            {
-                buffer1[i] = (byte) i;
-            }
-            
-            fixed (ushort* nt = newTable)
-            fixed (byte*   b1 = buffer1, b2 = buffer2)
-            {
-                DoPermutation(b1, b2, blockSize, nt);
-                DoPermutation(b2, b1, blockSize, nt);
-            }
 
-            for (ushort i = 0; i < blockSize; i++)
-            {
-                if (buffer1[i] != i)
-                    throw new Exception("VinKekFish: fatal algotirhmic error 2: GenTransposeTable");
-            }
-            buffer1 = null;
-            buffer2 = null;
-            */
-
-            long rLen   = newTable.Length * sizeof(ushort);
-            var result = (ushort *) Marshal.AllocHGlobal((int) rLen).ToPointer();
+            int rLen   = newTable.Length * sizeof(ushort);
+            var result = (ushort *) Marshal.AllocHGlobal(rLen).ToPointer();
 
             fixed (ushort * newTablePointer = newTable)
             {
-                byte * b = (byte *) newTablePointer;
-                BytesBuilder.CopyTo(rLen, rLen, b, (byte *) result);
+                BytesBuilder.CopyTo(rLen, rLen, (byte *) newTablePointer, (byte *) result);
             }
 
             return result;

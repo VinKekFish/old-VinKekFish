@@ -32,6 +32,9 @@ namespace vinkekfish
         protected bool isInited1 = false;
         protected bool isInited2 = false;
 
+        protected int  _InitedPTRounds = 0;
+        public    int   InitedPTRounds => _InitedPTRounds;
+
                                             /// <include file='Documentation/VinKekFish_k1_base_20210419.xml' path='docs/members[@name="VinKekFish_k1_base_20210419"]/IsInited1/*' />
         public bool IsInited1 => isInited1; /// <include file='Documentation/VinKekFish_k1_base_20210419.xml' path='docs/members[@name="VinKekFish_k1_base_20210419"]/IsInited2/*' />
         public bool IsInited2 => isInited2;
@@ -78,9 +81,9 @@ namespace vinkekfish
             _b      = t2      + cryptoprime.keccak.b_size;
             _c      = _b      + cryptoprime.keccak.c_size;
 
-            _RTables       = RoundsForTables;
-            pTablesHandle = GenStandardPermutationTables(Rounds: _RTables, key: additionalKeyForTables, key_length: additionalKeyForTables_length, OpenInitVector: OpenInitVectorForTables, PreRoundsForTranspose: PreRoundsForTranspose);
-
+            _RTables        = RoundsForTables;
+            pTablesHandle   = GenStandardPermutationTables(Rounds: _RTables, key: additionalKeyForTables, key_length: additionalKeyForTables_length, OpenInitVector: OpenInitVectorForTables, PreRoundsForTranspose: PreRoundsForTranspose);
+            _InitedPTRounds = RoundsForTables;
 
             GC.Collect();
             GC.WaitForPendingFinalizers();  // Это чтобы сразу получить все проблемные вызовы, связанные с утечками памяти
@@ -128,7 +131,9 @@ namespace vinkekfish
         /// <summary>Очистка всех данных, включая таблицы перестановок. Использовать после окончания использования объекта (либо использовать Dispose)</summary>
         public void Clear()
         {
-            isInited1 = false;
+            isInited1       = false;
+            _InitedPTRounds = 0;
+
             ClearState();
 
             pTablesHandle        ?.Dispose();
@@ -194,7 +199,7 @@ namespace vinkekfish
             long len1  = VinKekFishBase_etalonK1.CryptoStateLen;
             long len2  = VinKekFishBase_etalonK1.CryptoStateLen << 1;
 
-            var result = allocator.AllocMemory(len1 * Rounds * 4 * sizeof(ushort));
+            var result = allocator.AllocMemory(Rounds * 4 * len1 * sizeof(ushort));
             var table1 = new ushort[len1];
             var table2 = new ushort[len1];
 
@@ -268,6 +273,9 @@ namespace vinkekfish
         {
             if (!isInited1 || !isInited2)
                 throw new Exception("VinKekFish_k1_base_20210419.DoStep: !isInited1 || !isInited2");
+
+            if (CountOfRounds > _InitedPTRounds)
+                throw new Exception("VinKekFish_k1_base_20210419.DoStep: CountOfRounds > _InitedPTRounds");
 
             step
             (
