@@ -54,7 +54,7 @@ namespace vinkekfish
         /// <param name="allocator">Метод выделения памяти для ключа. Если null, то AllocHGlobal_AllocatorForUnsafeMemory</param>
         /// <param name="CountOfRounds">Количество раундов для генерации</param>
         /// <returns>Сгенерированный ключ</returns>
-        public Record GetNewKey(long len = RECOMMENDED_KEY, long blockLen = key_block_size, AllocatorForUnsafeMemoryInterface allocator = null, int CountOfRounds = VinKekFishBase_etalonK1.NORMAL_ROUNDS)
+        public Record GetNewKey(long len = NORMAL_KEY, long blockLen = key_block_size, AllocatorForUnsafeMemoryInterface allocator = null, int CountOfRounds = VinKekFishBase_etalonK1.NORMAL_ROUNDS)
         {
             if (isInited2 != true)
                 throw new Exception("VinKekFish_k1_base_20210419_keyGeneration.GetNewKey: isInited2 != true (not initialized)");
@@ -102,8 +102,8 @@ namespace vinkekfish
         /// <param name="CountOfRounds">Количество раундов для отбивки</param>
         public void EmptyStep(int CountOfRounds = VinKekFishBase_etalonK1.NORMAL_ROUNDS)
         {
-            if (CountOfRounds < MIN_ROUNDS)
-                throw new ArgumentOutOfRangeException("VinKekFish_k1_base_20210419_keyGeneration.GetNewKey: CountOfRounds < MIN_ROUNDS");
+            if (CountOfRounds < MIN_ABSORPTION_ROUNDS)
+                throw new ArgumentOutOfRangeException("VinKekFish_k1_base_20210419_keyGeneration.GetNewKey: CountOfRounds < MIN_INNER_ROUNDS");
 
             NoInputData_ChangeTweak(t0, 254);
             DoStep(CountOfRounds);
@@ -113,8 +113,8 @@ namespace vinkekfish
         /// <param name="CountOfRounds">Количество раундов для отбивки</param>
         public void EmptyStepOverwrite(int CountOfRounds = VinKekFishBase_etalonK1.NORMAL_ROUNDS)
         {
-            if (CountOfRounds < MIN_ROUNDS)
-                throw new ArgumentOutOfRangeException("VinKekFish_k1_base_20210419_keyGeneration.GetNewKey: CountOfRounds < MIN_ROUNDS");
+            if (CountOfRounds < MIN_ABSORPTION_ROUNDS)
+                throw new ArgumentOutOfRangeException("VinKekFish_k1_base_20210419_keyGeneration.GetNewKey: CountOfRounds < MIN_INNER_ROUNDS");
 
             InputData_Overwrite(null, _state, 0, t0, 254);
             DoStep(CountOfRounds);
@@ -142,11 +142,14 @@ namespace vinkekfish
             }
         }
 
-        // Вхождение сначала в backgroundSync, затем в this, если нужно взять обе блокировки
-        protected readonly Object               backgroundSync   = new object();
-        protected volatile Thread               backgroundThread = null;
-        protected volatile LightRandomGenerator LightGenerator   = null;
-        protected volatile Keccak_PRNG_20201128 keccak_prng      = null;
+        /// <summary>Эта блокировка используется для подачи сигнала и ожидания в WaitForBackgroundCycle.
+        /// Устанавливается при очередном впитанном блоке случайных данных в режиме EnterToBackgroundCycle.</summary>
+        /// <remarks>Вхождение сначала в backgroundSync, затем в this, если нужно взять обе блокировки</remarks>
+        public    readonly Object               backgroundSync     = new object();
+        protected volatile Thread               backgroundThread   = null;
+        protected volatile LightRandomGenerator LightGenerator     = null;
+        protected volatile LightRandomGenerator LightGeneratorDisk = null;
+        protected volatile Keccak_PRNG_20201128 keccak_prng        = null;
 
         /// <summary>См. описание параметра EnterToBackgroundCycle</summary>
         public ushort BackgroundSleepTimeout = 0;       /// <summary>См. описание параметра EnterToBackgroundCycle</summary>
@@ -154,28 +157,29 @@ namespace vinkekfish
         // /// <summary>См. описание поля BackgourndGenerated</summary>
         // public ushort BackgroundKeccakCount  = 8;
 
-        /// <summary>Количество сгенерированных блоков энтропии.
-        /// Считается, что на один байт приходится 1 бит энтропии, то есть на BLOCK_SIZE=512 приходится 512 битов
+        /// <summary>Количество поглощённых блоков.
+        /// Для упрощения, считается, что на один блок приходится 1 бит энтропии, то есть на BLOCK_SIZE=512 приходится 1 бит
         /// (рекомендуется ещё уменьшать в пару раз хотя бы).
-        /// Если считать, что на один блок 4096 байтов приходится 1 бит энтропии, то BackgourndGenerated - это количество сгенерированных битов энтропии.
         /// В любом случае, это не надёжный источник рандомизации, вместе с ним необходимо использовать и другие источники, если возможно.
-        /// При таком подходе, условно, примерно за 100 секунд на одном ядре с максимальной загрузкой генерируется ключ на 4096 битов длиной, так что производительность всё равно хорошая
         /// Запись в данную переменную производить с помощью lock (this) - допускается только обнуление данной переменной</summary>
-        public long  BackgourndGenerated = 0;
+        public long  BackgourndGenerated     = 0;                       /// <summary>Аналогично BackgourndGenerated, только блоки поглощаются от более медленного генератора энтропии</summary>
+        public long  BackgourndGeneratedDisk = 0;
 
-        /// <summary>Войти в цикл дополнительной инициализации псевдослучайными значениями.
-        /// До вызова ExitFromBackgroundCycle пользователь не должен использовать других методов.
-        /// Если есть желание использовать другие методы, то их нужно оборачивать lock (this).
+        /// <summary>Войти в цикл дополнительной инициализации псевдослучайными значениями. Выход из цикла - вызов ExitFromBackgroundCycle.
+        /// <para>До вызова ExitFromBackgroundCycle пользователь не должен использовать других методов, кроме WaitForBackgroundCycle.
+        /// Если есть желание использовать другие методы, то их нужно оборачивать lock (this).</para>
         /// </summary>
-        /// <param name="BackgroundSleepTimeout">Thread.Sleep(BackgroundSleepTimeout). Устанавливает значение, на которое поток спит после генерации BackgroundSleepCount блоков.
-        /// BackgroundSleepCount = 0 - самое быстрое, загрузка почти всего процессорного ядра, если оно не занято чем-то ещё.
+        /// <remarks>Хотя данные метод начинает генерировать энтропию, эта энтропия не слишком хорошего качества - её непредсказуемость под вопросом. Поэтому, рекомендуется использовать другие источники энтропии.</remarks>
+        /// <param name="BackgroundSleepTimeout">Thread.Sleep(BackgroundSleepTimeout). Устанавливает величину интервала, который поток спит после генерации BackgroundSleepCount блоков.
+        /// BackgroundSleepCount = 0 - самое быстрое, загрузка почти всего процессорного ядра, если оно не занято чем-то ещё (точнее, загружается 2  процессорных ядра).
         /// BackgroundSleepCount = 72 - это загрузка на уровне не выше пары процентов от одного ядра.
-        /// При BackgroundSleepCount = 0 происходит генерация где-то > 256 блоков VinKekFish (BLOCK_SIZE байтов) за секунду на ядре 2,8 ГГц (то BackgourndGenerated приращается на единицу за секунду или быстрее)</param>
-        /// <param name="BackgroundSleepCount">После таймаута идёт генерация блоков для keccak. На один таймаут приходится BackgroundSleepCount блоков.</param>
-        /// <param name="generator">Генератор нестойких псевдослучайных чисел, должен генерировать по BLOCK_SIZE (512) байта в блок. В ExitFromBackgroundCycle автоматически удаляется</param>
+        /// При BackgroundSleepCount = 0 происходит генерация где-то > 256 блоков VinKekFish (BLOCK_SIZE байтов) за секунду на двух ядрах 2,8 ГГц (BackgourndGenerated приращается на 256 за секунду или быстрее)</param>
+        /// <param name="BackgroundSleepCount">После таймаута идёт генерация блоков без ожидания. На один таймаут приходится BackgroundSleepCount блоков.</param>
+        /// <param name="generator">Генератор нестойких псевдослучайных чисел, должен генерировать по BLOCK_SIZE (512) байта в блок.  В ExitFromBackgroundCycle автоматически удаляется. Может быть <see langword="null"/>, в таком случае, создаётся с помощью LightRandomGenerator.</param>
         /// <param name="doWaitR">Параметр инициализирует одноимённое поле generator.doWaitR, но только если generator = null</param>
         /// <param name="doWaitW">Параметр инициализирует одноимённое поле generator.doWaitW, но только если generator = null</param>
-        public void EnterToBackgroundCycle(ushort BackgroundSleepTimeout = 72, ushort BackgroundSleepCount = 8, bool doWaitR = true, bool doWaitW = true, LightRandomGenerator generator = null)
+        /// <param name="generatorDisk">Более медленный генератор нестойких псевдослучайных чисел, должен генерировать по BLOCK_SIZE (512) байта в блок. В ExitFromBackgroundCycle автоматически удаляется. Может быть null, в таком случае создаётся с помощью LightRandomGenerator_DiskSlow</param>
+        public void EnterToBackgroundCycle(ushort BackgroundSleepTimeout = 72, ushort BackgroundSleepCount = 8, bool doWaitR = true, bool doWaitW = true, LightRandomGenerator generator = null, LightRandomGenerator generatorDisk = null)
         {
             if (backgroundThread != null || LightGenerator != null)
                 throw new Exception("VinKekFish_k1_base_20210419_keyGeneration.EnterToBackgroundCycle: backgroundThread != null. Call ExitFromBackgroundCycle");
@@ -189,12 +193,24 @@ namespace vinkekfish
                 generator.doWaitW = doWaitW;
             }
 
+            if (generatorDisk == null)
+            {
+                generatorDisk = new LightRandomGenerator_DiskSlow(BLOCK_SIZE);
+            }
+
             this.BackgroundSleepTimeout = BackgroundSleepTimeout;
             this.BackgroundSleepCount = BackgroundSleepCount;
             keccak_prng = new Keccak_PRNG_20201128(outputSize: BLOCK_SIZE * 2);
-            BackgourndGenerated = 0;
 
-            LightGenerator = generator;
+            lock (backgroundSync)
+            lock (this)
+            {
+                BackgourndGenerated     = 0;
+                BackgourndGeneratedDisk = 0;
+                LightGenerator          = generator;
+                LightGeneratorDisk      = generatorDisk;
+            }
+
             backgroundThread = new Thread
             (
                 delegate ()
@@ -233,17 +249,30 @@ namespace vinkekfish
                                     if (keccak_prng.outputCount >= BLOCK_SIZE)
                                     {
                                         keccak_prng.output.getBytesAndRemoveIt(data);
-                                        InputRandom(data, data.len, MIN_ROUNDS);
+                                        InputRandom(data, data.len, MIN_INNER_ROUNDS);
                                         data.Clear();
                                         */
 
-                                    InputRandom(LightGenerator.GeneratedBytes, LightGenerator.GeneratedBytes.len, MIN_ROUNDS);
+                                    InputRandom(LightGenerator.GeneratedBytes, LightGenerator.GeneratedBytes.len, MIN_ABSORPTION_ROUNDS);
 
                                     Interlocked.Increment(ref BackgourndGenerated);
                                     Monitor.PulseAll(backgroundSync);
                                 }
 
                                 LightGenerator.ResetGeneratedBytes();
+
+                                if (LightGeneratorDisk.GeneratedBytesCount >= BLOCK_SIZE)
+                                {
+                                    lock (this)
+                                    {
+                                        InputRandom(LightGeneratorDisk.GeneratedBytes, LightGeneratorDisk.GeneratedBytes.len, MIN_ROUNDS);
+
+                                        Interlocked.Increment(ref BackgourndGeneratedDisk);
+                                        Monitor.PulseAll(backgroundSync);
+                                    }
+
+                                    LightGeneratorDisk.ResetGeneratedBytes();
+                                }
 
                                 // Убрано, т.к. может негативно повлиять на производительность кода, исполняющегося одновременно в других местах програмы
                                 // GC.Collect();       // Иначе бывает так, что программа занимает лишнюю системную память (хотя, обычно, нет)
@@ -252,6 +281,8 @@ namespace vinkekfish
                         }
                     }
                     while (LightGenerator != null);
+
+                    Monitor.PulseAll(backgroundSync);
                 }
             );
 
@@ -273,25 +304,49 @@ namespace vinkekfish
             }
         }
 
-        public void ExitFromBackgroundCycle()
+        /// <summary>Закончить цикл напитывания некриптостойкой случайной информацией</summary>
+        /// <param name="Overwrite">Перезаписать нулями состояние для обеспечения его необратимости</param>
+        public void ExitFromBackgroundCycle(bool Overwrite = true)
         {
             lock (backgroundSync)
             {
                 try
                 {
-                    LightGenerator?.Dispose();
-                    keccak_prng   ?.Dispose();
+                    LightGenerator    ?.Dispose();
+                    LightGeneratorDisk?.Dispose();
+                    keccak_prng       ?.Dispose();
                 }
                 finally
                 {
-                    LightGenerator   = null;
-                    keccak_prng      = null;
-                    backgroundThread = null;
+                    LightGenerator     = null;
+                    LightGeneratorDisk = null;
+                    keccak_prng        = null;
+                    backgroundThread   = null;
+
+                    Monitor.PulseAll(backgroundSync);
                 }
             }
 
-            InputData_Overwrite(null, _state, 0, t0, 253);
+            if (Overwrite)
+                InputData_Overwrite(null, _state, 0, t0, 253);
+            else
+                InputData_Xor(null, _state, 0, t0, 253);
+
             DoStep(NORMAL_ROUNDS);
+        }
+
+        public void WaitForBackgroundCycle(int generated = 64, int diskGenerated = 1)
+        {
+            lock (backgroundSync)
+            {
+                while (BackgourndGenerated < generated || BackgourndGeneratedDisk < diskGenerated)
+                {
+                    if (LightGenerator == null)
+                        break;
+
+                    Monitor.Wait(backgroundSync);
+                }
+            }
         }
 
         public override void Dispose(bool disposing)

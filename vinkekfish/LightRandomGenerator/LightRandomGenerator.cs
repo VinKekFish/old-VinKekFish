@@ -224,6 +224,8 @@ namespace vinkekfish
         protected volatile   int    StartOfGenerated = 0;
         protected volatile   int    isEnded          = 3;
 
+        public int GeneratedBytesCount => GeneratedCount;
+
         /// <summary>Сбрасывает все сгенерированные байты без полезного использования. Это стоит вызвать, если GeneratedBytes использованы напрямую</summary>
         public virtual void ResetGeneratedBytes()
         {

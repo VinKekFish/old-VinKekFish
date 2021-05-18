@@ -62,13 +62,13 @@ namespace main_tests
             // new KeccakSingleHashPerformanceTest(tasks);
 
             // Тесты криптографии и функции очистки строк
-            /*
-            new EmtyString(tasks);
+            
+            // new EmtyString(tasks);
             new KeccakSimpleHashTest(tasks);
-            new KeccakSimpleHashTestByBits(tasks);
-            new ThreeFishTestByBits   (tasks);
-            new ThreeFishGenTestByBits(tasks);
-            */
+            // new KeccakSimpleHashTestByBits(tasks);
+            // new ThreeFishTestByBits   (tasks);
+            // new ThreeFishGenTestByBits(tasks);
+            
             
             // new LightRandomGenerator_test01(tasks);
 

@@ -11,22 +11,26 @@ namespace cryptoprime.VinKekFish
 {
     /// <summary>Базовая однопоточная реализация VinKekFish для K = 1. Использование для тестирования. См. также descr.md</summary>
     public static unsafe class VinKekFishBase_etalonK1
-    {
-        // Размер криптографического состояния
-        public const int CryptoStateLen          = 3200; // В байтах
-        public const int CryptoStateLenKeccak    = CryptoStateLen / KeccakBlockLen;    // Размер криптографического состояния в блоках keccak
-        public const int CryptoStateLenThreeFish = CryptoStateLen / ThreeFishBlockLen; // Размер криптографического состояния в блоках ThreeFish
-
-        public const int CryptoTweakLen          = 8*2; // В байтах
-
-        public const int BLOCK_SIZE              = 512;     // 4096 битов
-        public const int MAX_SINGLE_KEY          = 2048;
+    {                                                                                   /// <summary>Размер криптографического состояния в байтах (3200)</summary>
+        public const int CryptoStateLen          = 3200;                                /// <summary>Размер криптографического состояния в блоках keccak (16)</summary>
+        public const int CryptoStateLenKeccak    = CryptoStateLen / KeccakBlockLen;     /// <summary>Размер криптографического состояния в блоках ThreeFish (25)</summary>
+        public const int CryptoStateLenThreeFish = CryptoStateLen / ThreeFishBlockLen;
+                                                                                        /// <summary>Размер tweak (16 байтов, 2*ulong)</summary>
+        public const int CryptoTweakLen          = 8*2;
+                                                                                        /// <summary>Размер блока ввода-вывода (512 байтов = 4096 битов)</summary>
+        public const int BLOCK_SIZE              = 512;                                 /// <summary>Размер максимального блока для ввода начала ключа: 2048 байтов (16384 бита)</summary>
+        public const int MAX_SINGLE_KEY          = 2048;                                /// <summary>Максимально допустимая длина ОВИ (открытого вектора инициализации): 1148 байтов = 9184 битов</summary>
         public const int MAX_OIV                 = 1148;
-        public const int MIN_ROUNDS              = 4;
-        public const int NORMAL_ROUNDS           = 64;
+                                                                                        /// <summary>Минимально допустимое количество раундов на поглощение</summary>
+        public const int MIN_ABSORPTION_ROUNDS   = 1;                                   /// <summary>Минимально допустимое количество раундов (для любых операций)</summary>
+        public const int MIN_ROUNDS              = 4;                                   /// <summary>Нормальное количество раундов</summary>
+        public const int NORMAL_ROUNDS           = 64;                                  /// <summary>Уменьшенное количество раундов</summary>
         public const int REDUCED_ROUNDS          = 16;
-        public const int NORMAL_KEY              = 4096;
-        public const int RECOMMENDED_KEY         = 8192;
+                                                                                        /// <summary>Нормальная длина ключа в байтах (1024 байта = 8192 бита)</summary>
+        public const int NORMAL_KEY              = 1024;                                /// <summary>Рекомендованная длина ключа в байтах (2048 байтов = 16384 бита)</summary>
+        public const int RECOMMENDED_KEY         = 2048;                                /// <summary>Уменьшенная длина ключа в байтах (512 байтов = 4096 битов) - соответствует номинальной стойкости шифра</summary>
+        public const int REDUCED_KEY             = 512;
+
 
         /// <summary>Поглощение ключа губкой. Полное поглощение, включая криптографию. Пользователю не нужно, т.к. нужно использовать более специфические классы, например, VinKekFish_k1_base_20210419_keyGeneration</summary>
         /// <param name="key">Ключ</param>
@@ -37,9 +41,9 @@ namespace cryptoprime.VinKekFish
         /// <param name="state2">Вспомогательный массив криптографического состояния</param>
         /// <param name="b">Вспомогательный массив для функции keccak-f, размер b_size (25*8)</param>
         /// <param name="c">Вспомогательный массив для функции keccak-f, размер b_size (05*8)</param>
-        /// <param name="tweak">Tweak</param>
-        /// <param name="tweakTmp">Вспомогательный массив для хранения tweak</param>
-        /// <param name="tweakTmp2">Второй вспомогательный массив для хранения tweak</param>
+        /// <param name="tweak">Tweak (длина CryptoTweakLen = 16)</param>
+        /// <param name="tweakTmp">Вспомогательный массив для хранения tweak (длина CryptoTweakLen)</param>
+        /// <param name="tweakTmp2">Второй вспомогательный массив для хранения tweak (длина CryptoTweakLen)</param>
         /// <param name="Initiated"> При пользовательском вызове всегда false. Если <see langword="false"/>, то state инициализированно, но никакие данные не вводились. Если true, то в state уже вводились данные: например, другой ключ. Если false - идёт перезапись. Если <see langword="true"/> - поглощение через xor</param>
         /// <param name="SecondKey">При пользовательском вызове всегда false. Вторичный отрезок ключа: при рекурсивном вызове этот параметр равен true, означая, что идёт поглощение следующих за первым отрезков ключей</param>
         /// <param name="R">Количество раундов для первого поглощения</param>
@@ -53,10 +57,10 @@ namespace cryptoprime.VinKekFish
                 throw new ArgumentException("VinKekFishBase_etalonK1.InputKey: SecondKey && OIV != null");
 
             if (SecondKey && RE != 0)
-                throw new ArgumentOutOfRangeException("SecondKey && RE != 0");
+                throw new ArgumentOutOfRangeException("VinKekFishBase_etalonK1.InputKey: SecondKey && RE != 0");
 
             if (SecondKey != Initiated)
-                throw new ArgumentOutOfRangeException("SecondKey != Initiated");
+                throw new ArgumentOutOfRangeException("VinKekFishBase_etalonK1.InputKey: SecondKey != Initiated");
 
             if (OIV == null && OIV_length != 0)
                 throw new ArgumentOutOfRangeException("VinKekFishBase_etalonK1.InputKey: OIV == null && OIV_length != 0");
@@ -70,10 +74,10 @@ namespace cryptoprime.VinKekFish
             if (key_length <= 0)
                 throw new ArgumentNullException("VinKekFishBase_etalonK1.InputKey: key_length <= 0");
 
-            if (R < MIN_ROUNDS)
-                throw new ArgumentOutOfRangeException("R < MIN_ROUNDS");
+            if (R < MIN_ABSORPTION_ROUNDS)
+                throw new ArgumentOutOfRangeException("VinKekFishBase_etalonK1.InputKey: R < MIN_ABSORPTION_ROUNDS");
             if (RE < MIN_ROUNDS && !SecondKey)
-                throw new ArgumentOutOfRangeException("R < MIN_ROUNDS");
+                throw new ArgumentOutOfRangeException("VinKekFishBase_etalonK1.InputKey: RE < MIN_ROUNDS && !SecondKey");
 
             var dataLen = key_length;
             var data    = key;
