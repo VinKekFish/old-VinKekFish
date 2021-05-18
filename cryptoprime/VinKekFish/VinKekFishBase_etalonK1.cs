@@ -175,7 +175,8 @@ namespace cryptoprime.VinKekFish
         /// <param name="dataLen">Длина вводимых данных, не более BLOCK_SIZE</param>
         /// <param name="tweak">Указатель на tweak (для соответствующего изменения tweak)</param>
         /// <param name="regime">Счётчик режима ввода</param>
-        public static void InputData_Overwrite(byte * data, byte * state, ulong dataLen, ulong * tweak, byte regime)
+        /// <param name="nullPaddding">Если <see langword="true"/>, то если данных меньше, чем BLOCK_SIZE, оставшиеся байты будут перезатёрты нулями, обеспечивая необратимость. Иначе остальные байты останутся неизменными</param>
+        public static void InputData_Overwrite(byte * data, byte * state, ulong dataLen, ulong * tweak, byte regime, bool nullPaddding = true)
         {
             if (dataLen > BLOCK_SIZE)
                 throw new ArgumentOutOfRangeException();
@@ -186,6 +187,7 @@ namespace cryptoprime.VinKekFish
                 state[i+3] = *data;
             }
 
+            if (nullPaddding)
             for (; i < BLOCK_SIZE; i++)
             {
                 state[i+3] = 0;
@@ -194,7 +196,14 @@ namespace cryptoprime.VinKekFish
             byte len1 = (byte) dataLen;
             byte len2 = (byte) (dataLen >> 8);
 
-            len2 &= 0x80;   // Старший бит количества вводимых байтов устанавливается в 1, если используется режим Overwrite
+            len2 |= 0x80;       // Старший бит количества вводимых байтов устанавливается в 1, если используется режим Overwrite
+            if (nullPaddding)   // Второй (начиная с 1) по старшинству бит устанавливаем, если не перезатирали значения
+            {
+                if ((len2 & 0x40) > 0)
+                    throw new Exception("InputData_Overwrite: fatal algorithmic error: (len2 & 0x40) > 0");
+
+                len2 |= 0x40;
+            }
 
             state[0] ^= len1;
             state[1] ^= len2;
@@ -239,12 +248,13 @@ namespace cryptoprime.VinKekFish
         }
 
         /// <summary>Если никаких данных не введено в режиме Sponge (xor), изменяет tweak</summary>
-        public static void NoInputData_ChangeTweak(ulong * tweak, byte regime)
+        public static void NoInputData_ChangeTweak(byte * state, ulong * tweak, byte regime)
         {
             // Приращение tweak перед вводом данных
             tweak[0] += 1253539379;
 
             // tweak[1] += dataLen;
+            state[2] ^= regime;
 
             var reg = ((ulong) regime) << 40; // 8*5 - третий по старшинству байт, нумерация с 1
             tweak[1] += reg;

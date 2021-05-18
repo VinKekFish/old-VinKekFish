@@ -47,6 +47,7 @@ namespace vinkekfish
         }
 
         public const int key_block_size = 64;
+        public const int min_special_regime = 253;
 
         /// <summary>Функция генерирует ключи шифрования. После инициализации Init1 и Init2, функция готова к использованию без дополнительных вызовов</summary>
         /// <param name="len">Количество байтов, которые сгенерировать</param>
@@ -82,10 +83,10 @@ namespace vinkekfish
             do
             {
                 // Режим 255 - это режим отбоя после ввода основного ключа. 254 - это EmptyStep и EmptyStepOverwrite. 253 - InputRandom
-                if (regime >= 253)
+                if (regime >= min_special_regime)
                     regime = 0;
 
-                NoInputData_ChangeTweak(t0, regime++);
+                NoInputData_ChangeTweak(_state, t0, regime++);
                 DoStep(CountOfRounds);
 
                 outputData(result, start, outputLen: len, countToOutput: len - start > blockLen ? blockLen : len - start);
@@ -105,7 +106,7 @@ namespace vinkekfish
             if (CountOfRounds < MIN_ABSORPTION_ROUNDS)
                 throw new ArgumentOutOfRangeException("VinKekFish_k1_base_20210419_keyGeneration.GetNewKey: CountOfRounds < MIN_INNER_ROUNDS");
 
-            NoInputData_ChangeTweak(t0, 254);
+            NoInputData_ChangeTweak(_state, t0, 254);
             DoStep(CountOfRounds);
         }
 
