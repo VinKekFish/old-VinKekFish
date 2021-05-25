@@ -180,6 +180,11 @@ namespace cryptoprime
                     len       = len
                 };
             }
+
+            public static implicit operator long (Record t)
+            {
+                return t.len;
+            }
         }
 
         /// <summary>Интерфейс описывает способ выделения памяти. Реализация: AllocHGlobal_AllocatorForUnsafeMemory</summary>

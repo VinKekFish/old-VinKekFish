@@ -33,12 +33,12 @@ namespace vinkekfish
             // new System.Security.Cryptography.RNGCryptoServiceProvider();
         }
 
-        public override void Init1(int RoundsForTables, byte * additionalKeyForTables, long additionalKeyForTables_length, byte[] OpenInitVectorForTables = null, int PreRoundsForTranspose = 8)
+        public override void Init1(int RoundsForTables, byte * additionalKeyForTables, long additionalKeyForTables_length, byte * OpenInitVectorForTables = null, long OpenInitVectorForTables_length = 0, int PreRoundsForTranspose = 8)
         {
             if (LightGenerator != null)
                 ExitFromBackgroundCycle();
 
-            base.Init1(RoundsForTables: RoundsForTables, additionalKeyForTables: additionalKeyForTables, additionalKeyForTables_length: additionalKeyForTables_length, OpenInitVectorForTables: OpenInitVectorForTables, PreRoundsForTranspose: PreRoundsForTranspose);
+            base.Init1(RoundsForTables: RoundsForTables, additionalKeyForTables: additionalKeyForTables, additionalKeyForTables_length: additionalKeyForTables_length, OpenInitVectorForTables: OpenInitVectorForTables, OpenInitVectorForTables_length: OpenInitVectorForTables_length, PreRoundsForTranspose: PreRoundsForTranspose);
         }
 
         public override void Init2(byte * key, ulong key_length, byte[] OpenInitVector, int Rounds = NORMAL_ROUNDS, int RoundsForEnd = NORMAL_ROUNDS, int RoundsForExtendedKey = NORMAL_ROUNDS, bool IsEmptyKey = false)

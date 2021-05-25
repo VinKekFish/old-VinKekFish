@@ -58,7 +58,7 @@ namespace vinkekfish
         /// <param name="additionalKeyForTables">Дополнительный ключ: это ключ для таблиц перестановок</param>
         /// <param name="OpenInitVectorForTables">Дополнительный вектор инициализации для перестановок (используется совместно с ключом)</param>
         /// <param name="PreRoundsForTranspose">Количество раундов со стандартными таблицами transpose &lt; (не менее 1)</param>
-        public virtual void Init1(int RoundsForTables, byte * additionalKeyForTables, long additionalKeyForTables_length, byte[] OpenInitVectorForTables = null, int PreRoundsForTranspose = 8)
+        public virtual void Init1(int RoundsForTables, byte * additionalKeyForTables, long additionalKeyForTables_length, byte * OpenInitVectorForTables = null, long OpenInitVectorForTables_length = 0, int PreRoundsForTranspose = 8)
         {
             Clear();
             GC.Collect();
@@ -82,7 +82,7 @@ namespace vinkekfish
             _c      = _b      + cryptoprime.keccak.c_size;
 
             _RTables        = RoundsForTables;
-            pTablesHandle   = GenStandardPermutationTables(Rounds: _RTables, key: additionalKeyForTables, key_length: additionalKeyForTables_length, OpenInitVector: OpenInitVectorForTables, PreRoundsForTranspose: PreRoundsForTranspose);
+            pTablesHandle   = GenStandardPermutationTables(Rounds: _RTables, key: additionalKeyForTables, key_length: additionalKeyForTables_length, OpenInitVector: OpenInitVectorForTables, OpenInitVector_length: OpenInitVectorForTables_length, PreRoundsForTranspose: PreRoundsForTranspose);
             _InitedPTRounds = RoundsForTables;
 
             GC.Collect();
@@ -172,7 +172,7 @@ namespace vinkekfish
         /// <param name="Rounds">Количество раундов, для которых идёт генерация. Для каждого раунда по 4-ре таблицы</param>
         /// <param name="key">Это вспомогательный ключ для генерации таблиц перестановок. Основной ключ вводить нельзя! Этот ключ не может быть ключом, вводимым в VinKekFish, см. описание VinKekFish.md</param>
         /// <param name="PreRoundsForTranspose">Количество раундов, где таблицы перестановок не генерируются от ключа, а идут стандартно transpose128_3200 и transpose200_3200</param>
-        public static Record GenStandardPermutationTables(int Rounds, AllocatorForUnsafeMemoryInterface allocator = null, byte * key = null, long key_length = 0, byte[] OpenInitVector = null, int PreRoundsForTranspose = 8)
+        public static Record GenStandardPermutationTables(int Rounds, AllocatorForUnsafeMemoryInterface allocator = null, byte * key = null, long key_length = 0, byte * OpenInitVector = null, long OpenInitVector_length = 0, int PreRoundsForTranspose = 8)
         {
             if (PreRoundsForTranspose < 1 || PreRoundsForTranspose > Rounds)
                 throw new ArgumentOutOfRangeException("VinKekFish_base_20210419.GenStandardPermutationTables: PreRoundsForTranspose < 1 || PreRoundsForTranspose > Rounds");
@@ -188,8 +188,7 @@ namespace vinkekfish
                     prng.InputKeyAndStep(key, key_length, null, 0);
                 else
                 {
-                    fixed (byte * oiv = OpenInitVector)
-                        prng.InputKeyAndStep(key, key_length, oiv, OpenInitVector.Length);
+                    prng.InputKeyAndStep(key, key_length, OpenInitVector, OpenInitVector_length);
                 }
             }
             else

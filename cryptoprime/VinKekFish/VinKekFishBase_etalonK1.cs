@@ -213,7 +213,7 @@ namespace cryptoprime.VinKekFish
             state[1] ^= len2;
             state[2] ^= regime;
 
-            InputData_ChangeTweak(tweak: tweak, dataLen: (long) dataLen, Overwrite: true, regime: regime);
+            InputData_ChangeTweak(state: state, tweak: tweak, dataLen: (long) dataLen, Overwrite: true, regime: regime);
         }
 
         /// <summary>Сырой ввод данных. Вводит данные в состояние через xor (режим ввода sponge), изменяет tweak. Не вызывает криптографические функции</summary>
@@ -234,11 +234,11 @@ namespace cryptoprime.VinKekFish
             state[1] ^= len2;
             state[2] ^= regime;
 
-            InputData_ChangeTweak(tweak: tweak, dataLen: dataLen, Overwrite: false, regime: regime);
+            InputData_ChangeTweak(state: state, tweak: tweak, dataLen: dataLen, Overwrite: false, regime: regime);
         }
 
         /// <summary>Этот метод вызывать не надо, изменяет tweak. Он автоматически вызывается при вызове InputData_*</summary>
-        public static void InputData_ChangeTweak(ulong * tweak, long dataLen, bool Overwrite, byte regime)
+        public static void InputData_ChangeTweak(byte * state, ulong * tweak, long dataLen, bool Overwrite, byte regime)
         {
             // Приращение tweak перед вводом данных
             tweak[0] += TWEAK_STEP_NUMBER;
@@ -249,6 +249,7 @@ namespace cryptoprime.VinKekFish
 
             var reg = ((ulong) regime) << 40; // 8*5 - третий по старшинству байт, нумерация с 1
             tweak[1] += reg;
+            state[2] ^= regime;
         }
 
         /// <summary>Если никаких данных не введено в режиме Sponge (xor), изменяет tweak</summary>
