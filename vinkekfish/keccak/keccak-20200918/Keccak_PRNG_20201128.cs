@@ -5,7 +5,7 @@ using cryptoprime;
 using static cryptoprime.keccak;
 using static cryptoprime.BytesBuilderForPointers;
 
-namespace vinkekfish.keccak.keccak_20200918
+namespace vinkekfish.keccak_20200918
 {
     // Ссылка на документацию по состояниям .\Documentation\Keccak_PRNG_20201128.md
     // Там же см. рекомендуемый порядок использования функций ("Рекомендуемый порядок вызовов
@@ -13,13 +13,14 @@ namespace vinkekfish.keccak.keccak_20200918
     // в функции GenStandardPermutationTables (вызовы doRandomPermutationForUShorts)
     /// <summary>Криптостойкий ГПСЧ</summary>
     public unsafe class Keccak_PRNG_20201128 : Keccak_base_20200918
-    {
-        public readonly AllocatorForUnsafeMemoryInterface allocator             = new BytesBuilderForPointers.AllocHGlobal_AllocatorForUnsafeMemory();
+    {                                                                                                       /// <summary>Главный аллокатор: используется для однократного выделения памяти под вспомогательные буферы inputTo и outputBuffer</summary>
+        public readonly AllocatorForUnsafeMemoryInterface allocator             = new BytesBuilderForPointers.AllocHGlobal_AllocatorForUnsafeMemory();      /// <summary>Аллокатор для использования в многократных операциях по выделению памяти при сохранении данных или их преобразовании</summary>
         public          AllocatorForUnsafeMemoryInterface allocatorForSaveBytes = new BytesBuilderForPointers.AllocHGlobal_AllocatorForUnsafeMemory(); // new BytesBuilderForPointers.Fixed_AllocatorForUnsafeMemory();
         // Fixed работает раза в 3 медленнее почему-то
 
         /// <summary>Создаёт пустой объект</summary>
-        /// <param name="allocator">Способ выделения памяти внутри объекта, кроме выделения памяти для вывода. Может быть null.</param>
+        /// <param name="allocator">Способ выделения памяти внутри объекта (см. поле allocator), кроме выделения памяти для вывода. Может быть null.</param>
+        /// <param name="outputSize">Размер буффера output для приёма выхода. Если outputSize недостаточен, получить данные за один раз будет невозможно</param>
         /// <exception cref="OutOfMemoryException"></exception>
         /// <remarks>Рекомендуется вызвать init() после вызова конструктора.</remarks>
         public Keccak_PRNG_20201128(AllocatorForUnsafeMemoryInterface allocator = null, int outputSize = 4096)
@@ -32,20 +33,21 @@ namespace vinkekfish.keccak.keccak_20200918
             output       = new BytesBuilderStatic(outputSize);
         }
 
+        /// <summary>Инициализация объекта нулями</summary>
         public override void init()
         {
             base.init();
             inputTo.Clear();
         }
-
+                                                                        /// <summary>Выделение памяти с помощью allocator</summary><param name="len">Размер выделяемого участка памяти</param><returns>Record, инкапсулирующий выделенный участок памяти</returns>
         public Record AllocMemory(long len)
         {
             return allocator.AllocMemory(len);
         }
-
+                                                                        /// <summary>Выделение памяти с помощью AllocMemoryForSaveBytes</summary><param name="len">Размер выделяемого участка памяти</param><returns>Record, инкапсулирующий выделенный участок памяти</returns>
         public Record AllocMemoryForSaveBytes(long len)
         {
-            return allocator.AllocMemory(len);
+            return allocatorForSaveBytes.AllocMemory(len);
         }
 
         // TODO: сделать тесты на Clone
@@ -131,7 +133,7 @@ namespace vinkekfish.keccak.keccak_20200918
                 throw new ArgumentException("Keccak_PRNG_20201128.InputKeyAndStep:key must be input before the generation or input an initialization vector (or see InputKeyAndStep code)");
 
             if (OIV_length > InputSize)
-                throw new ArgumentException("Keccak_PRNG_20201128.InputKeyAndStep: OIV_length > InputSize", "OIV");
+                throw new ArgumentException("Keccak_PRNG_20201128.InputKeyAndStep: OIV_length > InputSize", nameof(OIV));
 
             if (key == null || key_length <= 0)
                 throw new ArgumentNullException("Keccak_PRNG_20201128.InputKeyAndStep: key == null || key_length <= 0");
@@ -169,7 +171,7 @@ namespace vinkekfish.keccak.keccak_20200918
             {
                 INPUT.Clear();
                 Clear(true);
-                throw new ArgumentException("key must be a multiple of 64 bytes", "key");
+                throw new ArgumentException("key must be a multiple of 64 bytes", nameof(key));
             }
         }
 
@@ -191,6 +193,8 @@ namespace vinkekfish.keccak.keccak_20200918
         /// <param name="disposing">True из любого места программы, кроме деструктора</param>
         public override void Dispose(bool disposing)
         {
+            var throwException = !disposing && inputTo != null;
+
             base.Dispose(disposing);        // Clear вызывается здесь
 
             try
@@ -205,16 +209,16 @@ namespace vinkekfish.keccak.keccak_20200918
                 INPUT        = null;
                 outputBuffer = null;
             }
-        }
 
-        ~Keccak_PRNG_20201128()
-        {
-            if (inputTo != null)
+            if (throwException)
+            {
                 throw new Exception("Keccak_PRNG_20201128: Object must be manually disposed");
+            }
         }
 
         /// <summary>Переносит байты из очереди ожидания в массив байтов для непосредственного ввода в криптографическое состояние. Не выполняет криптографических операций</summary>
         /// <param name="ForOverwrite">Если <see langword="true"/>, то записывает данные, даже если их меньше, чем блок, выравнивая вход нулями до InputSize. Эта реализация нигде не имеет paddings, поэтому осторожнее с этим, это может вызвать неоднозначность при вводе (введены нули в конце или короткое значение?)</param>
+        /// <param name="notException">Если false, то при установленном флаге inputReady будет выдано исключение</param>
         /// <remarks>Если inputReady установлен, то функция выдаст исключение. Установить notException, если исключение не нужно</remarks>
         // При INPUT.Count == 0 не должен изменять inputReady
         public void InputBytesImmediately(bool ForOverwrite = false, bool notException = false)
@@ -250,6 +254,7 @@ namespace vinkekfish.keccak.keccak_20200918
         }
 
         /// <summary>Расчитывает шаг губки keccak. Если есть InputSize (64) байта для ввода (точнее, inputReady == true), то вводит первые 64-ре байта</summary>
+        /// <param name="inputReadyCheck">Параметр должен совпадать с флагом inputReady. Этот параметр введён для дополнительной проверки, что функция вызывается в правильном контексте</param>
         /// <param name="SaveBytes">Если <see langword="null"/>, выход не сохраняется</param>
         /// <param name="Overwrite">Если <see langword="true"/>, то вместо xor применяет перезапись внешней части состояния на вводе данных (конструкция Overwrite)</param>
         /// <remarks>Перед calcStep должен быть установлен inputReady, если нужна обработка введённой информации. Функции Input* устанавливают этот флаг автоматически</remarks>
@@ -290,7 +295,7 @@ namespace vinkekfish.keccak.keccak_20200918
         }
 
         /// <summary>Выдаёт случайные криптостойкие значения байтов. Выгодно использовать при большом количестве байтов (64 и более). Выполняет криптографические операции, если байтов не хватает. Автоматически берёт данные из INPUT, если они уже введены</summary>
-        /// <param name="output">Массив, в который записывается результат</param>
+        /// <param name="outputRecord">Массив, в который записывается результат</param>
         /// <param name="len">Количество байтов, которые необходимо записать. Используйте outputCount, чтобы узнать, сколько байтов уже готово к выводу (без выполнения криптографических операций)</param>
         public void getBytes(Record outputRecord, long len)
         {
@@ -332,7 +337,7 @@ namespace vinkekfish.keccak.keccak_20200918
                 output += 64;
             }
         }
-        
+                                                        /// <summary>Получает случайный байт</summary><returns>Случайный криптостойкий байт</returns>
         public byte getByte()
         {
             if (this.output.Count <= 0)

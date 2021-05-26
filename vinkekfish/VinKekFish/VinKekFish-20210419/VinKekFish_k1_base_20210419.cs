@@ -1,6 +1,6 @@
 ﻿using cryptoprime.VinKekFish;
 using cryptoprime;
-using vinkekfish.keccak.keccak_20200918;
+using vinkekfish.keccak_20200918;
 
 using static cryptoprime.VinKekFish.VinKekFishBase_etalonK1;
 

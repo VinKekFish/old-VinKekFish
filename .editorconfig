@@ -11,3 +11,9 @@ dotnet_diagnostic.CS1572.severity = suggestion
 
 # CS1573: Параметр не имеет соответствующий тег параметра в комментарии XML (в отличие от остальных параметров)
 dotnet_diagnostic.CS1573.severity = suggestion
+
+# CA1031: Do not catch general exception types
+dotnet_diagnostic.CA1031.severity = none
+
+# IDE0017: Упростите инициализацию объекта
+dotnet_diagnostic.IDE0017.severity = silent

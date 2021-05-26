@@ -8,6 +8,7 @@ using cryptoprime;
 
 namespace vinkekfish
 {
+    /// <summary>Базовый класс для реализаций keccak</summary>
     public abstract class Keccak_base_20200918: Keccak_abstract
     {
         /// <summary>Производит очистку состояния объекта</summary>
@@ -239,10 +240,17 @@ namespace vinkekfish
         }
 
         /// <summary>DoubleHash.one - обычный хеш 64-ре байта, DoubleHash.two - два раза по 64-ре байта, DoubleHash.full72 - один раз 72 байта</summary>
-        public enum DoubleHash {error = 0, one = 1, two = 2, full72 = 72};
+        public enum DoubleHash
+        {                                                   /// <summary>Ошибка</summary>
+            error  = 0,                                     /// <summary>Одинарный хеш (64 байта)</summary>
+            one    = 1,                                     /// <summary>Двойной хеш (2x64 байта)</summary>
+            two    = 2,                                     /// <summary>Одинарный хеш, длиной 72 байта</summary>
+            full72 = 72
+        };
 
         /// <summary>Получает 512-тибитный хеш keccak (не SHA-3, есть отличия)</summary>
         /// <param name="message">Массив для хеширования</param>
+        /// <param name="messageFullLen">Полная длина массива для хеширования message (начиная с позиции message[0])</param>
         /// <param name="doClear">Если true, то после вычисления хеша выполняется очистка.
         /// Очистка производится с помощью вызова ClearState: это очистка состояния, включая вспомогательные массивы, но без вызова Clear()</param>
         /// <param name="startIndex">Начальный индекс того, что хешируем в message (по-умолчанию - 0)</param>
@@ -257,20 +265,13 @@ namespace vinkekfish
             byte[] result = forResult;
             if (result == null)
             {
-                switch (doubleHash)
+                result = doubleHash switch
                 {
-                    case DoubleHash.one:
-                        result = new byte[64];
-                        break;
-                    case DoubleHash.two:
-                        result = new byte[128];     // 128
-                        break;
-                    case DoubleHash.full72:
-                        result = new byte[r_512b];  // 72
-                        break;
-                    default:
-                        throw new ArgumentOutOfRangeException("unknown doubleHash value");
-                }
+                    DoubleHash.one    => new byte[64],
+                    DoubleHash.two    => new byte[128],
+                    DoubleHash.full72 => new byte[r_512b],      // 72
+                    _ => throw new ArgumentOutOfRangeException("unknown doubleHash value"),
+                };
             }
 
             long mLen = 0;
