@@ -298,16 +298,16 @@ namespace cryptoprime
 
         
         /// <summary>
-        /// Эта конструкция разработана по мотивам keccak Overwrite, но немного от неё отличается
-        /// Никаких paddings не делаем! Осторожно, учитывайте это при вводе. Вводить надо ровно 64 байта (можно вводить и меньше, но криптостойкость под вопросом, т.к. ввод не однозначный)
-        /// Здесь нет ни paddings, ни framebit, ничего подобного.
+        /// Эта конструкция разработана по мотивам keccak Overwrite, но немного от неё отличается. Здесь нет padding, нет framebit. Длина вводится xor с внутренним состоянием.
         /// </summary>
         /// <param name="message">64 байта или менее для ввода с помощью перезаписи</param>
         /// <param name="len">длина массива message, 64 или менее</param>
         /// <param name="S">Внутреннее состояние keccak</param>
+        /// <param name="regime">Режим ввода: аналог framebit, но в виде байта</param>
 
         // Этот метод должен быть почти полной копией Keccak_Input_512, за исключением небольших изменений
-        public static unsafe void Keccak_InputOverwrite64_512(byte * message, byte len, byte * S)
+        // Ниже ещё один аналог!
+        public static unsafe void Keccak_InputOverwrite64_512(byte * message, byte len, byte * S, byte regime = 0)
         {
             const byte RB = 64;
             if (len > RB || len < 0)
@@ -360,7 +360,72 @@ namespace cryptoprime
             if (lastS >= S + b_size)
                 throw new ArgumentOutOfRangeException("cryptoprime.keccak.Keccak_InputOverwrite64_512: lastS >= S + b_size");
 
-            *lastS ^= len;
+            *lastS ^= len; lastS++;
+            *lastS ^= regime;
+        }
+
+        /// <summary>
+        /// Эта конструкция разработана по мотивам keccak Sponge, но немного от неё отличается. Здесь нет padding, нет framebit. Длина вводится xor с внутренним состоянием.
+        /// </summary>
+        /// <param name="message">64 байта или менее для ввода с помощью перезаписи</param>
+        /// <param name="len">длина массива message, 64 или менее</param>
+        /// <param name="S">Внутреннее состояние keccak</param>
+        /// <param name="regime">Режим ввода: аналог framebit, но в виде байта</param>
+        public static unsafe void Keccak_Input64_512(byte * message, byte len, byte * S, byte regime = 0)
+        {
+            const byte RB = 64;
+            if (len > RB || len < 0)
+            {
+                throw new ArgumentOutOfRangeException("cryptoprime.keccak.Keccak_InputOverwrite64_512: len > 64 || len < 0");
+            }
+
+            byte * lastS  = S;           // Если len = 0, то записываем в первый байт
+
+            // Общий смысл инициализации
+            // Массив информации в размере 64 байта записывается в начало состояния из 25-ти 8-мибайтовых слов; однако матрица S при этом имеет транспонированные индексы
+            // Байты, которые не введены, просто считаются нулями (то есть состояние всё равно перезаписывается)
+            // Дописываем len после конца: это не paddings, это отличие от оригинальной версии keccak
+            int i1 = 0, i2 = 0, i3 = 0, ss = c_size;
+            int i = 0;
+            for (; i < RB; i++)
+            {
+                lastS = S + (i1 << 3) + i2*ss + i3;
+                if (i < len)
+                    *lastS ^= *message;   // ЗДЕСЬ ИЗМЕНЕНИЕ! Это впитывание для Sponge, а не для Overwrite
+                else
+                {}
+
+                message++;
+
+                // Выполняем приращения индексов в матрице
+                i3++;
+                if (i3 >= 8)
+                {
+                    i3 = 0;
+                    i2++;   // Приращаем следующий индекс
+                }
+                if (i2 >= S_len)
+                {
+                    i2 = S_len;
+                    i2 = 0;
+                    i1++;
+                }
+
+                if (i1 > 1)
+                {
+                    throw new Exception("cryptoprime.keccak.Keccak_InputOverwrite64_512: Fatal algorithmic error");
+                }
+            }
+
+            // Дописываем после конца ввода размер введённых данных
+            lastS = S + (i1 << 3) + i2*ss + i3;
+
+            // На всякий случай, проверка на выход за пределы границ матрицы S
+            if (lastS >= S + b_size)
+                throw new ArgumentOutOfRangeException("cryptoprime.keccak.Keccak_InputOverwrite64_512: lastS >= S + b_size");
+
+            *lastS ^= len; lastS++;
+            *lastS ^= regime;
         }
 
         /// <summary>Вывод данных из состояния keccak. Предназначен только для версии 512 битов</summary>
