@@ -70,6 +70,7 @@ namespace vinkekfish
                 ThreadCount = Environment.ProcessorCount;
 
             this.ThreadCount   = ThreadCount;
+            this.ThreadsInFunc = ThreadCount;
             this.CountOfRounds = CountOfRounds;
             this.K             = K;
 
