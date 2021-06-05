@@ -280,7 +280,7 @@ namespace cryptoprime.VinKekFish
             tweakTmp[0] = tweak[0];
             tweakTmp[1] = tweak[1];
 
-            // Распределение впитывания
+            // Распределение впитывания (Предварительное преобразование)
             DoPermutation(state, state2, CryptoStateLen, transpose128_3200);
             DoThreefishForAllBlocks(state2, state, tweakTmp, tweakTmp2);
             DoPermutation(state, state2, CryptoStateLen, transpose128_3200);

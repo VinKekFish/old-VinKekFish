@@ -3,6 +3,7 @@
   <members name="VinKekFish_k1_base_20210419">
     <VinKekFish_k1_base_20210419>
       <summary>
+        Используйте вместо этого класса VinKekFishBase_KN_20210525 для всех применений, кроме тестирования.
         Базовый класс для реализации схем шифрования на основе VinKekFish
       </summary>
       <remarks>

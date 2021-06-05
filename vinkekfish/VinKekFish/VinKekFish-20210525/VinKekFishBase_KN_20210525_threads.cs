@@ -22,6 +22,7 @@ namespace vinkekfish
 
         /// <summary>isEnded должен быть всегда false. Если true, то потоки завершают свою работу</summary>
         protected volatile bool   isEnded = false;
+        /// <summary>Объект для синхронизации. Порядок двойных блокировок: сначала sync, потом this</summary>
         public    readonly object sync    = new object();
                                                                                     /// <summary>Функция, которая должна быть выполнена в этой задаче</summary>
         protected volatile ThreadStart     ThreadsFunc_Current       = null;        /// <summary>Приращается каждый раз, когда ставится на исполнение новая задача</summary><remarks>Обязательно в lock (sync)</remarks>
@@ -75,7 +76,7 @@ namespace vinkekfish
                             if (isEnded)
                                 goto EndThread;
 
-                            Monitor.Wait(sync); // TODO: подумать насчёт доступа к памяти
+                            Monitor.Wait(sync);
                         }
                         ThreadsInFunc++;                                            // Это обязательно в блокировке sync
                     }
@@ -138,6 +139,8 @@ namespace vinkekfish
             CurrentKeccakBlockNumber[1] = 1;
 
             doFunction(ThreadFunction_Keccak);
+            waitForDoFunction();
+            State1Main ^= true;
         }
                                                                                             /// <summary>Массив счётчика блоков для определения текущего блока для обработки keccak. [0] - чётные элементы, [1] - нечётные элементы</summary>
         protected volatile int[] CurrentKeccakBlockNumber = {0, 1};
@@ -186,6 +189,8 @@ namespace vinkekfish
             BytesBuilder.CopyTo(Len, Len, st1, st2);
 
             doFunction(ThreadFunction_ThreeFish);
+            waitForDoFunction();
+            State1Main ^= true;
         }
 
         protected volatile int CurrentThreeFishBlockNumber = 0;
@@ -201,12 +206,15 @@ namespace vinkekfish
 
                 var offsetC = ThreeFishBlockLen * index;
                 var offsetK = ThreeFishBlockLen * NumbersOfThreeFishBlocks[index];
-                var tweaks  = (ulong *) (((byte *) Tweaks) + CryptoTweakLen * index);
                 var offC    = st2 + offsetC;
                 var offK    = st1 + offsetK;
-                tweaks[0]  += (uint) index;
 
-                BytesBuilder.CopyTo(CryptoTweakLen, CryptoTweakLen, (byte *) Tweaks, (byte *) tweaks);
+                // В элементе [0] массива содержится раундовый tweak. В элементе [1] - tweak, который изменяется в течении шага, [2] - tweak конкретного блока  ::an6c5JhGzyOO
+                var tweaks  = (ulong *) (((byte *) Tweaks) + CryptoTweakLen * index + CryptoTweakLen*2);
+                tweaks[0]   = Tweaks[2+0] + (uint) index;     // Берём tweak из элемента [1]
+                tweaks[1]   = Tweaks[2+1];
+
+                BytesBuilder.CopyTo(CryptoTweakLen, CryptoTweakLen, ((byte *) Tweaks) + CryptoTweakLen, (byte *) tweaks);
 
                 Threefish_Static_Generated.Threefish1024_step(key: (ulong *) offK, tweak: tweaks, text: (ulong *) offC);
             }
@@ -214,13 +222,16 @@ namespace vinkekfish
         }
 
         /// <summary>Запускает многопоточную поблочную перестановку</summary>
-        protected void doPermutation()
+        protected void doPermutation(ushort * CurrentPermutationTable)
         {
             waitForDoFunction();                // Ждём конца выполнения предыдущей задачи
 
             CurrentPermutationBlockNumber = 0;
+            this.CurrentPermutationTable  = CurrentPermutationTable;
 
             doFunction(ThreadFunction_Permutation);
+            waitForDoFunction();
+            State1Main ^= true;
         }
 
         protected volatile int      CurrentPermutationBlockNumber = 0;
@@ -251,7 +262,7 @@ namespace vinkekfish
                                                                     /// <summary>Попусту теребит память: это простая защита от выгрузки памяти в файл подкачки</summary>
         protected void WaitFunction(object state)
         {
-            if (IsTaskExecuted)
+            if (IsTaskExecuted || !isInit1 || isDisposed)
                 return;
 
             lock (sync)
@@ -265,13 +276,13 @@ namespace vinkekfish
                                                                     /// <summary>Попусту теребит память: это простая защита от выгрузки памяти в файл подкачки</summary>
         protected void BlankRead()
         {
-            for (int i = 0; i < Len; i += PAGE_SIZE)
-            {
-                var a = State1[i];
-            }
-
             lock (this)
             {
+                for (int i = 0; i < Len; i += PAGE_SIZE)
+                {
+                    var b = State1[i];
+                }
+
                 var len = tablesForPermutations.len;
                 var a   = tablesForPermutations.array;
                 for (int i = 0; i < len; i += PAGE_SIZE)

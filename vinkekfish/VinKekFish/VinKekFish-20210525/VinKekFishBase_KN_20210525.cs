@@ -39,7 +39,8 @@ namespace vinkekfish
 
                                                                             /// <summary>Максимальное количество раундов</summary>
         public readonly int CountOfRounds  = 0;                             /// <summary>Коэффициент размера K</summary>
-        public readonly int K              = 1;              
+        public readonly int K              = 1;                             /// <summary>Количество заключительных пар перестановок в завершающем преобразовании (2 => 4*keccak, 3 => 6*keccak)</summary>
+        public readonly int CountOfFinal   = Int32.MaxValue;
                                                                             /// <summary>Размер криптографического состояния в байтах</summary>
         public readonly int Len            = 0;                             /// <summary>Размер криптографического состояния в блоках ThreeFish</summary>
         public readonly int LenInThreeFish = 0;                             /// <summary>Размер криптографического состояния в блока Keccak</summary>
@@ -51,6 +52,25 @@ namespace vinkekfish
 
         /// <summary>Вспомогательные переменные, показывающие, какие состояния сейчас являются целевыми. Изменяются в алгоритме</summary>
         protected volatile byte * st1 = null, st2 = null, st3 = null;
+        /// <summary>Устанавливает st1 и st2 на нужные состояния. Если true, то st1 = State1, иначе st1 = State2</summary>
+        public bool State1Main
+        {
+            get => st1 == State1;
+            set
+            {
+                if (value)
+                {
+                    st1 = State1;
+                    st2 = State2;
+                }
+                else
+                {
+                    st1 = State2;
+                    st2 = State1;
+                }
+            }
+        }
+
         /// <summary>Массив, устанавливающий номера ключевых блоков TreeFish для каждого трансформируемого блока</summary>
         protected readonly int[] NumbersOfThreeFishBlocks = null;
         protected readonly Timer Timer                    = null;
@@ -64,10 +84,11 @@ namespace vinkekfish
         /// <param name="OpenInitVectorForPermutations">ОВИ (открытый вектор инициализации) для инициализации таблиц перестановок</param>
         /// <param name="OpenInitVectorForPermutations_length">Длина ОВИ</param>
         /// <param name="ThreadCount">Количество создаваемых потоков. Рекомендуется использовать значение по-умолчанию: 0 (0 == Environment.ProcessorCount)</param>
-        public VinKekFishBase_KN_20210525(int CountOfRounds = NORMAL_ROUNDS, int K = 1, int ThreadCount = 0, int TimerIntervalMs = 1000)
+        public VinKekFishBase_KN_20210525(int CountOfRounds = NORMAL_ROUNDS, int K = 1, int ThreadCount = 0, int TimerIntervalMs = 500)
         {
             TweaksArrayLen = 4 * CryptoTweakLen * LenInThreeFish;
             MatrixArrayLen = MatrixLen * LenInKeccak;
+            CountOfFinal = K <= 11 ? 2 : 3;
 
             if (ThreadCount <= 0)
                 ThreadCount = Environment.ProcessorCount;
@@ -139,6 +160,8 @@ namespace vinkekfish
             {
                 Timer = new Timer(WaitFunction, period: TimerIntervalMs, dueTime: TimerIntervalMs, state: this);
             }
+
+            State1Main = true;
         }
 
         /// <summary>Проверка верности заполнения NumbersOfThreeFishBlocks</summary>
@@ -160,11 +183,6 @@ namespace vinkekfish
             }
         }
 
-        public virtual void Init1(int PreRoundsForTranspose = 8, byte * keyForPermutations = null, long key_length = 0, byte * OpenInitVectorForPermutations = null, long OpenInitVectorForPermutations_length = 0)
-        {
-            tablesForPermutations = VinKekFish_k1_base_20210419.GenStandardPermutationTables(CountOfRounds, allocator, key: keyForPermutations, key_length: key_length, OpenInitVector: OpenInitVectorForPermutations, OpenInitVector_length: OpenInitVectorForPermutations_length);
-        }
-
         /// <summary>Очистить всё состояние (кроме таблиц перестановок)</summary>
         public virtual void ClearState()
         {
@@ -182,6 +200,7 @@ namespace vinkekfish
         {
             lock (this)
             {
+                isInit1 = false;
                 tablesForPermutations?.Dispose();
                 tablesForPermutations = null;
             }
@@ -210,10 +229,14 @@ namespace vinkekfish
             if (isDisposed)
                 return;
 
-            Clear();
-            States.Dispose();
+            lock (this)
+            {
+                Clear();
+                States.Dispose();
+                Timer .Dispose();
 
-            isDisposed = true;
+                isDisposed = true;
+            }
 
             if (!dispose)
                 throw new Exception("VinKekFishBase_KN_20210525.Dispose: you must call Dispose() after use");

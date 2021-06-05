@@ -54,6 +54,7 @@
     <Compile Include="LightRandomGenerator\LightRandomGenerator.cs" />
     <Compile Include="VinKekFish\VinKekFish-20210419\VinKekFish_k1_base_20210419.cs" />
     <Compile Include="VinKekFish\VinKekFish-20210419\VinKekFish_k1_base_20210419_keyGeneration.cs" />
+    <Compile Include="VinKekFish\VinKekFish-20210525\VinKekFishBase_KN_20210525_step.cs" />
     <Compile Include="VinKekFish\VinKekFish-20210525\VinKekFishBase_KN_20210525_threads.cs" />
     <Compile Include="VinKekFish\VinKekFish-20210525\VinKekFishBase_KN_20210525.cs" />
     <None Include="CSharp-help\Help1.cs" />
