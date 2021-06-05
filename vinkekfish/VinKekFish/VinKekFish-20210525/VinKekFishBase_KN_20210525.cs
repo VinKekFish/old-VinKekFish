@@ -16,6 +16,7 @@ namespace vinkekfish
     /// <summary>Основная реализация VinKekFish. Создаёт потоки внутри объекта для многопоточной обработки</summary>
     /// <remarks>IsDisposed == true означает, что объект более не пригоден для использования.</remarks>
     /// <remarks>Обязательная инициализация вызовом Init1 и Init2</remarks>
+    /// <remarks>При работе в разных потоках с одним экземпляром объекта использовать для синхронизации отдельно созданный объект либо lock (this). В некоторых случаях, сигналы можно получать через sync</remarks>
     public unsafe partial class VinKekFishBase_KN_20210525: IDisposable
     {
         /// <summary>Здесь содержится два состояния, 4 твика на каждый блок TreeFish, матрицы c и b на каждый блок keccak. Матрицы c и b выровнены на 64 байта</summary>
@@ -41,7 +42,7 @@ namespace vinkekfish
         public readonly int CountOfRounds  = 0;                             /// <summary>Коэффициент размера K</summary>
         public readonly int K              = 1;                             /// <summary>Количество заключительных пар перестановок в завершающем преобразовании (2 => 4*keccak, 3 => 6*keccak)</summary>
         public readonly int CountOfFinal   = Int32.MaxValue;
-                                                                            /// <summary>Размер криптографического состояния в байтах</summary>
+                                                                            /// <summary>Размер одного криптографического состояния в байтах</summary>
         public readonly int Len            = 0;                             /// <summary>Размер криптографического состояния в блоках ThreeFish</summary>
         public readonly int LenInThreeFish = 0;                             /// <summary>Размер криптографического состояния в блока Keccak</summary>
         public readonly int LenInKeccak    = 0;
@@ -49,6 +50,10 @@ namespace vinkekfish
         public readonly int LenThreadBlock   = 0;                           /// <summary>Количество блоков перестановки для потоков (размер в блоках длиной LenThreadBlock)</summary>
         public readonly int LenInThreadBlock = 0;                           /// <summary>Количество потоков</summary>
         public readonly int ThreadCount      = 0;
+                                                                            /// <summary>Максимальная длина ОВИ (открытого вектора инициализации)</summary>
+        public readonly int MAX_OIV_K;                                      /// <summary>Максимальная длина первого блока ключа (это максимально рекомендуемая длина, но можно вводить больше)</summary>
+        public readonly int MAX_SINGLE_KEY_K;                               /// <summary>Длина блока ввода/вывода</summary>
+        public readonly int BLOCK_SIZE_K;
 
         /// <summary>Вспомогательные переменные, показывающие, какие состояния сейчас являются целевыми. Изменяются в алгоритме</summary>
         protected volatile byte * st1 = null, st2 = null, st3 = null;
@@ -72,7 +77,7 @@ namespace vinkekfish
         }
 
         /// <summary>Массив, устанавливающий номера ключевых блоков TreeFish для каждого трансформируемого блока</summary>
-        protected readonly int[] NumbersOfThreeFishBlocks = null;
+        protected readonly int[] NumbersOfThreeFishBlocks = null;                           /// <summary>Таймер чтения вхолостую</summary>
         protected readonly Timer Timer                    = null;
 
         /// <summary>Создаёт и первично инициализирует объект VinKekFish (инициализация ключём и ОВИ должна быть отдельно). Создаёт Environment.ProcessorCount потоков для объекта</summary>
@@ -86,6 +91,10 @@ namespace vinkekfish
         /// <param name="ThreadCount">Количество создаваемых потоков. Рекомендуется использовать значение по-умолчанию: 0 (0 == Environment.ProcessorCount)</param>
         public VinKekFishBase_KN_20210525(int CountOfRounds = NORMAL_ROUNDS, int K = 1, int ThreadCount = 0, int TimerIntervalMs = 500)
         {
+            BLOCK_SIZE_K     = BLOCK_SIZE * K;
+            MAX_OIV_K        = MAX_OIV * K;
+            MAX_SINGLE_KEY_K = MAX_SINGLE_KEY * K;
+
             TweaksArrayLen = 4 * CryptoTweakLen * LenInThreeFish;
             MatrixArrayLen = MatrixLen * LenInKeccak;
             CountOfFinal = K <= 11 ? 2 : 3;
@@ -186,16 +195,24 @@ namespace vinkekfish
         /// <summary>Очистить всё состояние (кроме таблиц перестановок)</summary>
         public virtual void ClearState()
         {
-            ThreadsFunc_Current = ThreadFunction_empty;
-            BytesBuilder.ToNull(States, States);
+            lock (this)
+            {
+                isInit2 = false;
+                ThreadsFunc_Current = ThreadFunction_empty;
+                BytesBuilder.ToNull(States, States);
+            }
         }
 
         /// <summary>Очистить вспомогательные массивы, включая второе состояние. Первичное состояние не очищается: объект остаётся инициализированным</summary>
+        /// <remarks>Рекомендуется вызывать после завершения блока вычислений, если новый будет не скоро.</remarks>
         public virtual void ClearSecondaryStates()
         {// TODO: В тестах проверить, что два шага без очистки равны двум шагам с очисткой между ними
-            BytesBuilder.ToNull(targetLength: States - Len, States + Len);
+            BytesBuilder.ToNull(targetLength: Len,                             State2);
+            BytesBuilder.ToNull(targetLength: MatrixArrayLen,                  Matrix);
+            BytesBuilder.ToNull(targetLength: TweaksArrayLen - CryptoTweakLen, ((byte *) Tweaks) + CryptoTweakLen);
         }
 
+        /// <summary>Очищает таблицы перестановок</summary>
         public virtual void ClearPermutationTables()
         {
             lock (this)
@@ -206,6 +223,7 @@ namespace vinkekfish
             }
         }
 
+        /// <summary>Полная очистка объекта без его освобождения. Допустимо повторное использование после инициализации</summary>
         public virtual void Clear()
         {
             ClearState();
@@ -217,10 +235,10 @@ namespace vinkekfish
         {
             Dispose(true);
         }
-
-        protected bool isDisposed =  false;
-        public    bool IsDisposed => isDisposed;
-        public virtual void Dispose(bool dispose)
+                                                                            /// <summary>См. IsDisposed</summary>
+        protected bool isDisposed =  false;                                 /// <summary>Если true, объект уничтожен и не пригоден к дальнейшему использованию</summary>
+        public    bool IsDisposed => isDisposed;                            /// <summary>Очищает объект и освобождает все выделенные под него ресурсы</summary>
+        public virtual void Dispose(bool dispose = true)
         {
             isEnded = true;
             lock (sync)
@@ -229,11 +247,17 @@ namespace vinkekfish
             if (isDisposed)
                 return;
 
+            waitForDoFunction();
+
             lock (this)
             {
                 Clear();
-                States.Dispose();
-                Timer .Dispose();
+                try     {  output?.Dispose(); input?.Dispose(); inputRecord?.Dispose(); Timer.Dispose(); }
+                finally {  States .Dispose();  }
+
+                output      = null;
+                input       = null;
+                inputRecord = null;
 
                 isDisposed = true;
             }

@@ -69,6 +69,7 @@ namespace main_tests
                 fixed (byte * Sb = s)
                 {
                     k.Init1();
+                    k.Init2();
                 }
                 k.Dispose();
                 /*

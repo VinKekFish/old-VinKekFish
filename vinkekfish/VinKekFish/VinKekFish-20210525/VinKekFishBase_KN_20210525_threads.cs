@@ -22,7 +22,7 @@ namespace vinkekfish
 
         /// <summary>isEnded должен быть всегда false. Если true, то потоки завершают свою работу</summary>
         protected volatile bool   isEnded = false;
-        /// <summary>Объект для синхронизации. Порядок двойных блокировок: сначала sync, потом this</summary>
+        /// <summary>Объект для синхронизации. Порядок двойных блокировок: сначала this, потом sync</summary>
         public    readonly object sync    = new object();
                                                                                     /// <summary>Функция, которая должна быть выполнена в этой задаче</summary>
         protected volatile ThreadStart     ThreadsFunc_Current       = null;        /// <summary>Приращается каждый раз, когда ставится на исполнение новая задача</summary><remarks>Обязательно в lock (sync)</remarks>
@@ -262,9 +262,10 @@ namespace vinkekfish
                                                                     /// <summary>Попусту теребит память: это простая защита от выгрузки памяти в файл подкачки</summary>
         protected void WaitFunction(object state)
         {
-            if (IsTaskExecuted || !isInit1 || isDisposed)
+            if (IsTaskExecuted || !isInit1 || isDisposed || isEnded)
                 return;
 
+            lock (this)
             lock (sync)
             {
                 if (!IsTaskExecuted)
@@ -276,19 +277,16 @@ namespace vinkekfish
                                                                     /// <summary>Попусту теребит память: это простая защита от выгрузки памяти в файл подкачки</summary>
         protected void BlankRead()
         {
-            lock (this)
+            for (int i = 0; i < Len; i += PAGE_SIZE)
             {
-                for (int i = 0; i < Len; i += PAGE_SIZE)
-                {
-                    var b = State1[i];
-                }
+                var b = State1[i];
+            }
 
-                var len = tablesForPermutations.len;
-                var a   = tablesForPermutations.array;
-                for (int i = 0; i < len; i += PAGE_SIZE)
-                {
-                    var b = a[i];
-                }
+            var len = tablesForPermutations.len;
+            var a   = tablesForPermutations.array;
+            for (int i = 0; i < len; i += PAGE_SIZE)
+            {
+                var b = a[i];
             }
         }
     }

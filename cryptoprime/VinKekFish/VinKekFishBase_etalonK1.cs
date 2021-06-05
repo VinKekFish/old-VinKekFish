@@ -201,7 +201,7 @@ namespace cryptoprime.VinKekFish
             byte len2 = (byte) (dataLen >> 8);
 
             len2 |= 0x80;       // Старший бит количества вводимых байтов устанавливается в 1, если используется режим Overwrite
-            if (nullPaddding)   // Второй (начиная с 1) по старшинству бит устанавливаем, если не перезатирали значения
+            if (!nullPaddding)   // Второй (начиная с 1) по старшинству бит устанавливаем, если не перезатирали значения
             {
                 if ((len2 & 0x40) > 0)
                     throw new Exception("InputData_Overwrite: fatal algorithmic error: (len2 & 0x40) > 0");

@@ -158,16 +158,25 @@ namespace cryptoprime
 
             public static implicit operator byte * (Record t)
             {
+                if (t == null)
+                    return null;
+
                 return t.array;
             }
 
             public static implicit operator ushort * (Record t)
             {
+                if (t == null)
+                    return null;
+
                 return (ushort *) t.array;
             }
 
             public static implicit operator ulong * (Record t)
             {
+                if (t == null)
+                    return null;
+
                 return (ulong *) t.array;
             }
 
@@ -183,6 +192,9 @@ namespace cryptoprime
 
             public static implicit operator long (Record t)
             {
+                if (t == null)
+                    return 0;
+
                 return t.len;
             }
         }

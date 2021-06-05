@@ -18,7 +18,7 @@ namespace cryptoprime
         public long size;
         public readonly AllocatorForUnsafeMemoryInterface allocator = null;
 
-        public BytesBuilderStatic(int Size, AllocatorForUnsafeMemoryInterface allocator = null)
+        public BytesBuilderStatic(long Size, AllocatorForUnsafeMemoryInterface allocator = null)
         {
             this.allocator = allocator ?? new AllocHGlobal_AllocatorForUnsafeMemory();
 
@@ -46,6 +46,9 @@ namespace cryptoprime
 
         public void ReadBytesTo(byte* target, long count)
         {
+            if (count > Count)
+                throw new ArgumentOutOfRangeException("ReadBytesTo: count > Count");
+
             var s1 = bytes + Start;
             var l1 = len1;
             var l2 = len2;
@@ -174,7 +177,7 @@ namespace cryptoprime
             }
         }
 
-        /// <summary>Добавляет блок в объект</summary><param name="bytesToAdded">Добавляемый блок данных</param>
+        /// <summary>Добавляет блок в объект</summary><param name="bytesToAdded">Добавляемый блок данных. Содержимое копируется</param>
         public void add(byte * bytesToAdded, long len)
         {
             if (count + len > size)
@@ -250,12 +253,12 @@ namespace cryptoprime
         }
 
         /// <summary>Создаёт массив байтов, включающий в себя resultCount символов, и удаляет их с очисткой из BytesBuilder</summary>
-        /// <param name="result">Массив, в который будет записан результат. Уже должен быть выделен. result != <see langword="null"/>. Количество байтов устанавливается длиной массива</param>
+        /// <param name="result">Массив, в который будет записан результат. Уже должен быть выделен. result != <see langword="null"/>. Длина запрошенных данных устанавливается полем len этой записи</param>
         /// <returns>Запрошенный результат (первые resultCount байтов), этот возвращаемый результат равен параметру result</returns>
         public Record getBytesAndRemoveIt(Record result)
         {
-            ReadBytesTo(result.array, result.len);
-            RemoveBytes(result.len);
+            ReadBytesTo(result, result);
+            RemoveBytes(result);
 
             return result;
         }
