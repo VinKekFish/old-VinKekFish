@@ -26,16 +26,16 @@ namespace vinkekfish
         /// <summary>Аллокатор для выделения памяти внутри объекта</summary>
         public readonly BytesBuilderForPointers.AllocatorForUnsafeMemoryInterface allocator = new BytesBuilderForPointers.AllocHGlobal_AllocatorForUnsafeMemory();
 
-                                                                            /// <summary>Криптографическое состояние 1</summary>
-        public byte *  State1 => States;                                    /// <summary>Криптографическое состояние 2</summary>
-        public byte *  State2 => State1 + Len;
+                                                                            /// <summary>Криптографическое состояние 1. Всегда в начале общего массива</summary>
+        protected byte *  State1 => States;                                 /// <summary>Криптографическое состояние 2</summary>
+        protected byte *  State2 => State1 + Len;
                                                                             /// <summary>Массив матриц b и c на каждый блок Keccak</summary>
-        public byte *  Matrix => State2 + Len;                              /// <summary>Массив tweak - по 4 tweak на каждый блок ThreeFish</summary>
-        public ulong * Tweaks => (ulong *) (Matrix + MatrixArrayLen);                  
-                                                                                  /// <summary>Длина массива Tweaks в байтах</summary>
-        public       int TweaksArrayLen => 4 * CryptoTweakLen * LenInThreeFish;   /// <summary>Длина массива Matrix в байтах</summary>
-        public       int MatrixArrayLen => MatrixLen * LenInKeccak;               /// <summary>Длина одного блока массива Matrix в байтах</summary>
-        public const int MatrixLen      = 256;
+        protected byte *  Matrix => State2 + Len;                           /// <summary>Массив tweak - по 4 tweak на каждый блок ThreeFish</summary>
+        protected ulong * Tweaks => (ulong *) (Matrix + MatrixArrayLen);                  
+                                                                            /// <summary>Длина массива Tweaks в байтах</summary>
+        public readonly int TweaksArrayLen = 0;                             /// <summary>Длина массива Matrix в байтах</summary>
+        public readonly int MatrixArrayLen = 0;                             /// <summary>Длина одного блока массива Matrix в байтах</summary>
+        public const    int MatrixLen      = 256;
 
                                                                             /// <summary>Максимальное количество раундов</summary>
         public readonly int CountOfRounds  = 0;                             /// <summary>Коэффициент размера K</summary>
@@ -49,11 +49,11 @@ namespace vinkekfish
         public readonly int LenInThreadBlock = 0;                           /// <summary>Количество потоков</summary>
         public readonly int ThreadCount      = 0;
 
-        /// <summary>Вспомогательные переменные, показывающие, какие состояния сейчас являются целевыми</summary>
+        /// <summary>Вспомогательные переменные, показывающие, какие состояния сейчас являются целевыми. Изменяются в алгоритме</summary>
         protected volatile byte * st1 = null, st2 = null, st3 = null;
-
+        /// <summary>Массив, устанавливающий номера ключевых блоков TreeFish для каждого трансформируемого блока</summary>
         protected readonly int[] NumbersOfThreeFishBlocks = null;
-        
+        protected readonly Timer Timer                    = null;
 
         /// <summary>Создаёт и первично инициализирует объект VinKekFish (инициализация ключём и ОВИ должна быть отдельно). Создаёт Environment.ProcessorCount потоков для объекта</summary>
         /// <param name="CountOfRounds">Максимальное количество раундов шифрования, которое будет использовано, не менее VinKekFishBase_etalonK1.MIN_ROUNDS</param>
@@ -64,8 +64,11 @@ namespace vinkekfish
         /// <param name="OpenInitVectorForPermutations">ОВИ (открытый вектор инициализации) для инициализации таблиц перестановок</param>
         /// <param name="OpenInitVectorForPermutations_length">Длина ОВИ</param>
         /// <param name="ThreadCount">Количество создаваемых потоков. Рекомендуется использовать значение по-умолчанию: 0 (0 == Environment.ProcessorCount)</param>
-        public VinKekFishBase_KN_20210525(int CountOfRounds = NORMAL_ROUNDS, int K = 1, int ThreadCount = 0)
+        public VinKekFishBase_KN_20210525(int CountOfRounds = NORMAL_ROUNDS, int K = 1, int ThreadCount = 0, int TimerIntervalMs = 1000)
         {
+            TweaksArrayLen = 4 * CryptoTweakLen * LenInThreeFish;
+            MatrixArrayLen = MatrixLen * LenInKeccak;
+
             if (ThreadCount <= 0)
                 ThreadCount = Environment.ProcessorCount;
 
@@ -110,23 +113,50 @@ namespace vinkekfish
                     throw new Exception("VinKekFishBase_KN_20210525: Fatal algorithmic error");
             }
 
-            //                                   Состояния         Твики      b и c
-            States         = allocator.AllocMemory(Len * 2 + TweaksArrayLen + MatrixArrayLen);
+            //                            Состояния      Твики            b и c
+            States = allocator.AllocMemory(Len * 2 + TweaksArrayLen + MatrixArrayLen);
             ClearState();
-                                                //   0                     1                      2                         3
-            ThreadsFunc = new ThreadStart[] {ThreadFunction_empty, ThreadFunction_Keccak, ThreadFunction_ThreeFish, ThreadFunction_Permutation};
-            threads     = new Thread[ThreadCount];
+
+            ThreadsFunc_Current = ThreadFunction_empty;
+            threads = new Thread[ThreadCount];
 
             for (int i = 0; i < threads.Length; i++)
                 threads[i] = new Thread(ThreadsFunction);
 
 
+            NumbersOfThreeFishBlocks = new int[LenInThreeFish];
             var j = LenInThreeFish / 2;
             for (int i = 0; i < LenInThreeFish; i++)
             {
                 NumbersOfThreeFishBlocks[i] = j++;
-                if (j > LenInThreeFish)
+                if (j >= LenInThreeFish)
                     j = 0;
+            }
+
+            CheckNumbersOfThreeFishBlocks();
+
+            if (TimerIntervalMs > 0)
+            {
+                Timer = new Timer(WaitFunction, period: TimerIntervalMs, dueTime: TimerIntervalMs, state: this);
+            }
+        }
+
+        /// <summary>Проверка верности заполнения NumbersOfThreeFishBlocks</summary>
+        protected void CheckNumbersOfThreeFishBlocks()
+        {
+            var nums = new int[LenInThreeFish];
+            for (int i = 0; i < LenInThreeFish; i++)
+                nums[i] = -1;
+
+            int j = 0;
+            for (int i = 0; i < LenInThreeFish; i++)
+            {
+                var k = NumbersOfThreeFishBlocks[j];
+                if (nums[j] >= 0)
+                    throw new Exception("VinKekFishBase_KN_20210525.CheckNumbersOfThreeFishBlocks: Fatal algorithmic error");
+
+                nums[j] = k;
+                j = k;
             }
         }
 
@@ -138,7 +168,7 @@ namespace vinkekfish
         /// <summary>Очистить всё состояние (кроме таблиц перестановок)</summary>
         public virtual void ClearState()
         {
-            ThreadsFunc_CurrentNumber = 0;
+            ThreadsFunc_Current = ThreadFunction_empty;
             BytesBuilder.ToNull(States, States);
         }
 
@@ -150,8 +180,11 @@ namespace vinkekfish
 
         public virtual void ClearPermutationTables()
         {
-            tablesForPermutations?.Dispose();
-            tablesForPermutations = null;
+            lock (this)
+            {
+                tablesForPermutations?.Dispose();
+                tablesForPermutations = null;
+            }
         }
 
         public virtual void Clear()

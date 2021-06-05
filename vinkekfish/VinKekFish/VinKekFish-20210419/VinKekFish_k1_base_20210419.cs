@@ -47,10 +47,6 @@ namespace vinkekfish
 
         public VinKekFish_k1_base_20210419()
         {
-            GC.Collect();
-
-            GenTables();
-            GC.Collect();
         }
 
         /// <summary>Первичная инициализация: генерация таблиц перестановок (перед началом вызывает Clear)</summary>
@@ -174,6 +170,8 @@ namespace vinkekfish
         /// <param name="PreRoundsForTranspose">Количество раундов, где таблицы перестановок не генерируются от ключа, а идут стандартно transpose128_3200 и transpose200_3200</param>
         public static Record GenStandardPermutationTables(int Rounds, AllocatorForUnsafeMemoryInterface allocator = null, byte * key = null, long key_length = 0, byte * OpenInitVector = null, long OpenInitVector_length = 0, int PreRoundsForTranspose = 8)
         {
+            GenTables();
+
             if (PreRoundsForTranspose < 1 || PreRoundsForTranspose > Rounds)
                 throw new ArgumentOutOfRangeException("VinKekFish_base_20210419.GenStandardPermutationTables: PreRoundsForTranspose < 1 || PreRoundsForTranspose > Rounds");
 
