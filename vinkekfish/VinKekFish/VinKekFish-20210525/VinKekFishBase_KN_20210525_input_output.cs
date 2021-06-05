@@ -32,6 +32,7 @@ namespace vinkekfish
                 throw new ArgumentOutOfRangeException("VinKekFishBase_KN_20210525.doStep: outputLen > BLOCK_SIZE_K");
 
             if (input != null)
+            lock (input)
             {
                 if (inputRecord == null)
                     inputRecord = allocator.AllocMemory(BLOCK_SIZE_K);
@@ -52,6 +53,7 @@ namespace vinkekfish
             step(countOfRounds: countOfRounds);
 
             if (output != null)
+            lock (output)
             {
                 isHaveOutputData = false;
                 if (output.Count + outputLen > output.size)
