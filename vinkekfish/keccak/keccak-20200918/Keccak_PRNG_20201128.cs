@@ -141,7 +141,7 @@ namespace vinkekfish.keccak_20200918
             if (inputReady)
                 throw new ArgumentNullException("Keccak_PRNG_20201128.InputKeyAndStep: inputReady == true");
 
-            INPUT.add(key, key_length);
+            INPUT.addWithCopy(key, key_length, allocator);
             InputBytesImmediately(ForOverwrite: true); // Это нужно, чтобы даже маленький ключ точно был записан
             do
             {
@@ -156,7 +156,7 @@ namespace vinkekfish.keccak_20200918
                 if (OIV_length <= 0)
                     throw new ArgumentOutOfRangeException("Keccak_PRNG_20201128.InputKeyAndStep: OIV_length <= 0");
 
-                INPUT.add(OIV, OIV_length);
+                INPUT.addWithCopy(OIV, OIV_length, allocator);
                 InputBytesImmediately(true);
                 calcStep(Overwrite: true);          // xor, к тому же, даёт больше ПЭМИН, так что просто Overwrite, хотя особо смысла в этом нет, т.к. xor в других операциях тоже идёт (но не с ключевой информацией)
             }

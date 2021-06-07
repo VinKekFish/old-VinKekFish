@@ -118,7 +118,7 @@ namespace cryptoprime
 
         /// <summary>Обнуляет объект</summary>
         /// <param name="fast">fast = <see langword="false"/> - обнуляет все байты сохранённые в массиве</param>
-        public void clear(bool fast = false)
+        public void Clear(bool fast = false)
         {
             if (!fast)
             {
@@ -694,7 +694,7 @@ namespace cryptoprime
             {
                 target = new byte[bb.Count];
                 BytesBuilder.CopyTo(bb.getBytes(), target, start);
-                bb.clear();
+                bb.Clear();
             }
 
             data = 0;

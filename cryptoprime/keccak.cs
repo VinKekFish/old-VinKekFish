@@ -234,7 +234,7 @@ namespace cryptoprime
         /// <param name="message">Указатель на очередную порцию данных</param>
         /// <param name="len">Количество байтов для записи (не более 72-х; константа r_512b)</param>
         /// <param name="S">Внутреннее состояние S</param>
-        /// <param name="setPaddings">Если <see langword="true"/> - ввести padding в массив (при вычислении хеша делать на последнем блоке <= 71 байта)</param>
+        /// <param name="setPaddings">Если <see langword="true"/> - ввести padding в массив (при вычислении хеша делать на последнем блоке <![CDATA[<=]]> 71 байта)</param>
         // НИЖЕ КОПИЯ Keccak_InputOverwrite_512 (небольшая разница, но методы, в целом, идентичны)
         public static unsafe void Keccak_Input_512(byte * message, byte len, byte * S, bool setPaddings = false)
         {

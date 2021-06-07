@@ -35,21 +35,24 @@ namespace cryptoprime
         /// <param name="index">Куда добавляется блок. По-умолчанию, в конец (index = -1)</param>
         /// <param name="MakeCopy">MakeCopy = true говорит о том, что данные блока будут скопированы (создан новый блок и он будет добавлен). По-умолчанию false - блок будет добавлен без копирования. Это значит, что при изменении исходного блока, изменится и выход, даваемый объектом. Если исходный блок где-то из-вне будет обнулён, то будет обнулены и выходные байты из этого объекта, соответствующие этому блоку</param>
         // При добавлении блока важно проверить, верно выставлен параметр MakeCopy и если MakeCopy = false, то блок не должен изменяться
-        public void add(byte * bytesToAdded, long len, int index = -1, bool MakeCopy = false, AllocatorForUnsafeMemoryInterface allocator = null)
+        public void addWithCopy(byte * bytesToAdded, long len, AllocatorForUnsafeMemoryInterface allocator, int index = -1)
         {
-            Record rec = null;
-            if (MakeCopy)
-            {
-                rec = CloneBytes(bytesToAdded, 0, len, allocator);
-            }
-            else
-                rec = new Record() { len = len, array = bytesToAdded };
+            var rec = CloneBytes(bytesToAdded, 0, len, allocator);
 
             add(rec, index);
         }
 
-        /// <summary>Добавляет массив в сохранённые значения без копирования. Массив будет автоматически очищен и освобождён после окончания использования</summary>
-        /// <param name="rec">Добавляемый массив (не копируется, будет уничтожен автоматически при уничтожении BytesBuilder)</param>
+        /// <summary>Добавляет блок в объект</summary><param name="bytesToAdded">Добавляемый блок данных</param>
+        /// <param name="index">Куда добавляется блок. По-умолчанию, в конец (index = -1)</param>
+        public void addWithoutCopy(byte * bytesToAdded, long len, int index = -1)
+        {
+            var rec = new Record() { len = len, array = bytesToAdded };
+
+            add(rec, index);
+        }
+
+        /// <summary>Добавляет массив в сохранённые значения без копирования. Массив будет автоматически очищен и освобождён после окончания</summary>
+        /// <param name="rec">Добавляемый массив (не копируется, будет уничтожен автоматически при очистке BytesBuilder). Массив нельзя использовать где-то ещё, так как он может быть неожиданно очищен</param>
         /// <param name="index">Индекс позиции, на которую добавляется массив</param>
         public void add(Record rec, int index = -1)
         {
@@ -92,7 +95,7 @@ namespace cryptoprime
             if (resultA != null && resultA.len < resultCount)
                 throw new System.ArgumentOutOfRangeException("resultA", "resultA is too small");
 
-            var result = resultA ?? allocator.AllocMemory(resultCount);
+            var result = resultA ?? allocator?.AllocMemory(resultCount) ?? bytes[0].allocator.AllocMemory(resultCount);
 
             long cursor = 0;
             for (int i = 0; i < bytes.Count; i++)
@@ -123,8 +126,7 @@ namespace cryptoprime
         {
             if (PostEnd < 0)
                 PostEnd = rec.len;
-            if (allocator == null)
-                allocator = rec.allocator;
+            allocator = allocator ?? rec.allocator;
 
             if (allocator == null)
                 throw new Exception("BytesBuilderForPointers.CloneBytes: allocator == null");
@@ -230,6 +232,40 @@ namespace cryptoprime
                 data <<= 8;
                 data += *(target + i);
             }
+        }
+
+        /// <summary>Безопасно сравнивает два массива</summary>
+        /// <param name="r1">Первый массив</param>
+        /// <param name="r2">Второй массив</param>
+        /// <returns><see langword="true"/>, если массивы совпадают.</returns>
+        public unsafe static bool SecureCompare(Record r1, Record r2)
+        {
+            return SecureCompare(r1, r2, 0, 0, r1, r2);
+        }
+
+        /// <summary>Безопасно сравнивает два массива</summary>
+        /// <param name="r1">Первый массив</param>
+        /// <param name="r2">Второй массив</param>
+        /// <param name="start1">Начальный индекс для сравнения в первом массиве</param>
+        /// <param name="start2">Начальный индекс для сравнения во втором массиве</param>
+        /// <param name="len1">Длина массива для сравнивания</param>
+        /// <param name="len2">Длина массива для сравнивания</param>
+        /// <returns><see langword="true"/>, если массивы совпадают.</returns>
+        public unsafe static bool SecureCompare(Record r1, Record r2, long start1, long start2, long len1, long len2)
+        {
+            var len = len1;
+            if (len > len2)
+                len = len2;
+
+            byte * r1a = r1.array + start1, r2a = r2.array + start2, End1 = r1a + len;
+
+            byte V = 0;
+            for (; r1a < End1; r1a++, r2a++)
+            {
+                V |= (byte) (*r1a - *r2a);
+            }
+
+            return V == 0 && len1 == len2;
         }
 
         ~BytesBuilderForPointers()

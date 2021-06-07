@@ -18,8 +18,12 @@ namespace cryptoprime
         public long size;
         public readonly AllocatorForUnsafeMemoryInterface allocator = null;
 
+        public const int MIN_SIZE = 2;
         public BytesBuilderStatic(long Size, AllocatorForUnsafeMemoryInterface allocator = null)
         {
+            if (Size < MIN_SIZE)
+                throw new ArgumentOutOfRangeException("BytesBuilderStatic.BytesBuilderStatic: Size < MIN_SIZE");
+
             this.allocator = allocator ?? new AllocHGlobal_AllocatorForUnsafeMemory();
 
             Resize(Size);
@@ -222,9 +226,9 @@ namespace cryptoprime
             if (resultA != null && resultA.len < resultCount)
                 throw new System.ArgumentOutOfRangeException("resultA", "resultA is too small");
 
-            var result = resultA ?? allocator.AllocMemory(resultCount);
+            var result = resultA ?? allocator?.AllocMemory(resultCount) ?? this.allocator.AllocMemory(resultCount);
 
-            ReadBytesTo(resultA.array, result.len);
+            ReadBytesTo(result.array, result.len);
 
             return result;
         }
@@ -274,7 +278,7 @@ namespace cryptoprime
             return result;
         }
 
-        public void Dispose(bool disposing = false)
+        public virtual void Dispose(bool disposing = true)
         {
             if (region == null)
                 return;

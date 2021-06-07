@@ -36,6 +36,7 @@
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <PlatformTarget>x64</PlatformTarget>
     <LangVersion>8.0</LangVersion>
+    <DocumentationFile>bin\Release\cryptoprime.xml</DocumentationFile>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="System" />
