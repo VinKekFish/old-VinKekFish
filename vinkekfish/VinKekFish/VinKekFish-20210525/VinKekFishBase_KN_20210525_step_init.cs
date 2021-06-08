@@ -76,7 +76,7 @@ namespace vinkekfish
             if (!State1Main)
                 throw new Exception("VinKekFishBase_KN_20210525.step: Fatal algorithmic error: !State1Main");
 
-            isHaveOutputData = true;
+            isHaveOutputData = CountOfRounds >= MIN_ROUNDS_K;
         }
 
         /// <summary>Предварительная инициализация объекта. Осуществляет установку таблиц перестановок.</summary>
@@ -104,10 +104,20 @@ namespace vinkekfish
         /// <param name="RoundsForFirstKeyBlock">Количество раундов преобразования первого блока ключа и ОВИ</param>
         /// <param name="RoundsForTailsBlock">Количество раундов преобразования иных блоков ключа, кроме первого блока</param>
         /// <param name="FinalOverwrite">Если true, то заключительный шаг впитывания ключа происходит с перезаписыванием нулями входного блока (есть дополнительная необратимость)</param>
-        public virtual void Init2(Record key = null, Record OpenInitializationVector = null, Record TweakInit = null, int RoundsForFinal = NORMAL_ROUNDS, int RoundsForFirstKeyBlock = NORMAL_ROUNDS, int RoundsForTailsBlock = MIN_ROUNDS, bool FinalOverwrite = true)
+        public virtual void Init2(Record key = null, Record OpenInitializationVector = null, Record TweakInit = null, int RoundsForFinal = -1, int RoundsForFirstKeyBlock = -1, int RoundsForTailsBlock = -1, bool FinalOverwrite = true)
         {
+            if (RoundsForFinal < 0)
+                RoundsForFinal = NORMAL_ROUNDS_K;
+
+            if (RoundsForFirstKeyBlock < 0)
+                RoundsForFirstKeyBlock = NORMAL_ROUNDS_K;
+
+            if (RoundsForTailsBlock < 0)
+                RoundsForTailsBlock = REDUCED_ROUNDS_K;
+
             if (!State1Main)
                 throw new Exception("VinKekFishBase_KN_20210525.Init2: Fatal algorithmic error: !State1Main");
+
 
             lock (this)
             {
@@ -129,10 +139,20 @@ namespace vinkekfish
         }
 
         /// <summary>Простая инициализация объекта без ключа для принятия энтропии в дальнейшем</summary>
-        public virtual void SimpleInit()
+        /// <param name="RandomInit">Если True, то состояние может быть проинициализированно какими-либо значениями, например, текущим временем</param>
+        public virtual void SimpleInit(bool RandomInit = true)
         {
-            Init1();
-            Init2(RoundsForFirstKeyBlock: 0, RoundsForFinal: 0, FinalOverwrite: false);
+            if (RandomInit)
+            {
+                using var tweak = allocator.AllocMemory(CryptoTweakLen);
+                tweak.Clear();
+                Init1();
+            }
+            else
+            {
+                Init1();
+                Init2(RoundsForFirstKeyBlock: 0, RoundsForFinal: 0, FinalOverwrite: false);
+            }
         }
 
         /// <summary>Функция ввода ключа. Используйте Init2 вместо этой функции</summary>

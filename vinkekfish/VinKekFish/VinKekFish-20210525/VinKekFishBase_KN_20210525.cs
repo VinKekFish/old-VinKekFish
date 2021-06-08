@@ -54,6 +54,11 @@ namespace vinkekfish
         public readonly int MAX_OIV_K;                                      /// <summary>Максимальная длина первого блока ключа (это максимально рекомендуемая длина, но можно вводить больше)</summary>
         public readonly int MAX_SINGLE_KEY_K;                               /// <summary>Длина блока ввода/вывода</summary>
         public readonly int BLOCK_SIZE_K;
+                                                                            /// <summary>Минимальное количество раундов для поглощения без выдачи выходных данных, для установленного K</summary>
+        public readonly int MIN_ABSORPTION_ROUNDS_K;                        /// <summary>Минимальное количество раундов с выдачей выходных данных, для установленного K</summary>
+        public readonly int MIN_ROUNDS_K;                                   /// <summary>Нормальное количество раундов, для установленного K</summary>
+        public readonly int NORMAL_ROUNDS_K;                                /// <summary>Уменьшенное количество раундов, для установленного K</summary>
+        public readonly int REDUCED_ROUNDS_K;
 
         /// <summary>Вспомогательные переменные, показывающие, какие состояния сейчас являются целевыми. Изменяются в алгоритме</summary>
         protected volatile byte * st1 = null, st2 = null, st3 = null;
@@ -85,18 +90,27 @@ namespace vinkekfish
         /// <param name="K">Коэффициент размера K. Только нечётное число. Подробности смотреть в VinKekFish.md</param>
         /// <param name="ThreadCount">Количество создаваемых потоков. Рекомендуется использовать значение по-умолчанию: 0 (0 == Environment.ProcessorCount)</param>
         /// <param name="TimerIntervalMs">Интервал таймера холостого чтения. Если нет желания использовать таймер, поставьте Timeout.Infinite или любое отрицательное число</param>
-        public VinKekFishBase_KN_20210525(int CountOfRounds = NORMAL_ROUNDS, int K = 1, int ThreadCount = 0, int TimerIntervalMs = 500)
+        public VinKekFishBase_KN_20210525(int CountOfRounds = -1, int K = 1, int ThreadCount = 0, int TimerIntervalMs = 500)
         {
-            if (CountOfRounds < MIN_ROUNDS)
-                throw new ArgumentOutOfRangeException("VinKekFishBase_KN_20210525: CountOfRounds < MIN_ROUNDS");
+            BLOCK_SIZE_K     = K * BLOCK_SIZE;
+            MAX_OIV_K        = K * MAX_OIV;
+            MAX_SINGLE_KEY_K = K * MAX_SINGLE_KEY;
+
+            var kr = (K - 1) >> 1;
+            MIN_ABSORPTION_ROUNDS_K = kr + MIN_ABSORPTION_ROUNDS;
+            MIN_ROUNDS_K            = kr + MIN_ROUNDS;
+            REDUCED_ROUNDS_K        = kr + REDUCED_ROUNDS;
+            NORMAL_ROUNDS_K         = kr * 8 + NORMAL_ROUNDS;
+
+            if (CountOfRounds < 0)
+                CountOfRounds = NORMAL_ROUNDS_K;
+
+            if (CountOfRounds < MIN_ROUNDS_K)
+                throw new ArgumentOutOfRangeException("VinKekFishBase_KN_20210525: CountOfRounds < MIN_ROUNDS_K");
             if (K < 1 || K > 19)
                 throw new ArgumentOutOfRangeException("VinKekFishBase_KN_20210525: K < 1 || K > 19");
             if ((K & 1) == 0)
                 throw new ArgumentOutOfRangeException("VinKekFishBase_KN_20210525: (K & 1) == 0. Read VinKekFish.md");
-
-            BLOCK_SIZE_K     = BLOCK_SIZE * K;
-            MAX_OIV_K        = MAX_OIV * K;
-            MAX_SINGLE_KEY_K = MAX_SINGLE_KEY * K;
 
             TweaksArrayLen = 4 * CryptoTweakLen * LenInThreeFish;
             MatrixArrayLen = MatrixLen * LenInKeccak;

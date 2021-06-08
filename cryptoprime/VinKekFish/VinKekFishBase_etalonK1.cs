@@ -20,18 +20,18 @@ namespace cryptoprime.VinKekFish
         public const int     KeccakBlockLen       = 200;
                                                                                         /// <summary>Размер tweak (16 байтов, 2*ulong)</summary>
         public const int  CryptoTweakLen          = 8*2;
-                                                                                        /// <summary>Размер блока ввода-вывода (512 байтов = 4096 битов)</summary>
-        public const int  BLOCK_SIZE              = 512;                                /// <summary>Размер максимального блока для ввода начала ключа: 2048 байтов (16384 бита)</summary>
-        public const int  MAX_SINGLE_KEY          = 2048;                               /// <summary>Максимально допустимая длина ОВИ (открытого вектора инициализации): 1148 байтов = 9184 битов</summary>
+                                                                                        /// <summary>Размер блока ввода-вывода (512 байтов = 4096 битов), для K = 1</summary>
+        public const int  BLOCK_SIZE              = 512;                                /// <summary>Размер максимального блока для ввода начала ключа: 2048 байтов (16384 бита), для K = 1</summary>
+        public const int  MAX_SINGLE_KEY          = 2048;                               /// <summary>Максимально допустимая длина ОВИ (открытого вектора инициализации): 1148 байтов = 9184 битов, для K = 1</summary>
         public const int  MAX_OIV                 = 1148;
-                                                                                        /// <summary>Минимально допустимое количество раундов на поглощение</summary>
-        public const int  MIN_ABSORPTION_ROUNDS   = 1;                                  /// <summary>Минимально допустимое количество раундов (для любых операций)</summary>
-        public const int  MIN_ROUNDS              = 4;                                  /// <summary>Нормальное количество раундов</summary>
-        public const int  NORMAL_ROUNDS           = 64;                                 /// <summary>Уменьшенное количество раундов</summary>
+                                                                                        /// <summary>Минимально допустимое количество раундов на поглощение, для K = 1</summary>
+        public const int  MIN_ABSORPTION_ROUNDS   = 1;                                  /// <summary>Минимально допустимое количество раундов (для любых операций), для K = 1</summary>
+        public const int  MIN_ROUNDS              = 4;                                  /// <summary>Нормальное количество раундов, для K = 1</summary>
+        public const int  NORMAL_ROUNDS           = 64;                                 /// <summary>Уменьшенное количество раундов, для K = 1</summary>
         public const int  REDUCED_ROUNDS          = 16;
-                                                                                        /// <summary>Нормальная длина ключа в байтах (1024 байта = 8192 бита)</summary>
-        public const int  NORMAL_KEY              = 1024;                               /// <summary>Рекомендованная длина ключа в байтах (2048 байтов = 16384 бита)</summary>
-        public const int  RECOMMENDED_KEY         = 2048;                               /// <summary>Уменьшенная длина ключа в байтах (512 байтов = 4096 битов) - соответствует номинальной стойкости шифра</summary>
+                                                                                        /// <summary>Нормальная длина ключа в байтах (1024 байта = 8192 бита), для K = 1</summary>
+        public const int  NORMAL_KEY              = 1024;                               /// <summary>Рекомендованная длина ключа в байтах (2048 байтов = 16384 бита), для K = 1</summary>
+        public const int  RECOMMENDED_KEY         = 2048;                               /// <summary>Уменьшенная длина ключа в байтах (512 байтов = 4096 битов) - соответствует номинальной стойкости шифра, для K = 1</summary>
         public const int  REDUCED_KEY             = 512;
                                                                                         /// <summary>Это внутренняя константа алгоритма. Не нужна пользователю</summary>
         public const long TWEAK_STEP_NUMBER       = 1253539379;
