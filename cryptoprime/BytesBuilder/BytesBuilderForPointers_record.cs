@@ -3,19 +3,21 @@ using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Text;
 
+#pragma warning disable CA1034 // Nested types should not be visible
 namespace cryptoprime
 {
     public unsafe partial class BytesBuilderForPointers
     {
         // Документация по состояниям ./Documentation/BytesBuilderForPointers.Record.md
+        /// <summary>Класс-обёртка для массивов, доступных по указателю</summary>
         public unsafe class Record: IDisposable, ICloneable
-        {
-            public          byte *   array = null;
+        {                                                               /// <summary>Массив с данными</summary>
+            public          byte *   array = null;                      /// <summary>Длина массива с данными</summary>
             public          long     len   = 0;
-
-            public GCHandle handle = default;
+                                                                        /// <summary>Данные для удаления, если этот массив выделен с помощью Fixed_AllocatorForUnsafeMemory</summary>
+            public GCHandle handle = default;                           /// <summary>Данные для удаления, если этот массив выделен с помощью AllocHGlobal_AllocatorForUnsafeMemory</summary>
             public IntPtr   ptr    = default;
-
+                                                                        /// <summary>Аллокатор, используемый для освобождения памяти в Dispose</summary>
             public AllocatorForUnsafeMemoryInterface allocator = null;
 
             #if DEBUG
@@ -35,7 +37,7 @@ namespace cryptoprime
                 #endif
             }
 
-            /// <summary>Выводит строковое представление для отладки</summary>
+            /// <summary>Выводит строковое представление для отладки в формате "{длина}; элемент элемент элемент"</summary>
             public override string ToString()
             {
                 var sb = new StringBuilder();
@@ -54,35 +56,55 @@ namespace cryptoprime
                 return sb.ToString();
             }
 
-            public string ToString(int maxLen = int.MaxValue)
+            /// <summary>Выводит строковое представление для отладки в формате "{длина}; элемент элемент элемент"</summary>
+            /// <param name="maxLen">Максимальное количество элементов массива для вывода в строку</param>
+            /// <param name="maxStrLen">Максимальная длина строки для вывода результата</param>
+            public string ToString(int maxLen = int.MaxValue, int maxStrLen = int.MaxValue)
             {
                 var sb = new StringBuilder();
 
                 sb.AppendLine($"length = {len}");
                 if (array != null)
                 {
+                    string tmp = null;
                     for (int i = 0; i < len && i < maxLen; i++)
-                        sb.Append(array[i].ToString("D3") + "  ");
+                    {
+                        tmp = array[i].ToString("D3") + "  ";
+                        if (sb.Length + tmp.Length > maxStrLen)
+                            break;
+
+                        sb.Append(tmp);
+                    }
                 }
                 else
                 {
-                    sb.Append("array == null");
+                    sb.Append("{array == null}");
                 }
 
                 var str = sb.ToString();
-                if (str.Length > maxLen)
-                    str = str.Substring(0, maxLen);
+                if (str.Length > maxStrLen)
+                    str = str.Substring(0, length: maxStrLen);
 
                 return str;
             }
 
+            /// <summary>Клонирует запись. Данные внутри записи копируются</summary>
+            /// <returns>Возвращает полностью скопированный массив, независимый от исходного</returns>
             public object Clone()
             {
                 return CloneBytes(this);
             }
 
+            /// <summary>Клонирует запись. Данные внутри записи копируются из диапазона [start .. PostEnd - 1]</summary>
+            /// <param name="start">Начальный элемент для копирования</param>
+            /// <param name="PostEnd">Первый элемент, который не надо копировать</param>
+            /// <param name="allocator">Аллокатор для выделения памяти, может быть <see langword="null"/>, если у this установлен аллокатор</param>
+            /// <returns></returns>
             public Record Clone(long start = 0, long PostEnd = -1, AllocatorForUnsafeMemoryInterface allocator = null)
             {
+                if (allocator == null && this.allocator == null)
+                    throw new ArgumentNullException("BytesBuilderForPointers.Record.Clone: allocator == null && this.allocator == null");
+
                 // allocator будет взят из this, если он null
                 return CloneBytes(this, allocator, start, PostEnd);
             }
@@ -118,7 +140,7 @@ namespace cryptoprime
             public void Dispose()
             {
                 Dispose(true);
-                // GC.SuppressFinalize(this);
+                GC.SuppressFinalize(this);
             }
 
             /// <summary>Вызывает Dispose()</summary>
@@ -131,6 +153,9 @@ namespace cryptoprime
             /// <param name="disposing"></param>
             protected virtual void Dispose(bool disposing)
             {
+                if (isDisposed)
+                    return;
+
                 bool allocatorExists = allocator != null || array != null;
 
                 Clear();
@@ -150,12 +175,12 @@ namespace cryptoprime
                     throw new Exception("BytesBuilderForPointers.Record ~Record() executed");
             }
 
+            /// <summary></summary>
             ~Record()
             {
-                if (!isDisposed)
-                    Dispose(false);
+                Dispose(false);
             }
-
+                                                                                    /// <summary>Возвращает ссылку на массив</summary>
             public static implicit operator byte * (Record t)
             {
                 if (t == null)
@@ -163,7 +188,7 @@ namespace cryptoprime
 
                 return t.array;
             }
-
+                                                                                    /// <summary>Возвращает ссылку на массив, преобразованную в тип ushort * </summary>
             public static implicit operator ushort * (Record t)
             {
                 if (t == null)
@@ -171,7 +196,7 @@ namespace cryptoprime
 
                 return (ushort *) t.array;
             }
-
+                                                                                    /// <summary>Возвращает ссылку на массив, преобразованную в тип ulong * </summary>
             public static implicit operator ulong * (Record t)
             {
                 if (t == null)
@@ -179,7 +204,7 @@ namespace cryptoprime
 
                 return (ulong *) t.array;
             }
-
+                                                                                    /// <summary>var r = a + Len возвратит запись r, длиной Len, начинающуюся после конца записи r. То есть r.array = a.array + a.len, r.len = Len</summary>
             public static Record operator +(Record a, long len)
             {
                 return new Record
@@ -189,7 +214,7 @@ namespace cryptoprime
                     len       = len
                 };
             }
-
+                                                                                /// <summary>Возвращает длину данных</summary>
             public static implicit operator long (Record t)
             {
                 if (t == null)
@@ -211,7 +236,7 @@ namespace cryptoprime
             /// <param name="recordToFree">Память к освобождению</param>
             public void   FreeMemory (Record recordToFree);
 
-            /// <summary>Производит фиксацию в памяти массива (интерфейс должен реализовывать либо AllocMemory(long), либо этот метод)</summary>
+            /// <summary>Производит фиксацию в памяти массива (интерфейс должен реализовывать либо AllocMemory(long), либо этот метод, либо оба)</summary>
             /// <param name="array">Исходный массив</param>
             /// <returns>Зафиксированный массив</returns>
             public Record FixMemory(byte[] array);
@@ -223,6 +248,7 @@ namespace cryptoprime
             public Record FixMemory(object array, long length);
         }
 
+        /// <summary>Выделяет память с помощью Marshal.AllocHGlobal</summary>
         public class AllocHGlobal_AllocatorForUnsafeMemory : AllocatorForUnsafeMemoryInterface
         {
             /// <summary>Выделяет память. Память может быть непроинициализированной</summary>
@@ -258,6 +284,7 @@ namespace cryptoprime
             }
         }
 
+        /// <summary>Выделяет память для массива с помощью его фиксации: то есть используется обычный сборщик мусора и GCHandle.Alloc</summary>
         public class Fixed_AllocatorForUnsafeMemory : AllocatorForUnsafeMemoryInterface
         {
             /// <summary>Выделяет память с помощью сборщика мусора, а потом фиксирует её. Это работает медленнее раза в 3, чем AllocHGlobal_AllocatorForUnsafeMemory</summary>
@@ -274,7 +301,7 @@ namespace cryptoprime
                 recordToFree.handle.Free();
             }
 
-            /// <summary>Производит фиксацию в памяти массива (интерфейс должен реализовывать либо AllocMemory(long), либо этот метод)</summary>
+            /// <summary>Производит фиксацию в памяти массива</summary>
             /// <param name="array">Исходный массив</param>
             /// <returns>Зафиксированный массив</returns>
             public Record FixMemory(byte[] array)
@@ -282,11 +309,18 @@ namespace cryptoprime
                 return FixMemory(array, array.LongLength);
             }
 
+            /// <summary>Производит фиксацию в памяти массива</summary>
+            /// <param name="array">Исходный массив</param>
+            /// <returns>Зафиксированный массив</returns>
             public Record FixMemory(ushort[] array)
             {
                 return FixMemory(array, array.LongLength * sizeof(ushort));
             }
 
+            /// <summary>Производит фиксацию в памяти массива</summary>
+            /// <param name="array">Исходный массив</param>
+            /// <param name="length">Длина массива</param>
+            /// <returns>Зафиксированный массив</returns>
             public Record FixMemory(object array, long length)
             {
                 var h = GCHandle.Alloc(array, GCHandleType.Pinned);
@@ -304,3 +338,4 @@ namespace cryptoprime
         }
     }
 }
+#pragma warning restore CA1034 // Nested types should not be visible

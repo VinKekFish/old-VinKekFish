@@ -31,9 +31,10 @@ namespace cryptoprime
         /// <summary>Количество сохранённых байтов</summary>
         long count = 0;
 
-        /// <summary>Добавляет блок в объект</summary><param name="bytesToAdded">Добавляемый блок данных</param>
-        /// <param name="index">Куда добавляется блок. По-умолчанию, в конец (index = -1)</param>
-        /// <param name="MakeCopy">MakeCopy = true говорит о том, что данные блока будут скопированы (создан новый блок и он будет добавлен). По-умолчанию false - блок будет добавлен без копирования. Это значит, что при изменении исходного блока, изменится и выход, даваемый объектом. Если исходный блок где-то из-вне будет обнулён, то будет обнулены и выходные байты из этого объекта, соответствующие этому блоку</param>
+        /// <summary>Добавляет копию блока данных в объект</summary><param name="bytesToAdded">Исходный блок данных для добавления</param>
+        /// <param name="len">Длина добавляемого массива</param>
+        /// <param name="allocator">Аллокатор для выделения памяти для копирования</param>
+        /// <param name="index">Индекс, куда добавляется блок. По-умолчанию, в конец (index = -1)</param>
         // При добавлении блока важно проверить, верно выставлен параметр MakeCopy и если MakeCopy = false, то блок не должен изменяться
         public void addWithCopy(byte * bytesToAdded, long len, AllocatorForUnsafeMemoryInterface allocator, int index = -1)
         {
@@ -42,7 +43,8 @@ namespace cryptoprime
             add(rec, index);
         }
 
-        /// <summary>Добавляет блок в объект</summary><param name="bytesToAdded">Добавляемый блок данных</param>
+        /// <summary>Добавляет блок данных без копирования в объект</summary><param name="bytesToAdded">Добавляемый блок данных. <para>Обратите внимание, что при изменении из-вне блока данных могут измениться данные и внутри объекта</para></param>
+        /// <param name="len">Длина добавляемого массива</param>
         /// <param name="index">Куда добавляется блок. По-умолчанию, в конец (index = -1)</param>
         public void addWithoutCopy(byte * bytesToAdded, long len, int index = -1)
         {
@@ -81,7 +83,8 @@ namespace cryptoprime
         /// <summary>Создаёт массив байтов, включающий в себя все сохранённые массивы</summary>
         /// <param name="resultCount">Размер массива-результата (если нужны все байты resultCount = -1)</param>
         /// <param name="resultA">Массив, в который будет записан результат. Если resultA = null, то массив создаётся</param>
-        /// <returns></returns>
+        /// <param name="allocator">Аллокатор для выделения памяти для копирования</param>
+        /// <returns>Массив байтов результата, длиной resultCount. Если установлен resultA, то возврат совпадает с этим массивом</returns>
         public Record getBytes(long resultCount = -1, Record resultA = null, AllocatorForUnsafeMemoryInterface allocator = null)
         {
             if (resultCount == -1)
@@ -89,11 +92,11 @@ namespace cryptoprime
 
             if (resultCount > count)
             {
-                throw new System.ArgumentOutOfRangeException("resultCount", "resultCount is too large: resultCount > count");
+                throw new System.ArgumentOutOfRangeException(nameof(resultCount), "resultCount is too large: resultCount > count");
             }
 
             if (resultA != null && resultA.len < resultCount)
-                throw new System.ArgumentOutOfRangeException("resultA", "resultA is too small");
+                throw new System.ArgumentOutOfRangeException(nameof(resultCount), "resultA is too small");
 
             var result = resultA ?? allocator?.AllocMemory(resultCount) ?? bytes[0].allocator.AllocMemory(resultCount);
 
@@ -110,10 +113,11 @@ namespace cryptoprime
             return result;
         }
 
-        /// <summary>Клонирует массив, начиная с элемента start, до элемента с индексом PostEnd (не включая)</summary><param name="B">Массив для копирования</param>
+        /// <summary>Клонирует массив, начиная с элемента start, до элемента с индексом PostEnd (не включая его)</summary><param name="b">Массив для копирования</param>
         /// <param name="start">Начальный элемент для копирования</param>
         /// <param name="PostEnd">Элемент, расположенный после последнего элемента для копирования</param>
-        /// <returns>Новый массив</returns>
+        /// <param name="allocator">Аллокатор для выделения памяти для копирования. Не может быть null</param>
+        /// <returns>Новый массив, являющийся копией массива b[start .. PostEnd - 1]</returns>
         public static unsafe Record CloneBytes(byte * b, long start, long PostEnd, AllocatorForUnsafeMemoryInterface allocator)
         {
             var result = allocator.AllocMemory(PostEnd - start);
@@ -122,11 +126,17 @@ namespace cryptoprime
             return result;
         }
 
+        /// <summary>Клонирует массив, начиная с элемента start, до элемента с индексом PostEnd (не включая его)</summary>
+        /// <param name="rec">Массив для копирования</param>
+        /// <param name="allocator">Аллокатор для выделения памяти для копирования. Может быть null, в таком случае аллокатор получается из rec</param>
+        /// <param name="start">Начальный элемент для копирования</param>
+        /// <param name="PostEnd">Элемент, расположенный после последнего элемента для копирования</param>
+        /// <returns>Новый массив, являющийся копией массива rec[start .. PostEnd - 1]</returns>
         public static unsafe Record CloneBytes(Record rec, AllocatorForUnsafeMemoryInterface allocator = null, long start = 0, long PostEnd = -1)
         {
             if (PostEnd < 0)
                 PostEnd = rec.len;
-            allocator = allocator ?? rec.allocator;
+            allocator ??= rec.allocator;
 
             if (allocator == null)
                 throw new Exception("BytesBuilderForPointers.CloneBytes: allocator == null");
@@ -134,6 +144,12 @@ namespace cryptoprime
             return CloneBytes(rec.array, start, PostEnd, allocator);
         }
 
+        /// <summary>Клонирует массив, начиная с элемента start, до элемента с индексом PostEnd (не включая его)</summary>
+        /// <param name="b">Массив для копирования</param>
+        /// <param name="allocator">Аллокатор для выделения памяти для копирования. Не может быть null</param>
+        /// <param name="start">Начальный элемент для копирования</param>
+        /// <param name="PostEnd">Элемент, расположенный после последнего элемента для копирования</param>
+        /// <returns>Новый массив, являющийся копией массива b[start .. PostEnd - 1]</returns>
         public static unsafe Record CloneBytes(byte[] b, AllocatorForUnsafeMemoryInterface allocator, long start = 0, long PostEnd = -1)
         {
             if (PostEnd < 0)
@@ -177,7 +193,7 @@ namespace cryptoprime
         public Record getBytesAndRemoveIt(Record result)
         {
             long   cursor  = 0;
-            Record current = null;
+            Record current;
             for (int i = 0; i < bytes.Count; )
             {
                 if (cursor == result.len)
@@ -268,6 +284,7 @@ namespace cryptoprime
             return V == 0 && len1 == len2;
         }
 
+        /// <summary></summary>
         ~BytesBuilderForPointers()
         {
             if (bytes.Count > 0)

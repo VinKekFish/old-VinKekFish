@@ -149,7 +149,7 @@ namespace vinkekfish.keccak_20200918
                 InputBytesImmediately(ForOverwrite: true);
             }
             while (inputReady);
-
+// TODO: Почему здесь ключ перед ОВИ???
             // Завершаем ввод ключа конструкцией Overwrite, которая даёт некую необратимость состояния в отношении ключа
             if (OIV != null)
             {
@@ -358,7 +358,7 @@ namespace vinkekfish.keccak_20200918
 
         /// <summary>Выдаёт случайное криптостойкое число от 0 до cutoff включительно. Это вспомогательная функция для основной функции генерации случайных чисел</summary>
         /// <param name="cutoff">Максимальное число (включительно) для генерации. cutoff должен быть близок к ulong.MaxValue или к 0x8000_0000__0000_0000U, иначе неопределённая отсрочка будет очень долгой</param>
-        /// <param name="arrayAt8Length">Вспомогательная выделенная память в размере не менее 8-ми байтов (можно не инициализировать). Очищается после использования внутри функции. Может быть null</param>
+        /// <param name="arrayAt8Length">Вспомогательная выделенная память в размере не менее 8-ми байтов (можно не инициализировать). Очищается после использования внутри функции, но не освобождается. Может быть null</param>
         /// <returns>Случайное число в диапазоне [0; cutoff]</returns>
         public ulong getUnsignedInteger(ulong cutoff = ulong.MaxValue, Record arrayAt8Length = null)
         {
@@ -400,6 +400,7 @@ namespace vinkekfish.keccak_20200918
         /// <param name="min">Минимальное значение</param>
         /// <param name="cutoff">Результат функции getCutoffForUnsignedInteger</param>
         /// <param name="range">Результат функции getCutoffForUnsignedInteger</param>
+        /// <param name="arrayAt8Length">Вспомогательный массив, длиной не менее 8-ми байтов (можно не инициализировать). После использования очищается, но не освобождается. Может быть null</param>
         /// <returns>Случайное число в указанном диапазоне</returns>
         public ulong getUnsignedInteger(ulong min, ulong cutoff, ulong range, Record arrayAt8Length = null)
         {
@@ -412,6 +413,7 @@ namespace vinkekfish.keccak_20200918
         /// <param name="min">Минимальное значение для генерации</param>
         /// <param name="max">Максимальное значнеие для генерации (включительно)</param>
         /// <param name="cutoff">Параметр cutoff для передачи getUnsignedInteger</param>
+        /// <param name="range">Диапазон для ввода в функцию getUnsignedInteger</param>
         // TODO: хорошо протестировать
         public static void getCutoffForUnsignedInteger(ulong min, ulong max, out ulong cutoff, out ulong range)
         {

@@ -77,20 +77,23 @@ namespace vinkekfish
         }
 
         /// <summary>Массив, устанавливающий номера ключевых блоков TreeFish для каждого трансформируемого блока</summary>
-        protected readonly int[] NumbersOfThreeFishBlocks = null;                           /// <summary>Таймер чтения вхолостую</summary>
+        protected readonly int[] NumbersOfThreeFishBlocks = null;                           /// <summary>Таймер чтения вхолостую. Может быть <see langword="null"/>.</summary>
         protected readonly Timer Timer                    = null;
 
         /// <summary>Создаёт и первично инициализирует объект VinKekFish (инициализация ключём и ОВИ должна быть отдельно). Создаёт Environment.ProcessorCount потоков для объекта</summary>
         /// <param name="CountOfRounds">Максимальное количество раундов шифрования, которое будет использовано, не менее VinKekFishBase_etalonK1.MIN_ROUNDS</param>
         /// <param name="K">Коэффициент размера K. Только нечётное число. Подробности смотреть в VinKekFish.md</param>
-        /// <param name="PreRoundsForTranspose">Количество раундов без случайных таблиц перестановок (для инициализации таблиц перестановок)</param>
-        /// <param name="keyForPermutations">Ключ для инициализации таблиц перестановок (не вводите сюда ключ шифрования для VinKekFish)</param>
-        /// <param name="key_length">Длина ключа для таблиц перестановок</param>
-        /// <param name="OpenInitVectorForPermutations">ОВИ (открытый вектор инициализации) для инициализации таблиц перестановок</param>
-        /// <param name="OpenInitVectorForPermutations_length">Длина ОВИ</param>
         /// <param name="ThreadCount">Количество создаваемых потоков. Рекомендуется использовать значение по-умолчанию: 0 (0 == Environment.ProcessorCount)</param>
+        /// <param name="TimerIntervalMs">Интервал таймера холостого чтения. Если нет желания использовать таймер, поставьте Timeout.Infinite или любое отрицательное число</param>
         public VinKekFishBase_KN_20210525(int CountOfRounds = NORMAL_ROUNDS, int K = 1, int ThreadCount = 0, int TimerIntervalMs = 500)
         {
+            if (CountOfRounds < MIN_ROUNDS)
+                throw new ArgumentOutOfRangeException("VinKekFishBase_KN_20210525: CountOfRounds < MIN_ROUNDS");
+            if (K < 1 || K > 19)
+                throw new ArgumentOutOfRangeException("VinKekFishBase_KN_20210525: K < 1 || K > 19");
+            if ((K & 1) == 0)
+                throw new ArgumentOutOfRangeException("VinKekFishBase_KN_20210525: (K & 1) == 0. Read VinKekFish.md");
+
             BLOCK_SIZE_K     = BLOCK_SIZE * K;
             MAX_OIV_K        = MAX_OIV * K;
             MAX_SINGLE_KEY_K = MAX_SINGLE_KEY * K;
@@ -106,14 +109,6 @@ namespace vinkekfish
             this.ThreadsInFunc = ThreadCount;
             this.CountOfRounds = CountOfRounds;
             this.K             = K;
-
-            if (CountOfRounds < MIN_ROUNDS)
-                throw new ArgumentOutOfRangeException("VinKekFishBase_KN_20210525: CountOfRounds < MIN_ROUNDS");
-            if (K < 1 || K > 19)
-                throw new ArgumentOutOfRangeException("VinKekFishBase_KN_20210525: K < 1 || K > 19");
-            if ((K & 1) == 0)
-                throw new ArgumentOutOfRangeException("VinKekFishBase_KN_20210525: (K & 1) == 0. Read VinKekFish.md");
-
             Len            = K * CryptoStateLen;
             LenInThreeFish = Len / ThreeFishBlockLen;
             LenInKeccak    = Len / KeccakBlockLen;
@@ -234,11 +229,12 @@ namespace vinkekfish
         public void Dispose()
         {
             Dispose(true);
+            GC.SuppressFinalize(this);
         }
                                                                             /// <summary>См. IsDisposed</summary>
         protected bool isDisposed =  false;                                 /// <summary>Если true, объект уничтожен и не пригоден к дальнейшему использованию</summary>
         public    bool IsDisposed => isDisposed;                            /// <summary>Очищает объект и освобождает все выделенные под него ресурсы</summary>
-        public virtual void Dispose(bool dispose = true)
+        protected virtual void Dispose(bool dispose = true)
         {
             isEnded = true;
             lock (sync)
@@ -252,7 +248,7 @@ namespace vinkekfish
             lock (this)
             {
                 Clear();
-                try     {  output?.Dispose(); input?.Dispose(); inputRecord?.Dispose(); Timer.Dispose(); }
+                try     {  output?.Dispose(); input?.Dispose(); inputRecord?.Dispose(); Timer?.Dispose(); }
                 finally {  States .Dispose();  }
 
                 output      = null;
@@ -265,7 +261,7 @@ namespace vinkekfish
             if (!dispose)
                 throw new Exception("VinKekFishBase_KN_20210525.Dispose: you must call Dispose() after use");
         }
-
+                                                                                            /// <summary></summary>
         ~VinKekFishBase_KN_20210525()
         {
             Dispose(false);
