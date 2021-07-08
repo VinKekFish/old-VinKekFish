@@ -6,7 +6,7 @@ using System.Text;
 using static cryptoprime.BytesBuilderForPointers;
 
 namespace cryptoprime
-{
+{// TODO: Добавить документацию по использованию, можно прямо сюда
     /// <summary>
     /// BytesBuilderStatic
     /// BytesBuilderForPointers, реализованный с циклическим буфером

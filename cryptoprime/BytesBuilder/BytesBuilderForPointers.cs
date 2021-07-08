@@ -17,7 +17,7 @@ namespace cryptoprime
 
 
         /// <summary>Количество всех сохранённых байтов в этом объекте</summary>
-        public long Count  => count;
+        public long Count => count;
 
         /// <summary>Количество всех сохранённых блоков, как они были добавлены в этот объект</summary>
         public long countOfBlocks => bytes.Count;
@@ -29,13 +29,12 @@ namespace cryptoprime
         }
 
         /// <summary>Количество сохранённых байтов</summary>
-        long count = 0;
+        protected long count = 0;
 
         /// <summary>Добавляет копию блока данных в объект</summary><param name="bytesToAdded">Исходный блок данных для добавления</param>
         /// <param name="len">Длина добавляемого массива</param>
         /// <param name="allocator">Аллокатор для выделения памяти для копирования</param>
         /// <param name="index">Индекс, куда добавляется блок. По-умолчанию, в конец (index = -1)</param>
-        // При добавлении блока важно проверить, верно выставлен параметр MakeCopy и если MakeCopy = false, то блок не должен изменяться
         public void addWithCopy(byte * bytesToAdded, long len, AllocatorForUnsafeMemoryInterface allocator, int index = -1)
         {
             var rec = CloneBytes(bytesToAdded, 0, len, allocator);
@@ -43,14 +42,18 @@ namespace cryptoprime
             add(rec, index);
         }
 
-        /// <summary>Добавляет блок данных без копирования в объект</summary><param name="bytesToAdded">Добавляемый блок данных. <para>Обратите внимание, что при изменении из-вне блока данных могут измениться данные и внутри объекта</para></param>
+        /// <summary>Добавляет блок данных без копирования в объект</summary><param name="bytesToAdded">Добавляемый блок данных, указатель перезаписывается нулём с целью избежания ошибочного использования. <para>Обратите внимание, что при изменении из-вне блока данных могут измениться данные и внутри объекта</para><para>При удалении блока данных в этом буфере исходные данные будут перезатёрты нулями!</para></param>
         /// <param name="len">Длина добавляемого массива</param>
         /// <param name="index">Куда добавляется блок. По-умолчанию, в конец (index = -1)</param>
-        public void addWithoutCopy(byte * bytesToAdded, long len, int index = -1)
+        /// <remarks>Обратите внимание, массив bytesToAdded лучше после этого нигде не использовать. Так как после удаления его из буфера, он будет автоматически перезаписан нулями. Необходима доп. проверка на то, что вызывающая функция нигде не использует данный объект</remarks>
+        public void addWithoutCopy(ref byte * bytesToAdded, long len, int index = -1)
         {
             var rec = new Record() { len = len, array = bytesToAdded };
 
             add(rec, index);
+
+            // Перезаписываем указатель, чтобы
+            bytesToAdded = null;
         }
 
         /// <summary>Добавляет массив в сохранённые значения без копирования. Массив будет автоматически очищен и освобождён после окончания</summary>
@@ -61,7 +64,7 @@ namespace cryptoprime
             if (index == -1)
                 bytes.Add(rec);
             else
-                bytes.Insert((int) index, rec);
+                bytes.Insert(index, rec);
 
             count += rec.len;
         }
@@ -80,7 +83,7 @@ namespace cryptoprime
             bytes.Clear();
         }
 
-        /// <summary>Создаёт массив байтов, включающий в себя все сохранённые массивы</summary>
+        /// <summary>Создаёт массив байтов, включающий в себя все сохранённые массивы. Ничего не удаляет и не очищает</summary>
         /// <param name="resultCount">Размер массива-результата (если нужны все байты resultCount = -1)</param>
         /// <param name="resultA">Массив, в который будет записан результат. Если resultA = null, то массив создаётся</param>
         /// <param name="allocator">Аллокатор для выделения памяти для копирования</param>
@@ -92,18 +95,18 @@ namespace cryptoprime
 
             if (resultCount > count)
             {
-                throw new System.ArgumentOutOfRangeException(nameof(resultCount), "resultCount is too large: resultCount > count");
+                throw new System.ArgumentOutOfRangeException(nameof(resultCount), "BytesBuilderForPointers.getBytes: resultCount is too large: resultCount > count");
             }
 
             if (resultA != null && resultA.len < resultCount)
-                throw new System.ArgumentOutOfRangeException(nameof(resultCount), "resultA is too small");
+                throw new System.ArgumentOutOfRangeException(nameof(resultCount), "BytesBuilderForPointers.getBytes: resultA is too small");
 
             var result = resultA ?? allocator?.AllocMemory(resultCount) ?? bytes[0].allocator.AllocMemory(resultCount);
 
             long cursor = 0;
             for (int i = 0; i < bytes.Count; i++)
             {
-                if (cursor >= result.len)
+                if (cursor >= resultCount)
                     break;
 
                 BytesBuilder.CopyTo(bytes[i].len, result.len, bytes[i].array, result.array, cursor);
@@ -141,7 +144,7 @@ namespace cryptoprime
             if (allocator == null)
                 throw new Exception("BytesBuilderForPointers.CloneBytes: allocator == null");
 
-            return CloneBytes(rec.array, start, PostEnd, allocator);
+            return CloneBytes(rec.array, start: start, PostEnd: PostEnd, allocator);
         }
 
         /// <summary>Клонирует массив, начиная с элемента start, до элемента с индексом PostEnd (не включая его)</summary>
@@ -157,7 +160,7 @@ namespace cryptoprime
 
             fixed (byte * bb = b)
             {
-                return CloneBytes(bb, start, PostEnd, allocator);
+                return CloneBytes(bb, start: start, PostEnd: PostEnd, allocator);
             }
         }
 
