@@ -368,7 +368,7 @@ namespace cryptoprime
         /// <param name="sourceLength">Длина массива s</param><param name="targetLength">Длина массива t</param>
         /// <param name="s">Источник для копирования</param><param name="t">Приёмник для копирования</param>
         /// <param name="targetIndex">Начальный индекс, с которого будет происходить запись в t</param>
-        /// <param name="count">Количество байтов для записи в t. Count = -1 - копирует столько, сколько возможно, учитывая размеры источника и приёмника</param>
+        /// <param name="count">Количество байтов для записи в t. Count = -1 - копирует столько, сколько возможно, учитывая размеры источника и приёмника. count не может быть 0</param>
         /// <param name="index">Начальный индекс копирования из источника s</param>
         /// <returns>Количество скопированных байтов</returns>
         unsafe public static long CopyTo(long sourceLength, long targetLength, byte* s, byte* t, long targetIndex = 0, long count = -1, long index = 0)

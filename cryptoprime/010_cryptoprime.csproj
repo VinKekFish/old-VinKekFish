@@ -54,6 +54,7 @@
     <Compile Include="BytesBuilder\BytesBuilderForPointers_record.cs" />
     <Compile Include="BytesBuilder\BytesBuilderForPointers.cs" />
     <Compile Include="BytesBuilder\BytesBuilder.cs" />
+    <Compile Include="GlobalSuppressions.cs" />
     <Compile Include="Threefish\threefish.cs" />
     <Compile Include="Threefish\threefish_slowly.cs" />
     <Compile Include="keccak.cs" />
