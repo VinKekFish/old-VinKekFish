@@ -283,21 +283,30 @@ namespace cryptoprime
             }
         }
 
-        /// <summary>Создаёт массив байтов, включающий в себя resultCount символов, и удаляет их с очисткой из BytesBuilder</summary>
+        /// <summary>Создаёт массив байтов, включающий в себя result.len байтов из буфера, и удаляет их с очисткой</summary>
         /// <param name="result">Массив, в который будет записан результат. Уже должен быть выделен. result != <see langword="null"/>. Длина запрошенных данных устанавливается полем len этой записи</param>
         /// <returns>Запрошенный результат (первые resultCount байтов), этот возвращаемый результат равен параметру result</returns>
         public Record getBytesAndRemoveIt(Record result)
         {
+            if (result.len > this.count)
+                throw new ArgumentOutOfRangeException("BytesBuilderStatic.getBytesAndRemoveIt: count > this.count");
+
             ReadBytesTo(result, result);
             RemoveBytes(result);
 
             return result;
         }
 
+        /// <summary>Создаёт массив байтов, включающий в себя count байтов из буфера, и удаляет их с очисткой</summary>
+        /// <param name="result">Массив, в который будет записан результат. Уже должен быть выделен. result != <see langword="null"/>.</param>
+        /// <param name="count">Длина запрашиваемых данных</param>
+        /// <returns></returns>
         public Record getBytesAndRemoveIt(Record result, int count)
         {
             if (count > result.len)
                 throw new ArgumentOutOfRangeException("BytesBuilderStatic.getBytesAndRemoveIt: count > result.len");
+            if (count > this.count)
+                throw new ArgumentOutOfRangeException("BytesBuilderStatic.getBytesAndRemoveIt: count > this.count");
 
             ReadBytesTo(result.array, count);
             RemoveBytes(count);
