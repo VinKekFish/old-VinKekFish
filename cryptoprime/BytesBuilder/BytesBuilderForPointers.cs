@@ -263,9 +263,9 @@ namespace cryptoprime
         /// <param name="r1">Первый массив</param>
         /// <param name="r2">Второй массив</param>
         /// <returns><see langword="true"/>, если массивы совпадают.</returns>
-        public unsafe static bool SecureCompare(Record r1, Record r2)
+        public unsafe static bool isArrayEqual_Secure(Record r1, Record r2)
         {
-            return SecureCompare(r1, r2, 0, 0, r1, r2);
+            return isArrayEqual_Secure(r1, r2, 0, 0, r1, r2);
         }
 
         /// <summary>Безопасно сравнивает два массива</summary>
@@ -276,7 +276,7 @@ namespace cryptoprime
         /// <param name="len1">Длина подмассива для сравнивания</param>
         /// <param name="len2">Длина подмассива для сравнивания</param>
         /// <returns><see langword="true"/>, если массивы совпадают.</returns>
-        public unsafe static bool SecureCompare(Record r1, Record r2, long start1, long start2, long len1, long len2)
+        public unsafe static bool isArrayEqual_Secure(Record r1, Record r2, long start1, long start2, long len1, long len2)
         {
             var len = len1;
             if (len > len2)

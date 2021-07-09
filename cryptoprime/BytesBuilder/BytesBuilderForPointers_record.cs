@@ -154,7 +154,12 @@ namespace cryptoprime
             protected virtual void Dispose(bool disposing)
             {
                 if (isDisposed)
-                    return;
+                {
+                    if (disposing == false)
+                        return;
+
+                    throw new Exception("BytesBuilderForPointers.Record ~Record() executed twice");
+                }
 
                 bool allocatorExists = allocator != null || array != null;
 
