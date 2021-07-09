@@ -164,8 +164,8 @@ namespace cryptoprime
             }
         }
 
-        
-        /// <summary>Удаляет блок из объекта с позиции position, блок очищается нулями. Эта функция служебная, скорее всего, вам не надо её вызывать</summary>
+
+        /// <summary>Удаляет блок из объекта с позиции position, блок очищается нулями. <para>Эта функция служебная, скорее всего, вам не надо её вызывать</para></summary>
         /// <returns>Возвращает длину удалённого блока</returns>
         /// <param name="position">Индекс удаляемого блока</param>
         /// <param name="doClear">Если true, то удалённый блок очищается нулями и память, выделенная под него, освобождается ( всё это делается вызовом Record.Dispose() )</param>
@@ -189,10 +189,10 @@ namespace cryptoprime
             return removedLength;
         }
 
-        /// <summary>Создаёт массив байтов, включающий в себя resultCount символов, и удаляет их с очисткой из BytesBuilder</summary>
-        /// <param name="result">Массив, в который будет записан результат. Уже должен быть выделен. result != <see langword="null"/>. Количество байтов устанавливается длиной массива</param>
-        /// <returns>Запрошенный результат (первые resultCount байтов), этот возвращаемый результат равен параметру result</returns>
-        // Эта функция может неожиданно обнулить часть массива или массив, сохранённый без копирования (если он где-то используется в другом месте)
+        /// <summary>Создаёт массив байтов, включающий в себя result.len символов, и удаляет их с очисткой из BytesBuilder</summary>
+        /// <param name="result">Массив, в который будет записан результат. Уже должен быть выделен. result != <see langword="null"/>. Количество байтов устанавливается длиной массива. <para>Если Result.allocator, то может быть ситуация разыменования <see langword="null"/>, если нет allocator у записей, которые были добавлены в буфер</para></param>
+        /// <returns>Запрошенный результат (первые result.len байтов). Этот возвращаемый результат равен параметру result</returns>
+        /// <remarks>Эта функция может неожиданно обнулить часть внешнего массива, сохранённого без копирования (если он где-то используется в другом месте)</remarks>
         public Record getBytesAndRemoveIt(Record result)
         {
             long   cursor  = 0;
@@ -203,7 +203,7 @@ namespace cryptoprime
                     break;
 
                 if (cursor > result.len)
-                    throw new System.Exception("Fatal algorithmic error (getBytesAndRemoveIt): cursor > resultCount");
+                    throw new System.Exception("Fatal algorithmic error (BytesBuilderForPointers.getBytesAndRemoveIt): cursor > resultCount");
 
                 current = bytes[i];
                 if (cursor + current.len > result.len)
@@ -215,6 +215,9 @@ namespace cryptoprime
                     var bLeft  = current.Clone(0, left, allocator: current.allocator ?? result.allocator);
                     var bRight = current.Clone(left,    allocator: current.allocator ?? result.allocator);
                     
+                    if (bRight.len != right)
+                        throw new System.Exception("Fatal algorithmic error (BytesBuilderForPointers.getBytesAndRemoveIt): bRight.len != right");
+
                     RemoveBlockAt(i);
 
                     bytes.Insert(0, bLeft );
@@ -224,8 +227,11 @@ namespace cryptoprime
                 }
 
                 // Осторожно, может быть, что bytes[i] != current
-                BytesBuilder.CopyTo(bytes[i].len, result.len, bytes[i].array, result.array, cursor);
-                cursor += bytes[i].len;
+                var len   = bytes[i].len;
+                var check = BytesBuilder.CopyTo(len, result.len, bytes[i].array, result.array, cursor);
+                cursor += check;
+                if (check != len)
+                    throw new System.Exception("Fatal algorithmic error (BytesBuilderForPointers.getBytesAndRemoveIt): check != bytes[i].len");
 
                 RemoveBlockAt(i);
             }
@@ -267,8 +273,8 @@ namespace cryptoprime
         /// <param name="r2">Второй массив</param>
         /// <param name="start1">Начальный индекс для сравнения в первом массиве</param>
         /// <param name="start2">Начальный индекс для сравнения во втором массиве</param>
-        /// <param name="len1">Длина массива для сравнивания</param>
-        /// <param name="len2">Длина массива для сравнивания</param>
+        /// <param name="len1">Длина подмассива для сравнивания</param>
+        /// <param name="len2">Длина подмассива для сравнивания</param>
         /// <returns><see langword="true"/>, если массивы совпадают.</returns>
         public unsafe static bool SecureCompare(Record r1, Record r2, long start1, long start2, long len1, long len2)
         {
