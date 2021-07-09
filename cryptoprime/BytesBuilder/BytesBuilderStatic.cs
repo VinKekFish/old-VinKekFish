@@ -139,7 +139,7 @@ namespace cryptoprime
         protected byte * bytes  = null;                                         /// <summary>Поле, указывающее на первый байт после конца массива</summary>
         protected byte * after  = null;                                         /// <summary>Обёртка для циклического буфера</summary>
         protected Record region = null;
-
+                                                                                /// <summary>Количество всех сохранённых байтов в этом объекте - сырое поле для корректировки значений</summary>
         protected long count = 0;                                               /// <summary>Количество всех сохранённых байтов в этом объекте</summary>
         public long Count => count;
                                                                                 /// <summary>End - это индекс следующего добавляемого байта. Для Start = 0 поле End должно быть равно размеру сохранённых данных (End == Count)</summary>
@@ -206,7 +206,7 @@ namespace cryptoprime
             }
         }
 
-        /// <summary>Добавляет блок в объект</summary><param name="bytesToAdded">Добавляемый блок данных. Содержимое копируется</param>
+        /// <summary>Добавляет блок в объект</summary><param name="bytesToAdded">Добавляемый блок данных. Содержимое копируется</param><param name="len">Длина добавляемого блока данных</param>
         public void add(byte * bytesToAdded, long len)
         {
             if (count + len > size)
