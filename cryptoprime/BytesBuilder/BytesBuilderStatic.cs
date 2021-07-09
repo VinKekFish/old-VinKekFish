@@ -215,8 +215,8 @@ namespace cryptoprime
             WriteBytes(bytesToAdded, len);
         }
 
-        /// <summary>Добавляет массив в сохранённые значения без копирования. Массив будет автоматически очищен и освобождён после окончания использования</summary>
-        /// <param name="rec">Добавляемый массив (не копируется, будет уничтожен автоматически при уничтожении BytesBuilder)</param>
+        /// <summary>Добавляет массив в сохранённые значения</summary>
+        /// <param name="rec">Добавляемый массив (копируется)</param>
         public void add(Record rec)
         {
             add(rec.array, rec.len);
@@ -243,9 +243,14 @@ namespace cryptoprime
             if (resultCount <= -1)
                 resultCount = count;
 
-            if (resultCount > count || resultCount == 0)
+            if (resultCount > count)
             {
                 throw new System.ArgumentOutOfRangeException("resultCount", "resultCount is too large: resultCount > count || resultCount == 0");
+            }
+
+            if (resultCount == 0)
+            {
+                throw new System.ArgumentOutOfRangeException("resultCount", "resultCount == 0");
             }
 
             if (resultA != null && resultA.len < resultCount)
