@@ -331,7 +331,7 @@ namespace cryptoprime
             return result;
         }
 
-        /// <summary>Клонирует массив, начиная с элемента start, до элемента с индексом PostEnd (не включая)</summary><param name="B">Массив для копирования</param>
+        /// <summary>Клонирует массив, начиная с элемента start, до элемента с индексом PostEnd (не включая)</summary><param name="b">Массив для копирования</param>
         /// <param name="start">Начальный элемент для копирования</param>
         /// <param name="PostEnd">Элемент, расположенный после последнего элемента для копирования</param>
         /// <returns>Новый массив</returns>

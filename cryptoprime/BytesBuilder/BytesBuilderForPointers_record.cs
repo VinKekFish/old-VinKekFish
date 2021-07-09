@@ -20,20 +20,21 @@ namespace cryptoprime
                                                                         /// <summary>Аллокатор, используемый для освобождения памяти в Dispose</summary>
             public AllocatorForUnsafeMemoryInterface allocator = null;
 
-            #if DEBUG
+            #if RECORD_DEBUG
+            /// <summary>Имя записи для отладки</summary>
             public        string DebugName = null;
-
-            public        long   DebugNum  = 0;
+                                                                /// <summary>Номер записи для отладки</summary>
+            public        long   DebugNum  = 0;                 /// <summary>Следующий номер записи для отладки</summary>
             public static long   CurrentDebugNum = 0;
             #endif
 
             /// <summary>Этот метод вызывать не надо. Используйте AllocatorForUnsafeMemoryInterface.AllocMemory</summary>
             public Record()
             {
-                #if DEBUG
+                #if RECORD_DEBUG
                 DebugNum = CurrentDebugNum++;
                 // if (DebugNum == 7)
-                // DebugName = new System.Diagnostics.StackTrace().ToString();
+                DebugName = new System.Diagnostics.StackTrace(true).ToString();
                 #endif
             }
 
@@ -219,14 +220,14 @@ namespace cryptoprime
                     len       = len
                 };
             }
-                                                                                /// <summary>Возвращает длину данных</summary>
+            /*                                                                    /// <summary>Возвращает длину данных</summary>
             public static implicit operator long (Record t)
             {
                 if (t == null)
                     return 0;
 
                 return t.len;
-            }
+            }*/
         }
 
         /// <summary>Интерфейс описывает способ выделения памяти. Реализация: AllocHGlobal_AllocatorForUnsafeMemory</summary>

@@ -208,7 +208,7 @@ namespace vinkekfish
             {
                 isInit2 = false;
                 ThreadsFunc_Current = ThreadFunction_empty;
-                BytesBuilder.ToNull(States, States);
+                BytesBuilder.ToNull(States.len, States);
             }
         }
 

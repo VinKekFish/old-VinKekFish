@@ -91,7 +91,7 @@ namespace vinkekfish
             lock (this)
             {
                 Clear();
-                tablesForPermutations = VinKekFish_k1_base_20210419.GenStandardPermutationTables(CountOfRounds, allocator, key: keyForPermutations, key_length: keyForPermutations, OpenInitVector: OpenInitVectorForPermutations, OpenInitVector_length: OpenInitVectorForPermutations);
+                tablesForPermutations = VinKekFish_k1_base_20210419.GenStandardPermutationTables(CountOfRounds, allocator, key: keyForPermutations, key_length: keyForPermutations.len, OpenInitVector: OpenInitVectorForPermutations, OpenInitVector_length: OpenInitVectorForPermutations.len);
                 isInit1    = true;
             }
         }
@@ -177,18 +177,18 @@ namespace vinkekfish
 
             if (OpenInitializationVector != null)
             {
-                if (OpenInitializationVector > MAX_OIV_K)
+                if (OpenInitializationVector.len > MAX_OIV_K)
                     throw new ArgumentOutOfRangeException("VinKekFishBase_KN_20210525.InputKey: OpenInitializationVector > MAX_OIV");
 
-                byte len1 = (byte) OpenInitializationVector;
-                byte len2 = (byte) (OpenInitializationVector >> 8);
+                byte len1 = (byte) OpenInitializationVector.len;
+                byte len2 = (byte) (OpenInitializationVector.len >> 8);
 
-                BytesBuilder.CopyTo(OpenInitializationVector, MAX_OIV_K, OpenInitializationVector, State1 + MAX_SINGLE_KEY_K + 2);
+                BytesBuilder.CopyTo(OpenInitializationVector.len, MAX_OIV_K, OpenInitializationVector, State1 + MAX_SINGLE_KEY_K + 2);
                 State1[MAX_SINGLE_KEY_K + 2 + 0] ^= len1;
                 State1[MAX_SINGLE_KEY_K + 2 + 1] ^= len2;
             }
 
-            long keyLen = key;
+            long keyLen = key.len;
             var dt      = keyLen;
             if (key != null)
             {

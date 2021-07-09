@@ -37,6 +37,7 @@
     <PlatformTarget>x64</PlatformTarget>
     <LangVersion>8.0</LangVersion>
     <DocumentationFile>bin\Release\cryptoprime.xml</DocumentationFile>
+    <DebugSymbols>true</DebugSymbols>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="System" />

@@ -109,6 +109,9 @@ namespace cryptoprime
                 if (cursor >= resultCount)
                     break;
 
+                if (bytes[i].isDisposed)
+                    throw new System.Exception("BytesBuilderForPointers.getBytes: bytes[i].isDisposed");
+
                 BytesBuilder.CopyTo(bytes[i].len, result.len, bytes[i].array, result.array, cursor);
                 cursor += bytes[i].len;
             }
@@ -206,6 +209,9 @@ namespace cryptoprime
                     throw new System.Exception("Fatal algorithmic error (BytesBuilderForPointers.getBytesAndRemoveIt): cursor > resultCount");
 
                 current = bytes[i];
+                if (current.isDisposed)
+                    throw new System.Exception("BytesBuilderForPointers.getBytes: current.isDisposed");
+
                 if (cursor + current.len > result.len)
                 {
                     // Делим массив на две части. Левая уходит наружу, правая остаётся в массиве
@@ -265,7 +271,7 @@ namespace cryptoprime
         /// <returns><see langword="true"/>, если массивы совпадают.</returns>
         public unsafe static bool isArrayEqual_Secure(Record r1, Record r2)
         {
-            return isArrayEqual_Secure(r1, r2, 0, 0, r1, r2);
+            return isArrayEqual_Secure(r1, r2, 0, 0, r1.len, r2.len);
         }
 
         /// <summary>Безопасно сравнивает два массива</summary>

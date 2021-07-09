@@ -243,13 +243,15 @@ namespace cryptoprime
             if (resultCount <= -1)
                 resultCount = count;
 
-            if (resultCount > count)
+            if (resultCount > count || resultCount == 0)
             {
-                throw new System.ArgumentOutOfRangeException("resultCount", "resultCount is too large: resultCount > count");
+                throw new System.ArgumentOutOfRangeException("resultCount", "resultCount is too large: resultCount > count || resultCount == 0");
             }
 
             if (resultA != null && resultA.len < resultCount)
                 throw new System.ArgumentOutOfRangeException("resultA", "resultA is too small");
+            if (resultA != null && resultA.isDisposed)
+                throw new ArgumentOutOfRangeException(nameof(resultA), "BytesBuilderStatic.getBytesAndRemoveIt: resultA.isDisposed");
 
             var result = resultA ?? allocator?.AllocMemory(resultCount) ?? this.allocator.AllocMemory(resultCount);
 
@@ -290,9 +292,11 @@ namespace cryptoprime
         {
             if (result.len > this.count)
                 throw new ArgumentOutOfRangeException("BytesBuilderStatic.getBytesAndRemoveIt: count > this.count");
+            if (result.isDisposed)
+                throw new ArgumentOutOfRangeException(nameof(result), "BytesBuilderStatic.getBytesAndRemoveIt: result.isDisposed");
 
-            ReadBytesTo(result, result);
-            RemoveBytes(result);
+            ReadBytesTo(result, result.len);
+            RemoveBytes(result.len);
 
             return result;
         }
@@ -304,9 +308,11 @@ namespace cryptoprime
         public Record getBytesAndRemoveIt(Record result, int count)
         {
             if (count > result.len)
-                throw new ArgumentOutOfRangeException("BytesBuilderStatic.getBytesAndRemoveIt: count > result.len");
+                throw new ArgumentOutOfRangeException(nameof(result), "BytesBuilderStatic.getBytesAndRemoveIt: count > result.len");
             if (count > this.count)
-                throw new ArgumentOutOfRangeException("BytesBuilderStatic.getBytesAndRemoveIt: count > this.count");
+                throw new ArgumentOutOfRangeException(nameof(count), "BytesBuilderStatic.getBytesAndRemoveIt: count > this.count");
+            if (result.isDisposed)
+                throw new ArgumentOutOfRangeException(nameof(result), "BytesBuilderStatic.getBytesAndRemoveIt: result.isDisposed");
 
             ReadBytesTo(result.array, count);
             RemoveBytes(count);
@@ -314,6 +320,8 @@ namespace cryptoprime
             return result;
         }
 
+        /// <summary>Очищает и освобождает всю небезопасно выделенную под объект память</summary>
+        /// <param name="disposing">Всегда true, кроме вызова из деструктора</param>
         public virtual void Dispose(bool disposing = true)
         {
             if (region == null)
@@ -325,12 +333,12 @@ namespace cryptoprime
             if (!disposing)
                 throw new Exception("~BytesBuilderStatic: region != null");
         }
-
+                                                                /// <summary>Очищает и освобождает всю небезопасно выделенную под объект память</summary>
         public void Dispose()
         {
             Dispose(true);
         }
-
+                                                                 /// <summary>Деструктор</summary>
         ~BytesBuilderStatic()
         {
             Dispose(false);
