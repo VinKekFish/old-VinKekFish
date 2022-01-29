@@ -29,6 +29,11 @@ namespace CodeGenerator
 
         private void AddFuncThreefish1024_step()
         {
+            Add("/// <summary>Step for Threefish1024. DANGER! Tweak contain 3 elements of ulong, not 2!!! (third value is a tweak[0] ^ tweak[1])</summary>");
+            Add("/// <param name=\"key\">Key for cipher (128 bytes)</param>");
+            Add("/// <param name=\"tweak\">Tweak for cipher. DANGER! Tweak is a 8*3 bytes, not 8*2!!! (third value is a tweak[0] ^ tweak[1])</param>");
+            Add("/// <param name=\"text\">Open text for cipher</param>");
+
             addFuncHeader("public static", "void", "Threefish1024_step", "ulong * key, ulong * tweak, ulong * text");
 
             var correspondenceTable = new byte[threefish_slowly.Nw];

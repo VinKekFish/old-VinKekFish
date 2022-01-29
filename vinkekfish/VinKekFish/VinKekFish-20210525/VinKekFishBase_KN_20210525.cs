@@ -34,7 +34,8 @@ namespace vinkekfish
         protected byte *  Matrix => State2 + Len;                           /// <summary>Массив tweak - по 4 tweak на каждый блок ThreeFish</summary>
         protected ulong * Tweaks => (ulong *) (Matrix + MatrixArrayLen);                  
                                                                             /// <summary>Длина массива Tweaks в байтах</summary>
-        public readonly int TweaksArrayLen = 0;                             /// <summary>Длина массива Matrix в байтах</summary>
+        public readonly int TweaksArrayLen = 0;                             /// <summary>Количество tweak на один блок ThreeFish</summary>
+        public const    int CountOfTweaks  = 8;                             /// <summary>Длина массива Matrix в байтах</summary>
         public readonly int MatrixArrayLen = 0;                             /// <summary>Длина одного блока массива Matrix в байтах</summary>
         public const    int MatrixLen      = 256;
 
@@ -60,9 +61,9 @@ namespace vinkekfish
         public readonly int NORMAL_ROUNDS_K;                                /// <summary>Уменьшенное количество раундов, для установленного K</summary>
         public readonly int REDUCED_ROUNDS_K;
 
-        /// <summary>Вспомогательные переменные, показывающие, какие состояния сейчас являются целевыми. Изменяются в алгоритме</summary>
+        /// <summary>Вспомогательные переменные, показывающие, какие состояния сейчас являются целевыми. Изменяются в алгоритме (st2 - вспомогательное/дополнительное; st1 - основное состояние, содержащее актуальную криптографическую информацию)</summary>
         protected volatile byte * st1 = null, st2 = null, st3 = null;
-        /// <summary>Устанавливает st1 и st2 на нужные состояния. Если true, то st1 = State1, иначе st1 = State2</summary>
+        /// <summary>Устанавливает st1 и st2 на нужные состояния. Если true, то st1 = State1, иначе st1 = State2. State1Main ^= true - переключение состояний между основным и вспомогательным</summary>
         public bool State1Main
         {
             get => st1 == State1;
@@ -112,20 +113,23 @@ namespace vinkekfish
             if ((K & 1) == 0)
                 throw new ArgumentOutOfRangeException("VinKekFishBase_KN_20210525: (K & 1) == 0. Read VinKekFish.md");
 
-            TweaksArrayLen = 4 * CryptoTweakLen * LenInThreeFish;
+            // Нам нужно 5 элементов, но мы делаем так, чтобы было кратно линии кеша
+            TweaksArrayLen = CountOfTweaks * CryptoTweakLen * LenInThreeFish;
             MatrixArrayLen = MatrixLen * LenInKeccak;
             CountOfFinal = K <= 11 ? 2 : 3;
 
             if (ThreadCount <= 0)
                 ThreadCount = Environment.ProcessorCount;
 
-            this.ThreadCount   = ThreadCount;
-            this.ThreadsInFunc = ThreadCount;
+            this.ThreadCount            = ThreadCount;
+            this.ThreadsInFunc          = ThreadCount;
+            this.ThreadsExecutedForTask = ThreadCount;
+
             this.CountOfRounds = CountOfRounds;
             this.K             = K;
-            Len            = K * CryptoStateLen;
-            LenInThreeFish = Len / ThreeFishBlockLen;
-            LenInKeccak    = Len / KeccakBlockLen;
+            Len                = K * CryptoStateLen;
+            LenInThreeFish     = Len / ThreeFishBlockLen;
+            LenInKeccak        = Len / KeccakBlockLen;
 
             // Вообще говоря, больше 2-х потоков на перестановке может быть не оправдано, однако там всё сложно
             LenInThreadBlock = ThreadCount;
@@ -156,7 +160,7 @@ namespace vinkekfish
             States = allocator.AllocMemory(Len * 2 + TweaksArrayLen + MatrixArrayLen);
             ClearState();
 
-            ThreadsFunc_Current = ThreadFunction_empty;
+            // ThreadsFunc_Current = ThreadFunction_empty; // Это уже сделано в ClearState
             threads = new Thread[ThreadCount];
 
             for (int i = 0; i < threads.Length; i++)
@@ -205,6 +209,7 @@ namespace vinkekfish
         public virtual void ClearState()
         {
             lock (this)
+            lock (sync)
             {
                 isInit2 = false;
                 ThreadsFunc_Current = ThreadFunction_empty;
@@ -216,7 +221,7 @@ namespace vinkekfish
         /// <remarks>Рекомендуется вызывать после завершения блока вычислений, если новый будет не скоро.</remarks>
         public virtual void ClearSecondaryStates()
         {// TODO: В тестах проверить, что два шага без очистки равны двум шагам с очисткой между ними
-            BytesBuilder.ToNull(targetLength: Len,                             State2);
+            BytesBuilder.ToNull(targetLength: Len,                             st2);
             BytesBuilder.ToNull(targetLength: MatrixArrayLen,                  Matrix);
             BytesBuilder.ToNull(targetLength: TweaksArrayLen - CryptoTweakLen, ((byte *) Tweaks) + CryptoTweakLen);
         }
@@ -250,9 +255,9 @@ namespace vinkekfish
         public    bool IsDisposed => isDisposed;                            /// <summary>Очищает объект и освобождает все выделенные под него ресурсы</summary>
         protected virtual void Dispose(bool dispose = true)
         {
-            isEnded = true;
-            lock (sync)
-                Monitor.PulseAll(sync);
+            IsEnded = true;
+            // lock (sync) Monitor.PulseAll(sync);
+            // Свойство IsEnded уже вызывает PulseAll
 
             if (isDisposed)
                 return;

@@ -39,7 +39,7 @@ namespace main_tests
                 for (int K = 1; K <= 19; K += 2)
                 for (int size = 1; size <= Size; size++)
                 {
-                    for (int val = 0; val <= 255; val += step) // += 7 - это просто чтобы меньше было задач
+                    for (int val = 0; val <= 255; val += step) // += step - это просто чтобы меньше было задач
                     {
                         var b1 = new byte[size];
                         var b2 = new byte[size];
@@ -69,7 +69,7 @@ namespace main_tests
                 fixed (byte * Sb = s)
                 {
                     k.Init1();
-                    k.Init2();
+                    k.Init2(); // TODO: debug
                 }
                 k.Dispose();
                 /*

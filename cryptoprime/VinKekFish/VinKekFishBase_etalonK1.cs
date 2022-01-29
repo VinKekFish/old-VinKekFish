@@ -359,6 +359,7 @@ namespace cryptoprime.VinKekFish
 
             tweakTmp[0] = tweak[0];
             tweakTmp[1] = tweak[1];
+            tweakTmp[2] = tweak[0] ^ tweak[1];
 
             // getNumberFromRing не вызывается, вместо этого используется самостоятельный расчёт, он должен быть более быстрым
             int j   = len >> 1;

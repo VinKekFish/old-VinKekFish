@@ -45,18 +45,18 @@ namespace vinkekfish
             doThreeFish();
             doPermutation(transpose128_3200);
 
-            BytesBuilder.CopyTo(CryptoStateLen, CryptoStateLen, State2, State1); State1Main = true;
-
+            BytesBuilder.CopyTo(Len, Len, State2, State1); State1Main = true;
+return;
             // Основной шаг алгоритма: раунды
             // Каждая итерация цикла - это полураунд
             countOfRounds <<= 1;
             for (int round = 0; round < countOfRounds; round++)
             {
                 doKeccak();
-                doPermutation(TB); TB += CryptoStateLen;
+                doPermutation(TB); TB += Len;
 
                 doThreeFish();
-                doPermutation(TB); TB += CryptoStateLen;
+                doPermutation(TB); TB += Len;
 
                 // Довычисление tweakVal для второго преобразования VinKekFish
                 // Вычисляем tweak для данного раунда (работаем со старшим 4-хбайтным словом младшего 8-мибайтного слова tweak)
@@ -91,7 +91,7 @@ namespace vinkekfish
             lock (this)
             {
                 Clear();
-                tablesForPermutations = VinKekFish_k1_base_20210419.GenStandardPermutationTables(CountOfRounds, allocator, key: keyForPermutations, key_length: keyForPermutations.len, OpenInitVector: OpenInitVectorForPermutations, OpenInitVector_length: OpenInitVectorForPermutations.len);
+                tablesForPermutations = VinKekFish_k1_base_20210419.GenStandardPermutationTables(CountOfRounds, allocator, key: keyForPermutations, key_length: keyForPermutations == null ? 0 : keyForPermutations.len, OpenInitVector: OpenInitVectorForPermutations, OpenInitVector_length: OpenInitVectorForPermutations == null ? 0 : OpenInitVectorForPermutations.len);
                 isInit1    = true;
             }
         }
@@ -143,9 +143,9 @@ namespace vinkekfish
         public virtual void SimpleInit(bool RandomInit = true)
         {
             if (RandomInit)
-            {
-                using var tweak = allocator.AllocMemory(CryptoTweakLen);
-                tweak.Clear();
+            {   // TODO: что здесь такое???
+                /*using var tweak = allocator.AllocMemory(CryptoTweakLen);
+                tweak.Clear();*/
                 Init1();
             }
             else
@@ -167,8 +167,8 @@ namespace vinkekfish
         {
             if (!State1Main)
                 throw new Exception("VinKekFishBase_KN_20210525.InputKey: Fatal algorithmic error: !State1Main");
-
-            if (TweakInit != null && TweakInit.len >= CryptoTweakLen * 2)
+// TODO: проверить в тестах, что все инициализаторы действительно используются
+            if (TweakInit != null && TweakInit.len >= CryptoTweakLen)
             {
                 var T     = (ulong *) TweakInit;
                 Tweaks[0] = T[0];
@@ -188,7 +188,7 @@ namespace vinkekfish
                 State1[MAX_SINGLE_KEY_K + 2 + 1] ^= len2;
             }
 
-            long keyLen = key.len;
+            long keyLen = key == null ? 0 :key.len;
             var dt      = keyLen;
             if (key != null)
             {
@@ -206,7 +206,10 @@ namespace vinkekfish
 
             step(RoundsForFirstKeyBlock);
 
-            var TailOfKey = key.array + dt;         // key + dt - это будет неверно! , см. перегрузку оператора "+" в Record
+            byte * TailOfKey = null;         // key + dt - это будет неверно! , см. перегрузку оператора "+" в Record
+            if (key != null)
+                TailOfKey = key.array + dt;
+
             while (keyLen > 0)
             {
                 dt = keyLen;
