@@ -32,7 +32,7 @@ namespace vinkekfish
         protected byte *  State2 => State1 + Len;
                                                                             /// <summary>Массив матриц b и c на каждый блок Keccak</summary>
         protected byte *  Matrix => State2 + Len;                           /// <summary>Массив tweak - по 4 tweak на каждый блок ThreeFish</summary>
-        protected ulong * Tweaks => (ulong *) (Matrix + MatrixArrayLen);                  
+        protected ulong * Tweaks => (ulong *) (Matrix + MatrixArrayLen);
                                                                             /// <summary>Длина массива Tweaks в байтах</summary>
         public readonly int TweaksArrayLen = 0;                             /// <summary>Количество tweak на один блок ThreeFish</summary>
         public const    int CountOfTweaks  = 8;                             /// <summary>Длина массива Matrix в байтах</summary>
@@ -109,14 +109,9 @@ namespace vinkekfish
             if (CountOfRounds < MIN_ROUNDS_K)
                 throw new ArgumentOutOfRangeException("VinKekFishBase_KN_20210525: CountOfRounds < MIN_ROUNDS_K");
             if (K < 1 || K > 19)
-                throw new ArgumentOutOfRangeException("VinKekFishBase_KN_20210525: K < 1 || K > 19");
+                throw new ArgumentOutOfRangeException("VinKekFishBase_KN_20210525: K < 1 || K > 19. Read VinKekFish.md");
             if ((K & 1) == 0)
                 throw new ArgumentOutOfRangeException("VinKekFishBase_KN_20210525: (K & 1) == 0. Read VinKekFish.md");
-
-            // Нам нужно 5 элементов, но мы делаем так, чтобы было кратно линии кеша
-            TweaksArrayLen = CountOfTweaks * CryptoTweakLen * LenInThreeFish;
-            MatrixArrayLen = MatrixLen * LenInKeccak;
-            CountOfFinal = K <= 11 ? 2 : 3;
 
             if (ThreadCount <= 0)
                 ThreadCount = Environment.ProcessorCount;
@@ -130,6 +125,11 @@ namespace vinkekfish
             Len                = K * CryptoStateLen;
             LenInThreeFish     = Len / ThreeFishBlockLen;
             LenInKeccak        = Len / KeccakBlockLen;
+
+            // Нам нужно 5 элементов, но мы делаем так, чтобы было кратно линии кеша
+            TweaksArrayLen = CountOfTweaks * CryptoTweakLen * LenInThreeFish;
+            MatrixArrayLen = MatrixLen * LenInKeccak;
+            CountOfFinal = K <= 11 ? 2 : 3;
 
             // Вообще говоря, больше 2-х потоков на перестановке может быть не оправдано, однако там всё сложно
             LenInThreadBlock = ThreadCount;

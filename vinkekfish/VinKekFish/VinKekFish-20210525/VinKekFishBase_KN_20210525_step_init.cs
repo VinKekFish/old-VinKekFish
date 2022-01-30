@@ -38,12 +38,14 @@ namespace vinkekfish
                 countOfRounds = this.CountOfRounds;
 
             var TB = tablesForPermutations;
-            State1Main = true;
+            if (!State1Main)
+                throw new Exception("VinKekFishBase_KN_20210525.step: Fatal algorithmic error: !State1Main (at start)");
+            // State1Main = true;
 
             // Предварительное преобразование
-            doPermutation(transpose128_3200);
+            doPermutation(transpose128);
             doThreeFish();
-            doPermutation(transpose128_3200);
+            doPermutation(transpose128);
 
             BytesBuilder.CopyTo(Len, Len, State2, State1); State1Main = true;
 
@@ -68,9 +70,9 @@ namespace vinkekfish
             for (int i = 0; i < CountOfFinal; i++)
             {
                 doKeccak();
-                doPermutation(transpose200_3200);
+                doPermutation(transpose200);
                 doKeccak();
-                doPermutation(transpose200_3200_8);
+                doPermutation(transpose200_8);
             }
 
             if (!State1Main)
@@ -91,7 +93,7 @@ namespace vinkekfish
             lock (this)
             {
                 Clear();
-                tablesForPermutations = VinKekFish_k1_base_20210419.GenStandardPermutationTables(CountOfRounds, allocator, key: keyForPermutations, key_length: keyForPermutations == null ? 0 : keyForPermutations.len, OpenInitVector: OpenInitVectorForPermutations, OpenInitVector_length: OpenInitVectorForPermutations == null ? 0 : OpenInitVectorForPermutations.len);
+                tablesForPermutations = GenStandardPermutationTables(CountOfRounds, allocator, key: keyForPermutations, key_length: keyForPermutations == null ? 0 : keyForPermutations.len, OpenInitVector: OpenInitVectorForPermutations, OpenInitVector_length: OpenInitVectorForPermutations == null ? 0 : OpenInitVectorForPermutations.len);
                 isInit1    = true;
             }
         }
@@ -133,7 +135,7 @@ namespace vinkekfish
         {
             foreach (var t in threads)
             {
-                if (t.ThreadState != ThreadState.Running)
+                if (t.ThreadState != ThreadState.Running && t.ThreadState != ThreadState.WaitSleepJoin)
                     t.Start();
             }
         }

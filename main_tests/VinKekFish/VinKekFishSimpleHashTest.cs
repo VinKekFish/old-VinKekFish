@@ -34,10 +34,11 @@ namespace main_tests
                 yield return new SourceTask() {Key = "byte[0]", Value = new byte[0]};
                 yield return new SourceTask() {Key = "Свет мой зеркальце скажи", Value = new UTF8Encoding().GetBytes("Свет мой зеркальце скажи")};
 
-                const int step = 255;
-                const int Size = 1; // 1024
+                const int step  = 256;
+                const int stepS = 1024;
+                const int Size  = 1024 + 1;
                 for (int K = 1; K <= 19; K += 2)
-                for (int size = 1; size <= Size; size++)
+                for (int size = 1; size <= Size; size += stepS)
                 {
                     for (int val = 0; val <= 255; val += step) // += step - это просто чтобы меньше было задач
                     {
@@ -64,7 +65,7 @@ namespace main_tests
             {
                 var s = BytesBuilder.CloneBytes(ts.Value);
 
-                var k = new VinKekFishBase_KN_20210525();
+                var k = new VinKekFishBase_KN_20210525(K: ts.K);
                 //byte[] h1, h2;
                 fixed (byte * Sb = s)
                 {

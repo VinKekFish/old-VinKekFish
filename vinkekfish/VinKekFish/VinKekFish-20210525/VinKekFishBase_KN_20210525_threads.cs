@@ -336,7 +336,7 @@ namespace vinkekfish
                                                                     /// <summary>Попусту теребит память: это простая защита от выгрузки памяти в файл подкачки. Это плохо, т.к. раз за разом ключ передаётся из памяти в процессор в неизменном виде, что повышает риски перехвата по ПЭМИН простыми средствами.</summary>
         protected void BlankRead()
         {
-            for (int i = 0; i < Len; i += PAGE_SIZE)
+            for (int i = 0; i < States.len; i += PAGE_SIZE)
             {
                 var b = State1[i];
             }
