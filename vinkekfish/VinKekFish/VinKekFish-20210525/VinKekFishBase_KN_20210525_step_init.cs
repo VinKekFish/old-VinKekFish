@@ -46,7 +46,7 @@ namespace vinkekfish
             doPermutation(transpose128_3200);
 
             BytesBuilder.CopyTo(Len, Len, State2, State1); State1Main = true;
-return;
+
             // Основной шаг алгоритма: раунды
             // Каждая итерация цикла - это полураунд
             countOfRounds <<= 1;
@@ -170,6 +170,7 @@ return;
 // TODO: проверить в тестах, что все инициализаторы действительно используются
             if (TweakInit != null && TweakInit.len >= CryptoTweakLen)
             {
+                // Tweaks уже очищено в init2, так что инициализируем только если нужно
                 var T     = (ulong *) TweakInit;
                 Tweaks[0] = T[0];
                 Tweaks[1] = T[1];

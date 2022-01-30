@@ -70,6 +70,7 @@
     <None Include="VinKekFish\VinKekFish-20210419\Documentation\VinKekFish_k1_base_20210419_keyGeneration_конфи.md" />
     <None Include="VinKekFish\VinKekFish-20210419\Documentation\VinKekFish_k1_base_20210419_состояния.md" />
     <None Include="VinKekFish\VinKekFish-20210419\Documentation\VinKekFish_k1_base_20210419_keyGeneration_состояния.md" />
+    <Compile Include="VinKekFish\VinKekFish-20210525\VinKekFishBase_KN_20210525_get_pt.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\cryptoprime\010_cryptoprime.csproj">

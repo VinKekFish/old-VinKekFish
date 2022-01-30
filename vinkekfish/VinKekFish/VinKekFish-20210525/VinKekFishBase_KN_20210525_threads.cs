@@ -84,8 +84,8 @@ namespace vinkekfish
                 {
                     Task_CountOfTasks = ThreadsTask_CountOfTasks;
                     try
-                    {// TODO: debug
-                        // ThreadsFunc_Current();
+                    {
+                        ThreadsFunc_Current();
                     }
                     catch (Exception ex)
                     {
@@ -307,13 +307,12 @@ namespace vinkekfish
 
                 var table  = CurrentPermutationTable;
                 var offset = LenThreadBlock * index;
-                var off1   = st1 + offset;
-                var off2   = st2 + offset;
 
                 // Должно быть жутко неэффективно при многопоточной реализации, т.к. линии кеша будут пересекаться
-                for (int i = 0; i < LenThreadBlock; i++)
+                var e = offset + LenThreadBlock;
+                for (int i = offset; i < e; i++)
                 {
-                    off2[i] = off1[  table[i]  ];
+                    st2[i] = st1[  table[i]  ];
                 }
 
             }
