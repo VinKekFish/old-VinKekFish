@@ -1,6 +1,9 @@
 # VinKekFish
 
-For English see translator https://translate.yandex.ru/?lang=ru-en or https://translate.google.com/?sl=ru&tl=en&op=translate
+For English see translator
+https://translate.yandex.ru/?lang=ru-en
+or
+https://translate.google.com/?sl=ru&tl=en&op=translate
 
 Не уверен, что доведу проект до конца.
 
