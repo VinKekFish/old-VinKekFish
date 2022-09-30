@@ -23,7 +23,7 @@ keccak версии 512 битов (максимальный из возможн
 
 	cryptoprime/keccak.cs
 
-	функция getHash512 - это пример, как рассчитать хеш
+	функция getHash512 - это пример, как рассчитать хеш (обратите внимание, этот хеш отличается от sha-3)
 	https://github.com/VinKekFish/VinKekFish/blob/master/vinkekfish/keccak/keccak-20200918/keccak-base-20200918.cs
 
 	генератор псевдослучайных чисел (очень медленно работает)
